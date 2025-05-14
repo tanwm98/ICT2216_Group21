@@ -1,0 +1,84 @@
+body, html {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+    flex-direction: column;
+}
+.container {
+    display: flex;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    padding: 0 !important;
+}
+
+.left-side, .right-side {
+    width: 50%;
+    padding: 30px;
+}
+
+.left-side {
+    background-color: #fff;
+    align-self: center;
+}
+
+label {
+    width: 40%;
+}
+
+.right-side {
+    background-color: #ffffff;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.right-side img {
+    width: 90%;
+}
+
+#loginBtn, #registerBtn {
+    border-radius: 4px;
+    background-color: #fc6c3f;
+    margin-bottom: 15px;
+    margin-top: 10px;
+    color: white;
+}
+
+input, #loginBtn, #registerBtn {
+    width: 100%;
+}
+
+label {
+    width: 40%;
+}
+
+a.link {
+    color: #fc6c3f;
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .left-side, .right-side {
+        width: 100%;
+    }
+
+    .right-side {
+        order: -1; /* Moves the image section above the form */
+        padding: 20px;
+    }
+
+    .left-side {
+        padding: 20px;
+    }
+
+    .right-side img {
+        width: 100%;
+        height: auto;
+    }
+}
+

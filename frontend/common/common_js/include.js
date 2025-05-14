@@ -3,6 +3,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const includes = {
       header: '/common/header.html',
       footer: '/common/footer.html',
+      head: '/common/head.html'
     };
   
     for (const [key, path] of Object.entries(includes)) {

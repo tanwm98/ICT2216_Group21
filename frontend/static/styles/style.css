@@ -5,12 +5,12 @@
 /* ***** Import CSS ***** */
 
 @import 'bootstrap/bootstrap.min.css';
-@import 'others/animate.css';
+/* @import 'others/animate.css';
 @import 'others/magnific-popup.css';
 @import 'others/meanmenu.min.css';
 @import 'others/owl.carousel.min.css';
 @import 'others/font-awesome.min.css';
-@import 'others/pe-icon-7-stroke.css';
+@import 'others/pe-icon-7-stroke.css'; */
 
 /* --------------------
 :: 1.0 Base CSS
@@ -27,6 +27,173 @@ body {
     z-index: auto;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    color: #232d37;
+    line-height: 1.25;
+}
+
+p {
+    color: #51545f;
+    font-size: 16px;
+}
+
+.section_padding_100 {
+    padding-top: 100px;
+    padding-bottom: 100px;
+}
+
+.section_padding_100_70 {
+    padding-top: 100px;
+    padding-bottom: 70px;
+}
+
+.section_padding_50 {
+    padding-top: 50px;
+    padding-bottom: 50px;
+}
+
+.section_padding_50_20 {
+    padding-top: 50px;
+    padding-bottom: 20px;
+}
+
+.section_padding_150 {
+    padding-top: 150px;
+    padding-bottom: 150px;
+}
+
+.section_padding_200 {
+    padding-top: 200px;
+    padding-bottom: 200px;
+}
+
+.section_padding_80 {
+    margin-top: 80px;
+    margin-bottom: 80px;
+}
+
+.section_padding_80_50 {
+    padding-top: 80px;
+    padding-bottom: 50px;
+}
+
+.section_padding_30_80 {
+    padding-top: 30px;
+    padding-bottom: 80px;
+}
+
+.section_padding_80_0 {
+    padding-top: 80px;
+    padding-bottom: 0;
+}
+
+.section_padding_0_80 {
+    padding-top: 0;
+    padding-bottom: 80px;
+}
+
+img {
+    max-width: 100%;
+}
+
+.mt-15 {
+    margin-top: 15px;
+}
+
+.mt-30 {
+    margin-top: 30px;
+}
+
+.mt-40 {
+    margin-top: 40px;
+}
+
+.mt-50 {
+    margin-top: 50px;
+}
+
+.mt-100 {
+    margin-top: 100px;
+}
+
+.mt-150 {
+    margin-top: 150px;
+}
+
+.mr-15 {
+    margin-right: 15px;
+}
+
+.mr-30 {
+    margin-right: 30px;
+}
+
+.mr-50 {
+    margin-right: 50px;
+}
+
+.mr-100 {
+    margin-right: 100px;
+}
+
+.mb-15 {
+    margin-bottom: 15px;
+}
+
+.mb-30 {
+    margin-bottom: 30px;
+}
+
+.mb-50 {
+    margin-bottom: 50px;
+}
+
+.mb-100 {
+    margin-bottom: 100px;
+}
+
+.ml-15 {
+    margin-left: 15px;
+}
+
+.ml-30 {
+    margin-left: 30px;
+}
+
+.ml-50 {
+    margin-left: 50px;
+}
+
+.ml-100 {
+    margin-left: 100px;
+}
+
+ul,
+ol {
+    margin: 0;
+    padding: 0;
+}
+
+#scrollUp {
+    bottom: 55px;
+    font-size: 14px;
+    right: 50%;
+    width: 30px;
+    background-color: #fc6c3f;
+    color: #fff;
+    text-align: center;
+    height: 30px;
+    line-height: 30px;
+    border-radius: 50%;
+    margin-right: -15px;
+}
 
 a,
 a:hover,
@@ -57,6 +224,74 @@ li {
     font-size: 90px;
     font-weight: 100;
     margin: 0;
+}
+
+.font-shadow-into-light {
+    font-family: 'Shadows Into Light Two', cursive !important;
+}
+
+.yummy-table {
+    display: table;
+    height: 100%;
+    left: 0;
+    position: relative;
+    top: 0;
+    width: 100%;
+    z-index: 2;
+}
+
+.yummy-table-cell {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+#preloader {
+    overflow: hidden;
+    background-color: #fff;
+    height: 100%;
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 999999;
+}
+
+.yummy-load {
+    -webkit-animation: 2000ms linear 0s normal none infinite running yummy-load;
+    animation: 2000ms linear 0s normal none infinite running yummy-load;
+    background: transparent none repeat scroll 0 0;
+    border-color: #dddddd #dddddd #fc6c3f;
+    border-radius: 50%;
+    border-style: solid;
+    border-width: 3px;
+    height: 40px;
+    left: calc(50% - 20px);
+    position: relative;
+    top: calc(50% - 20px);
+    width: 40px;
+    z-index: 9;
+}
+
+@-webkit-keyframes yummy-load {
+    0% {
+        -webkit-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+    100% {
+        -webkit-transform: rotate(360deg);
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes yummy-load {
+    0% {
+        -webkit-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+    100% {
+        -webkit-transform: rotate(360deg);
+        transform: rotate(360deg);
+    }
 }
 
 
