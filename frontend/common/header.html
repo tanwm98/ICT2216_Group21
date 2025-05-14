@@ -1,0 +1,83 @@
+<!-- ****** Top Header Area Start ****** -->
+<div class="top_header_area">
+    <div class="container">
+        <div class="row">
+            <div class="col-5 col-sm-5">
+                <!--  Top Social bar start -->
+                <div class="top_social_bar">
+                    <a href="https://www.facebook.com/SingaporeTech/"><i class="fa fa-facebook"
+                            aria-hidden="true"></i></a>
+                    <a href="https://x.com/singaporetech"><i class="fa fa-twitter" aria-hidden="true"></i></a>
+                    <a href="https://www.linkedin.com/school/singapore-institute-of-technology/"><i
+                            class="fa fa-linkedin" aria-hidden="true"></i></a>
+                    <a href="https://www.singaporetech.edu.sg/"><i class="fa fa-dribbble" aria-hidden="true"></i></a>
+                </div>
+            </div>
+            <!-- search -->
+            <div class="col-4 col-sm-4">
+                <div class="signup-search-area d-flex align-items-center justify-content-end">
+                    <!-- Search Button Area -->
+                    <div class="search_button">
+                        <a class="searchBtn" href="#"><i class="fa fa-search" aria-hidden="true"></i></a>
+                    </div>
+                    <!-- Search Form -->
+                    <div class="search-hidden-form">
+                        <form action="#" method="get">
+                            <input type="search" name="search" id="search-anything" placeholder="Search Anything...">
+                            <input type="submit" value="" class="d-none">
+                            <span class="searchBtn"><i class="fa fa-times" aria-hidden="true"></i></span>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!--  Login Register Area -->
+            <div class="col-3 col-sm-3">
+                <div class="signup-search-area d-flex align-items-center justify-content-end">
+                    <div class="login_register_area d-flex">
+                        
+                        <div class="profile">
+                            <a href="{{ url_for('profile') }}">Profile</a>
+                        </div>
+                        <div class="logout">
+                            <a href="{{ url_for('logout') }}">Logout</a>
+                        </div>
+                        
+                        <!--For users that did not sign in-->
+                        <!-- <div class="login">
+                            <a href="{{ url_for('login') }}">Sign in</a>
+                        </div>
+                        <div class="register">
+                            <a href="{{ url_for('register') }}">Sign up</a> -->
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+</div>
+<!-- ****** Top Header Area End ****** -->
+
+<!-- ****** Header Area Start ****** -->
+<header class="header_area">
+    <div class="container">
+        <div class="row">
+            <!-- Logo Area Start -->
+            <div class="col-12">
+                <div class="logo_area text-center">
+                    <a href="{{ url_for('home') }}" class="yummy-logo">
+                        <img src="{{ url_for('static', filename='static/img/core-img/favicon.ico') }}" alt="" height="150px">
+                        <br>
+                        Kirby Chope
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        
+        
+    </div>
+</header>
+<!-- ****** Header Area End ****** -->
