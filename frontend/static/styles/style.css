@@ -306,6 +306,10 @@ li {
 /* --------------------
 :: 2.0 Top Header Area CSS
 -------------------- */
+.header_area .yummy-logo {
+    all: unset; /* resets styles */
+    font-size: 1.5rem;
+}
 
 .top_header_area {
     width: 100%;
@@ -631,7 +635,6 @@ h6.post-headline:hover {
     text-decoration: none;
     background-color: #f8f9fa;
 }
-
 
 
 /* TESTING */
