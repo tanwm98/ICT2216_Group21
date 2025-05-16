@@ -4,6 +4,14 @@ const port = 3000;
 const path = require('path');
 const pool = require('./db'); // your database module
 
+require('dotenv').config();
+const session = require('express-session');
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 24 }
+}));
 
 app.use('/html', express.static(path.join(__dirname, 'frontend/html')));
 app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
@@ -54,6 +62,7 @@ app.post('/login', async (req, res) => {
             // Successful login
             // Check user role
             if (user.role == 'user'){
+                req.session.userId = user.id; 
                 res.redirect('/');
             }
             else {
@@ -69,6 +78,17 @@ app.post('/login', async (req, res) => {
     }
 });
 
+app.get('/api/session', (req, res) => {
+  res.json({ loggedIn: !!req.session.userId });
+});
+
+// Logout
+app.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    res.clearCookie('connect.sid');
+    res.redirect('/');
+  });
+});
 
 // to run : npx nodemon server.js -> can try nodemon server.js if it works for yall
 app.listen(port, () => {
