@@ -1,0 +1,45 @@
+body {
+      background-color: #f4f6f8;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: auto;
+    }
+
+    .confirm-container {
+      justify-content: center;
+      align-items: center;
+      padding: 0px 300px 0px;
+    }
+
+    .confirmation-box {
+      background-color: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 500px;
+    }
+
+    .confirmation-box h2 {
+      color: #28a745;
+      margin-bottom: 20px;
+    }
+
+    .details {
+      text-align: left;
+      margin: 20px 0;
+      font-size: 16px;
+    }
+
+    .details p {
+      margin: 8px 0;
+    }
+
+    .home-button:hover {
+      background-color: #0056b3;
+    }
+
+    #homeBtn {
+      justify-content: center;
+    }

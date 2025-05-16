@@ -181,7 +181,7 @@ ol {
     padding: 0;
 }
 
-#searchBtn {
+#searchBtn, #homeBtn {
     border-radius: 4px;
     background-color: #fc6c3f;
     margin-bottom: 15px;

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Booking Confirmation</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Global CSS -->
+  <link rel="stylesheet" href="/static/styles/style.css">
+
+  <!-- Specific page CSS -->
+  <link rel="stylesheet" href="/static/styles/confirm.css">
+
+  <!-- Head Include -->
+  <div id="head-placeholder"></div>
+</head>
+<body>
+
+    <!-- Header Include -->
+    <div id="header-placeholder"></div>
+
+    <div class="container">
+        <div class="confirm-container">
+            <div class="confirmation-box">
+            <h2>✅ Reservation Confirmed!</h2>
+            <p>Thank you for booking with us. <br>Here are your reservation details:</p>
+            
+            <!-- **Will need to export it from Database**-->
+            <div class="details">
+                <p><strong>Restaurant:</strong> ASTONS Specialities - Sembawang Shopping Centre</p>
+                <p><strong>Date:</strong> 21 May</p>
+                <p><strong>Time:</strong> 2:30 PM</p>
+                <p><strong>Party Size:</strong> 2 people</p>
+                <p><strong>Name:</strong> John Doe</p>
+                <p><strong>Email:</strong> john@example.com</p>
+                <p><strong>Phone:</strong> +65 9123 4567</p>
+            </div>
+
+            <div class="col-3 pt-3">
+                <a href="home.html" class="btn btn-primary" id="homeBtn">Back to Home</a>
+            </div>
+            
+        </div>
+        </div>
+        
+
+    </div>
+    
+
+    <!-- Footer Include -->
+    <div id="footer-placeholder"></div>
+
+    <!-- Load include.js FIRST -->
+    <script src="/common/common_js/include.js"></script>
+
+    <!-- Then page-specific JS TO CHANGE***-->
+    <script src="/js/home.js"></script>
+
+</body>
+</html>
