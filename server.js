@@ -62,7 +62,7 @@ app.post('/login', async (req, res) => {
             // Successful login
             // Check user role
             if (user.role == 'user'){
-                req.session.userId = user.id; 
+                req.session.userId = user.id; // save user session for change in header file used
                 res.redirect('/');
             }
             else {
