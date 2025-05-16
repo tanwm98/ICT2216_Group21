@@ -4,6 +4,7 @@ const port = 3000;
 const path = require('path');
 const pool = require('./db'); // your database module
 
+// For session
 require('dotenv').config();
 const session = require('express-session');
 app.use(session({
