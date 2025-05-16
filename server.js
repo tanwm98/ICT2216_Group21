@@ -20,15 +20,22 @@ const homeRoutes = require('./backend/routes/homeApi');
 // using the routes
 app.use(homeRoutes);
 
-// default route is redirect to home.html -> can change later on
+// default route for user -> can change later on
 app.get('/', (req, res) => {
     res.redirect('/html/home.html');
 });
 
+// default route for admin
+app.get('/admin', (req, res) => {
+    res.redirect('/html/admindashboard.html');
+});
+
+// Display Login page
 app.get('/login', (req, res) => {
     res.redirect('/html/login.html');
 });
 
+// Handle login, check user role
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -45,7 +52,14 @@ app.post('/login', async (req, res) => {
         // Compare plain-text password directly
         if (user.password === password) {
             // Successful login
-            res.redirect('/');
+            // Check user role
+            if (user.role == 'user'){
+                res.redirect('/');
+            }
+            else {
+                res.redirect('/admin');
+            }
+            
         } else {
             res.status(401).send('Invalid username or password');
         }
