@@ -5,9 +5,9 @@ const express = require('express');
 const router = express.Router();
 
 // Route to display data
-router.get('/displayUsers', async (req, res) => {
+router.get('/displayStores', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM users'); 
+        const result = await pool.query('SELECT * FROM stores'); 
         res.json(result.rows); // send data back as json
     } catch (err) {
         console.error('Error querying database:', err);
