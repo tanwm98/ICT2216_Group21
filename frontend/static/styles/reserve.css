@@ -1,0 +1,98 @@
+body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f9fb;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 600px;
+      background-color: white;
+      margin: 30px;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .timer {
+      background-color: #e6fff2;
+      color: #008a00;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .reservation-details {
+      display: flex;
+      justify-content: space-between;
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .login-options {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0;
+    }
+
+    .login-options button {
+      flex: 1;
+      margin: 0 5px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .krisflyer {
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #fafafa;
+      margin-bottom: 20px;
+    }
+
+    .optional {
+      font-weight: bold;
+      margin-top: 30px;
+    }
+
+    .submit-btn {
+      margin-top: 20px;
+      padding: 12px;
+      background-color: #ff7f50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      width: 100%;
+      cursor: pointer;
+      font-size: 16px;
+    }
