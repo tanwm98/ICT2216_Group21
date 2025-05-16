@@ -2,17 +2,24 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const path = require('path');
-const pool = require('./db'); // your database module
+const pool = require('./db'); // database module
+const argon2 = require('argon2'); // For password hashing
 
 // For session
 require('dotenv').config();
 const session = require('express-session');
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
+
+// Session
+app.get('/api/session', (req, res) => {
+  res.json({ loggedIn: !!req.session.userId });
+});
 
 app.use('/html', express.static(path.join(__dirname, 'frontend/html')));
 app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
@@ -58,12 +65,14 @@ app.post('/login', async (req, res) => {
 
         const user = result.rows[0];
 
-        // Compare plain-text password directly
-        if (user.password === password) {
+        // Use argon2 to verify the hashed password
+        const isMatch = await argon2.verify(user.password, password);
+
+        if (isMatch) {
             // Successful login
             // Check user role
             if (user.role == 'user'){
-                req.session.userId = user.id; // save user session for change in header file used
+                req.session.userId = user.user_id; // save user session for change in header file used
                 res.redirect('/');
             }
             else {
@@ -79,11 +88,6 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Session
-app.get('/api/session', (req, res) => {
-  res.json({ loggedIn: !!req.session.userId });
-});
-
 // Logout
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
@@ -92,14 +96,30 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Display Login page
+// Display register page
 app.get('/register', (req, res) => {
     res.redirect('/html/register.html');
 });
 
 // Handle register
 app.post('/register', async (req, res) => {
-    
+    const { name, email, password } = req.body;
+
+    try {
+        // Hash the password with Argon2
+        const hashedPassword = await argon2.hash(password);
+
+        // Insert user into database
+        const result = await pool.query(
+            'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)',
+            [name, email, hashedPassword, "user"]
+        );
+
+        res.redirect('/login');
+    } catch (err) {
+        console.error(err);  // Make sure to check full error here
+        res.status(500).send('Server error');
+    }
 });
 
 // to run : npx nodemon server.js -> can try nodemon server.js if it works for yall
