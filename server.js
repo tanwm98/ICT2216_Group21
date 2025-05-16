@@ -78,6 +78,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
+// Session
 app.get('/api/session', (req, res) => {
   res.json({ loggedIn: !!req.session.userId });
 });
@@ -88,6 +89,16 @@ app.get('/logout', (req, res) => {
     res.clearCookie('connect.sid');
     res.redirect('/');
   });
+});
+
+// Display Login page
+app.get('/register', (req, res) => {
+    res.redirect('/html/register.html');
+});
+
+// Handle register
+app.post('/register', async (req, res) => {
+    
 });
 
 // to run : npx nodemon server.js -> can try nodemon server.js if it works for yall

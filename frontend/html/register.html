@@ -6,25 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Title -->
-    <title>Kirby Chope - Login</title>
+    <title>Kirby Chope - Register</title>
 
     <!-- Bootstrap CSS -->
-  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
 
     <!-- Other CSS -->
     <link href="/static/styles/login.css" rel="stylesheet">
 
-
-    <!-- JS for login -->
-    <!-- <script defer src="{{ url_for('static', filename='scripts/login.js') }}"></script> -->
-
     <!-- Head Include -->
     <div id="head-placeholder"></div>
-
 </head>
 
 <body>
-    
+
     <div class="row">
         <!-- Logo Area Start -->
         <div class="col-12">
@@ -37,22 +32,30 @@
             </div>
         </div>
     </div>
+
     <div class="container sticky">
         <div class="left-side col-md-6">
-            <h1>Welcome Back!</h1>
-            <form id="loginForm" method="POST" action="/login">
+            <h1>Create an Account</h1>
+            <form id="registerForm" method="POST" action="/register">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input class="form-control" id="username" name="username" required>
+                    <label for="name">Username</label>
+                    <input class="form-control" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" class="form-control" id="password" name="password" required>
                 </div>
-                <button type="submit" class="btn" id="loginBtn">Log In</button>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                </div>
+                <button type="submit" class="btn" id="registerBtn">Sign Up</button>
             </form>
-            <!-- <p><a href="#" class="forgotPW">Forgot password?</a></p> -->
-            <p>Don't have an account yet? <a href="/register">Register</a></p>
+            <p>Already have an account? <a href="/login">Sign in</a></p>
             <a href="/">Back to Home</a>
         </div>
         <div class="right-side col-md-6">
