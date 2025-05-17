@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Restaurant Owner Signup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 2em;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: auto;
+      background: white;
+      padding: 2em;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 1.5em;
+    }
+
+    .section {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1.5em;
+      margin-bottom: 2em;
+      background: #fcfcfc;
+    }
+
+    .section h3 {
+      margin-top: 0;
+      margin-bottom: 1em;
+      font-size: 1.2em;
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 0.5em;
+    }
+
+    label {
+      display: block;
+      margin-top: 1em;
+      font-weight: bold;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.6em;
+      margin-top: 0.3em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    input[type="file"] {
+      padding: 0;
+    }
+
+    button {
+      display: block;
+      margin: 2em auto 0 auto;
+      padding: 0.9em 2em;
+      background: #fdb913;
+      color: white;
+      border: none;
+      font-weight: bold;
+      font-size: 1em;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e0a900;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Restaurant Owner Signup</h2>
+
+    <form method="POST" enctype="multipart/form-data" action="mailto:admin@example.com">
+
+        <h3>Owner Information</h3>
+        <!-- Owner Info -->
+        <div class="section">
+
+            <label for="ownerName">Owner Name</label>
+            <input type="text" id="ownerName" name="ownerName" required />
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required />
+        </div>
+
+
+        <h3>Restaurant Information</h3>
+        <!-- Restaurant Info -->
+        <div class="section">
+        
+
+            <label for="restaurantName">Restaurant Name</label>
+            <input type="text" id="restaurantName" name="restaurantName" required />
+
+            <label for="address">Address</label>
+            <textarea id="address" name="address" rows="2" required></textarea>
+
+            <label for="postal">Postal Code</label>
+            <input type="text" id="postal" name="postal" required />
+
+            <label for="location">Location</label>
+            <input type="text" id="location" name="location" required />
+
+            <label for="image">Restaurant Image</label>
+            <input type="file" id="image" name="image" accept="image/*" required />
+
+            <label for="cuisine">Cuisine Type</label>
+            <input type="text" id="cuisine" name="cuisine" placeholder="e.g., Italian, Asian Fusion" required />
+
+            <label for="price">Price Range</label>
+            <select id="price" name="price" required>
+            <option value="">Select</option>
+            <option value="$">$</option>
+            <option value="$$">$$</option>
+            <option value="$$$">$$$</option>
+            <option value="$$$$">$$$$</option>
+            <option value="$$$$$">$$$$$</option>
+            </select>
+
+            <label for="capacity">Seating Capacity</label>
+            <input type="number" id="capacity" name="capacity" min="1" required />
+        </div>
+
+        <button type="submit">Submit</button>
+    </form>
+  </div>
+</body>
+</html>
