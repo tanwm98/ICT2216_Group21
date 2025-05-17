@@ -46,7 +46,26 @@ app.get('/admin', (req, res) => {
     res.redirect('/html/admindashboard.html');
 });
 
-// default route for admin
+app.get('/api/restaurants', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        s."storeName", 
+        s.location, 
+        u.name AS "ownerName", 
+        s.store_id
+      FROM stores s
+      JOIN users u ON s.owner_id = u.user_id
+    `);
+    res.json(result.rows); // Send result to frontend
+  } catch (err) {
+    console.error('Error fetching restaurants:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// default route for restaurant
 app.get('/resOwner', (req, res) => {
     res.redirect('/html/resOwnerdashboard.html');
 });
