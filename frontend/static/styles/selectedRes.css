@@ -1,0 +1,18 @@
+#paxButton {
+    width: 100%;
+}
+
+#adultDropdown, .dropdown-menu {
+    width: 100%;
+}
+
+#childDropdown, #adultDropdown {
+    width: 100%;
+}
+
+#paxCard {
+    padding: 5px;
+    border: 2px solid #dfdfdf;
+    box-shadow: 0 8px 4px lightgrey;
+}
+

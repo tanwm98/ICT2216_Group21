@@ -32,9 +32,11 @@ app.use(express.json());
 
 // import route files
 const homeRoutes = require('./backend/routes/homeApi');
+const selectedResRoutes = require('./backend/routes/selectedResApi');
 
 // using the routes
 app.use(homeRoutes);
+app.use(selectedResRoutes);
 
 // default route for user -> can change later on
 app.get('/', (req, res) => {
