@@ -72,7 +72,7 @@ app.get('/resOwner', (req, res) => {
 
 // Display Login page
 app.get('/login', (req, res) => {
-    res.redirect('/html/login.html');
+    res.sendFile(path.join(__dirname, 'frontend/html/login.html'));
 });
 
 // Handle login, check user role
@@ -108,11 +108,10 @@ app.post('/login', async (req, res) => {
             
             
         } else {
-            res.status(401).send('Invalid username or password');
+            res.redirect('/login?error=1');
         }
     } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).send('Server error');
+        res.redirect('/login?error=1');
     }
 });
 
