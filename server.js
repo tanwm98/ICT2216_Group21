@@ -46,6 +46,11 @@ app.get('/admin', (req, res) => {
     res.redirect('/html/admindashboard.html');
 });
 
+// default route for admin
+app.get('/resOwner', (req, res) => {
+    res.redirect('/html/resOwnerdashboard.html');
+});
+
 // Display Login page
 app.get('/login', (req, res) => {
     res.redirect('/html/login.html');
@@ -75,9 +80,13 @@ app.post('/login', async (req, res) => {
                 req.session.userId = user.user_id; // save user session for change in header file used
                 res.redirect('/');
             }
-            else {
+            else if (user.role == 'admin') {
                 res.redirect('/admin');
             }
+            else {
+                res.redirect('/resOwner');
+            }
+            
             
         } else {
             res.status(401).send('Invalid username or password');
