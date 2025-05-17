@@ -93,10 +93,10 @@ app.post('/login', async (req, res) => {
         const isMatch = await argon2.verify(user.password, password);
 
         if (isMatch) {
+            req.session.userId = user.user_id; // save user session for change in header file used
             // Successful login
             // Check user role
             if (user.role == 'user'){
-                req.session.userId = user.user_id; // save user session for change in header file used
                 res.redirect('/');
             }
             else if (user.role == 'admin') {
