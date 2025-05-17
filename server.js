@@ -47,8 +47,8 @@ app.get('/admin', (req, res) => {
 });
 
 app.get('/api/restaurants', async (req, res) => {
-  try {
-    const result = await pool.query(`
+    try {
+        const result = await pool.query(`
       SELECT 
         s."storeName", 
         s.location, 
@@ -57,11 +57,11 @@ app.get('/api/restaurants', async (req, res) => {
       FROM stores s
       JOIN users u ON s.owner_id = u.user_id
     `);
-    res.json(result.rows); // Send result to frontend
-  } catch (err) {
-    console.error('Error fetching restaurants:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+        res.json(result.rows); // Send result to frontend
+    } catch (err) {
+        console.error('Error fetching restaurants:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 
