@@ -48,9 +48,33 @@ app.get('/admin', (req, res) => {
     res.redirect('/html/admindashboard.html');
 });
 
+app.get('/api/restaurants', async (req, res) => {
+    try {
+        const result = await pool.query(`
+      SELECT 
+        s."storeName", 
+        s.location, 
+        u.name AS "ownerName", 
+        s.store_id
+      FROM stores s
+      JOIN users u ON s.owner_id = u.user_id
+    `);
+        res.json(result.rows); // Send result to frontend
+    } catch (err) {
+        console.error('Error fetching restaurants:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// default route for restaurant
+app.get('/resOwner', (req, res) => {
+    res.redirect('/html/resOwnerdashboard.html');
+});
+
 // Display Login page
 app.get('/login', (req, res) => {
-    res.redirect('/html/login.html');
+    res.sendFile(path.join(__dirname, 'frontend/html/login.html'));
 });
 
 // Handle login, check user role
@@ -77,16 +101,19 @@ app.post('/login', async (req, res) => {
                 req.session.userId = user.user_id; // save user session for change in header file used
                 res.redirect('/');
             }
-            else {
+            else if (user.role == 'admin') {
                 res.redirect('/admin');
             }
+            else {
+                res.redirect('/resOwner');
+            }
+            
             
         } else {
-            res.status(401).send('Invalid username or password');
+            res.redirect('/login?error=1');
         }
     } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).send('Server error');
+        res.redirect('/login?error=1');
     }
 });
 
