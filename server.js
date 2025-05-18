@@ -25,8 +25,11 @@ app.use('/static', express.static(path.join(__dirname, 'frontend/static')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Routes
+// import route files
 const homeRoutes = require('./backend/routes/homeApi');
+const selectedResRoutes = require('./backend/routes/selectedResApi');
+
+// using the routes
 app.use(homeRoutes);
 app.use(selectedResRoutes);
 
