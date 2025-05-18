@@ -28,6 +28,7 @@ app.use(express.json());
 // Routes
 const homeRoutes = require('./backend/routes/homeApi');
 app.use(homeRoutes);
+app.use(selectedResRoutes);
 
 // ======== DEFAULT ROUTES ========
 app.get('/', (req, res) => {
