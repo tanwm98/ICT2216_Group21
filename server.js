@@ -2,80 +2,207 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const path = require('path');
-const pool = require('./db'); // database module
-const argon2 = require('argon2'); // For password hashing
-
-// For session
+const pool = require('./db');
+const argon2 = require('argon2');
 require('dotenv').config();
 const session = require('express-session');
 
+// Session setup
 app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 }
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
-// Session
-app.get('/api/session', (req, res) => {
-  res.json({ loggedIn: !!req.session.userId });
-});
-
+// Serve frontend static files
 app.use('/html', express.static(path.join(__dirname, 'frontend/html')));
 app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
 app.use('/common', express.static(path.join(__dirname, 'frontend/common')));
 app.use('/static', express.static(path.join(__dirname, 'frontend/static')));
-// app.use(express.static(path.join(__dirname, 'frontend/js'))); // dt need this but leave for now
 
+// Body parsers
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// import route files
+// Routes
 const homeRoutes = require('./backend/routes/homeApi');
-
-// using the routes
 app.use(homeRoutes);
 
-// default route for user -> can change later on
+// ======== DEFAULT ROUTES ========
 app.get('/', (req, res) => {
     res.redirect('/html/home.html');
 });
 
-// default route for admin
 app.get('/admin', (req, res) => {
     res.redirect('/html/admindashboard.html');
 });
 
+app.get('/resOwner', (req, res) => {
+    res.redirect('/html/resOwnerdashboard.html');
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/login.html'));
+});
+
+app.get('/register', (req, res) => {
+    res.redirect('/html/register.html');
+});
+
+// ======== SESSION STATUS API ========
+app.get('/api/session', (req, res) => {
+    res.json({ loggedIn: !! req.session.userId });
+});
+
+// ======== USERS API ========
+app.get('/api/users', async (req, res) => {
+    const currentUserId = req.session.userId; // match the key here
+    try {
+        const result = await pool.query(
+            'SELECT user_id, name, email, role FROM users WHERE user_id != $1',
+            [currentUserId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching users:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/users', async (req, res) => {
+    const { name, email, role } = req.body;
+    try {
+        const password = 'Pass123';
+        const hashedPassword = await argon2.hash(password);
+
+        await pool.query(
+            'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)',
+            [name, email, hashedPassword, role]
+        );
+
+        res.status(201).json({ message: 'User added successfully' });
+    } catch (err) {
+        console.error('Error adding user:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM users WHERE user_id = $1', [id]);
+        res.json({ message: 'User deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting user:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, email, role } = req.body;
+
+  try {
+    await pool.query(
+      'UPDATE users SET name = $1, email = $2, role = $3 WHERE user_id = $4',
+      [name, email, role, id]
+    );
+    res.json({ message: 'User updated' });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}); 
+
+app.get('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query('SELECT user_id, name, email, role FROM users WHERE user_id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/users/:id/reset-password', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const defaultPassword = 'Pass123';
+    const hashedPassword = await argon2.hash(defaultPassword);
+
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE user_id = $2',
+      [hashedPassword, id]
+    );
+
+    res.json({ message: 'Password reset to default' });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ======== RESTAURANTS API ========
 app.get('/api/restaurants', async (req, res) => {
     try {
         const result = await pool.query(`
-      SELECT 
-        s."storeName", 
-        s.location, 
-        u.name AS "ownerName", 
-        s.store_id
-      FROM stores s
-      JOIN users u ON s.owner_id = u.user_id
-    `);
-        res.json(result.rows); // Send result to frontend
+            SELECT 
+                s.store_id, s."storeName", s.location,
+                u.name AS "ownerName"
+            FROM stores s
+            JOIN users u ON s.owner_id = u.user_id
+        `);
+        res.json(result.rows);
     } catch (err) {
         console.error('Error fetching restaurants:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-
-// default route for restaurant
-app.get('/resOwner', (req, res) => {
-    res.redirect('/html/resOwnerdashboard.html');
+// ======== RESERVATIONS API ========
+app.get('/api/reservations', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                r.reservation_id, r.noOfGuest, r.reservationDate, r.status,
+                u.name AS userName,
+                s."storeName"
+            FROM reservations r
+            JOIN users u ON r.user_id = u.user_id
+            JOIN stores s ON r.store_id = s.store_id
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching reservations:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
-// Display Login page
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/login.html'));
+// ======== REVIEWS API ========
+app.get('/api/reviews', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                rv.review_id, rv.rating, rv.description,
+                u.name AS userName,
+                s."storeName"
+            FROM reviews rv
+            JOIN users u ON rv.user_id = u.user_id
+            JOIN stores s ON rv.store_id = s.store_id
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching reviews:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
-// Handle login, check user role
+// ======== LOGIN / LOGOUT / REGISTER ========
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -83,73 +210,57 @@ app.post('/login', async (req, res) => {
         const result = await pool.query('SELECT * FROM users WHERE name = $1', [username]);
 
         if (result.rows.length === 0) {
-            // User not found
-            return res.status(401).send('Invalid username or password');
+            res.redirect('/login?error=1');
         }
 
         const user = result.rows[0];
-
-        // Use argon2 to verify the hashed password
         const isMatch = await argon2.verify(user.password, password);
 
         if (isMatch) {
-            req.session.userId = user.user_id; // save user session for change in header file used
-            // Successful login
-            // Check user role
-            if (user.role == 'user'){
-                res.redirect('/');
-            }
-            else if (user.role == 'admin') {
+            req.session.userId = user.user_id;
+
+            if (user.role === 'admin') {
                 res.redirect('/admin');
-            }
-            else {
+            } else if (user.role === 'user') {
+                res.redirect('/');
+            } else {
                 res.redirect('/resOwner');
             }
-            
-            
         } else {
             res.redirect('/login?error=1');
         }
     } catch (err) {
+        console.error('Login error:', err);
         res.redirect('/login?error=1');
     }
 });
 
-// Logout
-app.get('/logout', (req, res) => {
-  req.session.destroy(err => {
-    res.clearCookie('connect.sid');
-    res.redirect('/');
-  });
-});
-
-// Display register page
-app.get('/register', (req, res) => {
-    res.redirect('/html/register.html');
-});
-
-// Handle register
 app.post('/register', async (req, res) => {
     const { name, email, password } = req.body;
 
     try {
-        // Hash the password with Argon2
         const hashedPassword = await argon2.hash(password);
 
-        // Insert user into database
-        const result = await pool.query(
+        await pool.query(
             'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)',
-            [name, email, hashedPassword, "user"]
+            [name, email, hashedPassword, 'user']
         );
 
         res.redirect('/login');
     } catch (err) {
-        console.error(err);  // Make sure to check full error here
+        console.error('Registration error:', err);
         res.status(500).send('Server error');
     }
 });
 
-// to run : npx nodemon server.js -> can try nodemon server.js if it works for yall
+app.get('/logout', (req, res) => {
+    req.session.destroy(err => {
+        res.clearCookie('connect.sid');
+        res.redirect('/');
+    });
+});
+
+// Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
 });
