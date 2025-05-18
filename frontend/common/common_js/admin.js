@@ -22,18 +22,25 @@ function loadDashboardStats() {
       return res.json();
     })
     .then(stats => {
-      console.log('Dashboard stats:', stats);  // debug log to check structure
+      console.log('Dashboard stats:', stats);  // still useful for debugging
       document.getElementById('totalUsers').textContent = stats.totalUsers ?? 'N/A';
       document.getElementById('totalRestaurants').textContent = stats.totalRestaurants ?? 'N/A';
       document.getElementById('totalReservations').textContent = stats.totalReservations ?? 'N/A';
-      document.getElementById('topRestaurant').textContent = stats.topRestaurant
-        ? `${stats.topRestaurant} (${stats.topReviewCount} reviews)`
-        : 'N/A';
+      
+      // Display top-rated restaurant by average rating
+      if (stats.topRatedRestaurant && stats.topAverageRating !== undefined) {
+        document.getElementById('topReviewCount').textContent = stats.topAverageRating;
+        document.getElementById('topRestaurantName').textContent = stats.topRatedRestaurant;
+      } else {
+        document.getElementById('topReviewCount').textContent = '0';
+        document.getElementById('topRestaurantName').textContent = 'N/A';
+      }
     })
     .catch(err => {
       console.error('Failed to load dashboard stats:', err);
     });
 }
+
 // ========== RESTAURANTS ==========
 function fetchRestaurants() {
   fetch('/api/restaurants')
@@ -510,7 +517,7 @@ function fetchReservations() {
           <td>${resv.userName}</td>
           <td>${resv.restaurantName}</td>
           <td>${resv.noOfGuest}</td>
-          <td>${date}</td>
+          <td>${resv.reservationDate}</td>
           <td>${time}</td>
           <td>${resv.status}</td>
           <td>${resv.specialRequest || '-'}</td>
