@@ -18,6 +18,7 @@
         <a onclick="showSection('dashboard')"><i class="bi bi-speedometer2"></i> Dashboard</a>
         <a onclick="showSection('restaurants')"><i class="bi bi-shop"></i> Restaurants</a>
         <a onclick="showSection('users')"><i class="bi bi-people"></i> Users</a>
+        <a onclick="showSection('reservations')"><i class="bi bi-calendar-check"></i> Reservations</a>
 
         <div class="mt-auto">
           <hr class="text-secondary">
@@ -30,8 +31,45 @@
         <!-- Dashboard -->
         <div id="dashboard" class="section active">
           <h1>Welcome, Admin</h1>
-          <p>Use the sidebar to manage restaurants.</p>
+          <div class="row text-center">
+            <div class="col-md-3">
+              <div class="card bg-primary text-white mb-3">
+                <div class="card-body">
+                  <h5 class="card-title">Total Users</h5>
+                  <p id="totalUsers" class="card-text fs-4">0</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card bg-success text-white mb-3">
+                <div class="card-body">
+                  <h5 class="card-title">Total Restaurants</h5>
+                  <p id="totalRestaurants" class="card-text fs-4">0</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card bg-warning text-dark mb-3">
+                <div class="card-body">
+                  <h5 class="card-title">Top Reviews (Count)</h5>
+                  <p id="topReviews" class="card-text fs-5">
+                    <strong id="topReviewCount">0</strong> reviews<br>
+                    <small id="topRestaurantName">N/A</small>
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card bg-info text-white mb-3">
+                <div class="card-body">
+                  <h5 class="card-title">Total Reservations</h5>
+                  <p id="totalReservations" class="card-text fs-4">0</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
 
         <!-- Restaurants Section -->
         <div id="restaurants" class="section">
@@ -90,17 +128,26 @@
     </div>
   </div>
 
-  <!-- The Modal -->
+  <!-- Restaurant Modal -->
   <div id="myModal" class="modal">
     <div class="modal-content">
       <div class="d-flex justify-content-end">
         <button type="button" class="btn-close" aria-label="Close" onclick="closeModal()"></button>
       </div>
-      <h5 class="mb-3">Add New Restaurant</h5>
-      <form id="addRestaurant" method="POST" action="/addRestaurant">
+      <h5 class="mb-3" id="restaurantModalTitle">Add New Restaurant</h5>
+
+      <form onsubmit="event.preventDefault(); submitRestaurantForm();">
+        <input type="hidden" id="restaurantId"> <!-- Hidden for edit mode -->
+
         <div class="mb-3">
           <label for="storeName" class="form-label">Store Name</label>
           <input class="form-control" id="storeName" name="storeName" required>
+        </div>
+        <div>
+          <label for="ownerSelect">Owner:</label>
+          <select id="ownerSelect" class="form-control" required>
+            <option value="">Select Owner</option>
+          </select>
         </div>
         <div class="mb-3">
           <label for="address" class="form-label">Address</label>
@@ -123,7 +170,7 @@
           <select class="form-select" id="priceRange" name="priceRange" required>
             <option value="">Select...</option>
             <option value="$">$</option>
-            <option value="$">$$</option>
+            <option value="$$">$$</option>
             <option value="$$$">$$$</option>
           </select>
         </div>
@@ -131,8 +178,17 @@
           <label for="totalCapacity" class="form-label">Total Capacity</label>
           <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
         </div>
+        <div class="mb-3">
+          <label for="opening" class="form-label">Opening Hour</label>
+          <input type="time" class="form-control" id="opening" name="opening" required>
+        </div>
+        <div class="mb-3">
+          <label for="closing" class="form-label">Closing Hour</label>
+          <input type="time" class="form-control" id="closing" name="closing" required>
+        </div>
+
         <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-success">Add Restaurant</button>
+          <button type="submit" class="btn btn-success" id="restaurantModalBtn">Add Restaurant</button>
         </div>
       </form>
     </div>
@@ -171,7 +227,6 @@
       </form>
     </div>
   </div>
-
 
   <script src="/common/common_js/admin.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

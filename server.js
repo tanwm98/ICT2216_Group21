@@ -57,11 +57,11 @@ app.get('/api/session', (req, res) => {
 
 // ======== USERS API ========
 app.get('/api/users', async (req, res) => {
-    const currentUserId = req.session.userId; // match the key here
+    const currentUserId = req.session.userId;
     try {
         const result = await pool.query(
             'SELECT user_id, name, email, role FROM users WHERE user_id != $1',
-            [currentUserId]
+            [1]
         );
         res.json(result.rows);
     } catch (err) {
@@ -164,6 +164,115 @@ app.get('/api/restaurants', async (req, res) => {
     }
 });
 
+// Get all users with role = 'owner'
+app.get('/api/owners', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT user_id, name FROM users WHERE role = 'owner'
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching owners:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add a new restaurant
+app.post('/api/restaurants', async (req, res) => {
+  const {
+    owner_id, storeName, address, postalCode, location,
+    cuisine, priceRange, totalCapacity,
+    opening, closing
+  } = req.body;
+
+  try {
+    await pool.query(`
+      INSERT INTO stores (
+        owner_id, "storeName", address, "postalCode", location,
+        cuisine, "priceRange", "totalCapacity", "currentCapacity",
+        opening, closing
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `, [
+      owner_id, storeName, address, postalCode, location,
+      cuisine, priceRange, totalCapacity, totalCapacity,
+      opening, closing
+    ]);
+    res.json({ message: 'Restaurant added successfully' });
+  } catch (err) {
+    console.error('Error adding restaurant:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/restaurants/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT store_id, "storeName", address, "postalCode", location,
+             cuisine, "priceRange", "totalCapacity", "currentCapacity",
+             opening, closing, owner_id
+      FROM stores
+      WHERE store_id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Restaurant not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching restaurant:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/api/restaurants/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    owner_id, storeName, address, postalCode, location,
+    cuisine, priceRange, totalCapacity, opening, closing
+  } = req.body;
+
+  try {
+    await pool.query(`
+      UPDATE stores SET
+        owner_id = $1,
+        "storeName" = $2,
+        address = $3,
+        "postalCode" = $4,
+        location = $5,
+        cuisine = $6,
+        "priceRange" = $7,
+        "totalCapacity" = $8,
+        opening = $9,
+        closing = $10
+      WHERE store_id = $11
+    `, [
+      owner_id, storeName, address, postalCode, location,
+      cuisine, priceRange, totalCapacity, opening, closing, id
+    ]);
+
+    res.json({ message: 'Restaurant updated successfully' });
+  } catch (err) {
+    console.error('Error updating restaurant:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/restaurants/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await pool.query('DELETE FROM stores WHERE store_id = $1', [id]);
+    res.json({ message: 'Restaurant deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting restaurant:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ======== RESERVATIONS API ========
 app.get('/api/reservations', async (req, res) => {
     try {
@@ -263,4 +372,32 @@ app.get('/logout', (req, res) => {
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
+});
+
+// ======== DASHBOARD API ========
+app.get('/api/dashboard-stats', async (req, res) => {
+  try {
+    const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
+    const totalRestaurants = await pool.query('SELECT COUNT(*) FROM stores');
+    const totalReservations = await pool.query('SELECT COUNT(*) FROM reservations');
+    const mostReviewed = await pool.query(`
+      SELECT s."storeName", COUNT(r.review_id) as review_count
+      FROM reviews r
+      JOIN stores s ON r.store_id = s.store_id
+      GROUP BY s."storeName"
+      ORDER BY review_count DESC
+      LIMIT 1
+    `);
+
+    res.json({
+      totalUsers: parseInt(totalUsers.rows[0].count),
+      totalRestaurants: parseInt(totalRestaurants.rows[0].count),
+      totalReservations: parseInt(totalReservations.rows[0].count),
+      topRestaurant: mostReviewed.rows[0]?.storeName || 'N/A',
+      topReviewCount: mostReviewed.rows[0]?.review_count || 0
+    });
+  } catch (err) {
+    console.error('Dashboard stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+  }
 });
