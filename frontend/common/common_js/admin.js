@@ -8,9 +8,10 @@ function showSection(id) {
     fetchRestaurants();
   } else if (id === 'users') {
     fetchUsers();
-  }
-  else if (id === 'dashboard') {
+  } else if (id === 'dashboard') {
     loadDashboardStats();
+  } else if (id === 'reservations') {
+    fetchReservations();
   }
 }
 // ==========  DASHBOARD ========== 
@@ -469,7 +470,7 @@ function editRestaurant(id) {
       document.getElementById("restaurantModalBtn").textContent = "Update Restaurant";
 
       loadOwnersDropdown(r.owner_id);
-      openModal(true); 
+      openModal(true);
     })
     .catch(err => console.error('Error loading restaurant:', err));
 }
@@ -492,6 +493,67 @@ function deleteRestaurant(storeId) {
       console.error('Error deleting restaurant:', err);
     });
 }
+
+// ========== RESERVATIONS ==========
+function fetchReservations() {
+  fetch('/api/reservations')
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.querySelector('#reservationList tbody');
+      tbody.innerHTML = '';
+      data.forEach(resv => {
+        const date = new Date(resv.reservationDate).toISOString().split('T')[0]; // YYYY-MM-DD
+        const time = resv.reservationTime.slice(0, 5); // HH:MM
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${resv.userName}</td>
+          <td>${resv.restaurantName}</td>
+          <td>${resv.noOfGuest}</td>
+          <td>${date}</td>
+          <td>${time}</td>
+          <td>${resv.status}</td>
+          <td>${resv.specialRequest || '-'}</td>
+<td>
+            ${resv.status === 'pending'
+            ? `<button data-id="${resv.reservation_id}" class="confirm-btn">Confirm</button>`
+            : '-'
+          }
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      // Attach event listeners to the confirm buttons
+      document.querySelectorAll('.confirm-btn').forEach(button => {
+        button.addEventListener('click', () => {
+          const id = button.getAttribute('data-id');
+          confirmReservation(id);
+        });
+      });
+    })
+    .catch(err => {
+      console.error('Failed to fetch reservations:', err);
+    });
+}
+
+function confirmReservation(id) {
+  fetch(`/api/reservations/${id}/confirm`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Reservation confirmed:', data);
+      fetchReservations(); // Refresh the table
+    })
+    .catch(err => {
+      console.error('Error confirming reservation:', err);
+    });
+}
+
 
 // ========== MODALS ==========
 // Restaurant Modal

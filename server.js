@@ -275,21 +275,47 @@ app.delete('/api/restaurants/:id', async (req, res) => {
 
 // ======== RESERVATIONS API ========
 app.get('/api/reservations', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT 
-                r.reservation_id, r.noOfGuest, r.reservationDate, r.status,
-                u.name AS userName,
-                s."storeName"
-            FROM reservations r
-            JOIN users u ON r.user_id = u.user_id
-            JOIN stores s ON r.store_id = s.store_id
-        `);
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Error fetching reservations:', err);
-        res.status(500).json({ error: 'Internal server error' });
+  try {
+    const result = await pool.query(`
+      SELECT 
+        r.reservation_id,
+        r."noOfGuest",
+        r."reservationDate"::DATE AS "reservationDate",
+        r."reservationTime",
+        r."specialRequest",
+        r.status,
+        u.name AS "userName",
+        s."storeName" AS "restaurantName"
+      FROM reservations r
+      JOIN users u ON r.user_id = u.user_id
+      JOIN stores s ON r.store_id = s.store_id
+      ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching reservations:', err);
+    res.status(500).json({ error: 'Failed to fetch reservations' });
+  }
+});
+
+app.put('/api/reservations/:id/confirm', async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+
+    const result = await pool.query(
+      `UPDATE reservations SET status = 'confirmed' WHERE reservation_id = $1 RETURNING *`,
+      [reservationId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Reservation not found' });
     }
+
+    res.json({ message: 'Reservation confirmed', reservation: result.rows[0] });
+  } catch (err) {
+    console.error('Error confirming reservation:', err);
+    res.status(500).json({ error: 'Failed to confirm reservation' });
+  }
 });
 
 // ======== REVIEWS API ========
