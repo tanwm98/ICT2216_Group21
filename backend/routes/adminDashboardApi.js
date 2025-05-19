@@ -34,11 +34,10 @@ router.get('/dashboard-stats', async (req, res) => {
 
 // ======== MANAGE USERS ========
 router.get('/users', async (req, res) => {
-    const currentUserId = req.session.userId;
     try {
         const result = await pool.query(
-            'SELECT user_id, name, email, role FROM users WHERE user_id != $1',
-            [1]
+            'SELECT user_id, name, email, role FROM users WHERE role != $1',
+            ['admin']
         );
         res.json(result.rows);
     } catch (err) {
