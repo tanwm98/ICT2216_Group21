@@ -30,6 +30,7 @@ app.use(express.json());
 // import route files
 const authRoutes = require('./backend/routes/authApi')
 const adminDash = require('./backend/routes/adminDashboardApi')
+const ownerApi = require('./backend/routes/ownerDashboardApi');
 const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
 
@@ -38,6 +39,7 @@ app.use(homeRoutes);
 app.use(selectedResRoutes);
 app.use('/', authRoutes);
 app.use('/api', adminDash);
+app.use('/api/owner', ownerApi);
 
 // ======== DEFAULT ROUTES ========
 app.get('/', (req, res) => {

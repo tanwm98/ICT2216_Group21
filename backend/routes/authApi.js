@@ -26,7 +26,7 @@ router.post('/login', async (req, res) => {
                 return res.redirect('/admin');
             } else if (user.role === 'user') {
                 return res.redirect('/');
-            } else {
+            } else if (user.role === 'owner'){
                 return res.redirect('/resOwner');
             }
         } else {
