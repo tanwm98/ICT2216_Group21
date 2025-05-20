@@ -11,18 +11,21 @@
   <!-- Global CSS -->
   <link rel="stylesheet" href="/static/styles/style.css">
 
+  <!-- Global CSS -->
+  <link rel="stylesheet" href="/static/styles/search.css">
+
   <!-- Head Include -->
   <div id="head-placeholder"></div>
 
 </head>
 
-<body class="test">
+<body class="search">
     <div id="header-placeholder"></div>
     
     <div class="container-search">
-        
-        <!-- Sidebar / Filters -->
-        <aside>
+      
+      <!-- Sidebar / Filters -->
+      <aside>
             <div class="sidebar-section">
                 <strong>Filtered by:</strong><br/>
                 <em style="color:#f39c12;">Bookable online</em>
@@ -65,11 +68,11 @@
             <div class="sidebar-section toggle">
                 <label><input type="checkbox" checked /> Bookable online</label>
             </div>
-        </aside>
+      </aside>
         
         
-        <!-- Main Content -->
-        <main>
+      <!-- Main Content -->
+      <main>
 
         <!-- Refined Search Bar -->
         <div class="search-bar">
@@ -86,74 +89,36 @@
                 <input type="time" />
             </div>
             <button>Apply</button>
-    </div>
+        </div>
   
-    <div class="filters">
-        <strong>Best Restaurants in Singapore</strong>
-        <p>Searching for the best restaurants in Singapore? Discover great places to eat out for breakfast, lunch, and dinner in Singapore...</p>
-        
-        <div>
-            <span class="label">Yishun</span>
-            <span class="label">Sembawang</span>
-            <span class="label">Ang Mo Kio</span>
-            <span class="label">Upper Thomson</span>
-            <span class="label">Punggol</span>
+        <div class="filters">
+            <strong>Best Restaurants in Singapore</strong>
+            <p>Searching for the best restaurants in Singapore? Discover great places to eat out for breakfast, lunch, and dinner in Singapore...</p>
+            
+            <div>
+                <span class="label">Yishun</span>
+                <span class="label">Sembawang</span>
+                <span class="label">Ang Mo Kio</span>
+                <span class="label">Upper Thomson</span>
+                <span class="label">Punggol</span>
+            </div>
         </div>
-    </div>
 
-    <!-- Restaurant Card -->
-    <div class="restaurant-card">
-      <img src="/static/img/blog-img/french.jpg" alt="ASTONS">
-      <div class="restaurant-info">
-        <h4>ASTONS Specialities - Sembawang Shopping Centre</h4>
-        <p>Located at Sembawang area<br/>
-        Western Restaurant • $$$$<br/>
-        Meals: Lunch, Dinner</p>
-        <span class="label">Casual</span>
-        <span class="label">Cosy</span>
-        <span class="label">Family-friendly</span>
-      </div>
-      <div class="rating">5.7/6<br/><small>120 reviews</small></div>
-    </div>
+        <!-- Restaurant Card -->
+        <!-- <div class="restaurant-card">
+          <img src="/static/img/blog-img/french.jpg" alt="ASTONS">
+          <div class="restaurant-info">
+            <h4>ASTONS Specialities - Sembawang Shopping Centre</h4>
+            <p>Located at Sembawang area</p>
+            <p>Western Restaurant </p>
+            <p>Price $$$$</p>
+          </div>
+          <div class="rating">5.7/6<br/><small>120 reviews</small></div>
+        </div> -->
 
-    <div class="restaurant-card">
-      <img src="/static/img/blog-img/french.jpg" alt="Eatzi Bistro">
-      <div class="restaurant-info">
-        <h4>Eatzi Gourmet Bistro - SAFRA Yishun</h4>
-        <p>Located at Yishun area<br/>
-        International Restaurant • $$$<br/>
-        Meals: Lunch, Dinner</p>
-        <span class="label">Cosy</span>
-        <span class="label">Halal</span>
-      </div>
-      <div class="rating">5.4/6<br/><small>219 reviews</small></div>
-    </div>
+        <!-- div for javascript to populate -->
+        <div id="res-content"></div>
 
-    <div class="restaurant-card">
-        <img src="/static/img/blog-img/french.jpg" alt="Eatzi Bistro">
-        <div class="restaurant-info">
-          <h4>Eatzi Gourmet Bistro - SAFRA Yishun</h4>
-          <p>Located at Yishun area<br/>
-          International Restaurant • $$$<br/>
-          Meals: Lunch, Dinner</p>
-          <span class="label">Cosy</span>
-          <span class="label">Halal</span>
-        </div>
-        <div class="rating">5.4/6<br/><small>219 reviews</small></div>
-    </div>
-
-    <div class="restaurant-card">
-        <img src="/static/img/blog-img/french.jpg" alt="Eatzi Bistro">
-        <div class="restaurant-info">
-          <h4>Eatzi Gourmet Bistro - SAFRA Yishun</h4>
-          <p>Located at Yishun area<br/>
-          International Restaurant • $$$<br/>
-          Meals: Lunch, Dinner</p>
-          <span class="label">Cosy</span>
-          <span class="label">Halal</span>
-        </div>
-        <div class="rating">5.4/6<br/><small>219 reviews</small></div>
-    </div>
 
 
   </main>
@@ -166,7 +131,7 @@
 <script src="/common/common_js/include.js"></script>
 
 <!-- Then page-specific JS TO CHANGE*** -->
-<script src="/js/home.js"></script>
+<script src="/js/search.js"></script>
 
 </body>
 </html>
