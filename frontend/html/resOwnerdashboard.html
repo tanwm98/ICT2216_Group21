@@ -3,124 +3,91 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Restaurant Owner Dashboard</title>
+    <title>Owner Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .sidebar {
-            min-height: 100vh;
-            background-color: #343a40;
-            color: #fff;
-        }
-
-        .sidebar a {
-            color: #adb5bd;
-            text-decoration: none;
-            padding: 10px;
-            display: block;
-            cursor: pointer;
-        }
-
-        .sidebar a:hover,
-        .sidebar a.active {
-            background-color: #495057;
-            color: #fff !important;
-        }
-
-        .content {
-            padding: 20px;
-        }
-    </style>
-</head>
+    <link rel="stylesheet" href="/static/styles/admin.css">
 
 <body>
-
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
             <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column p-3">
                 <h4 class="text-white">Owner Panel</h4>
-                <a id="menu-restaurant" class="active"><i class="bi bi-shop"></i> My Restaurant</a>
-                <a id="menu-reservations"><i class="bi bi-calendar-check"></i> Reservations</a>
-                <a id="menu-reviews"><i class="bi bi-star"></i> Reviews</a>
+                <a onclick="showSection('myRestaurants')" class="active"><i class="bi bi-shop"></i> My Restaurants</a>
+                <a onclick="showSection('reservations')"><i class="bi bi-calendar-check"></i> Reservations</a>
+                <a onclick="showSection('reviews')"><i class="bi bi-star"></i> Reviews</a>
 
                 <div class="mt-auto">
                     <hr class="text-secondary">
-                    <a href="logout" class="text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                    <a href="/logout" class="text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
                 </div>
             </nav>
 
             <!-- Main Content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 content">
-                <h1>Welcome, Owner</h1>
+            <main class="col-md-9 ms-sm-auto col-lg-10 content py-4 px-5">
+                <h2>Welcome, Owner</h2>
 
-                <!-- Restaurant Info -->
-                <div id="section-restaurant">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
+                <!-- My Restaurants -->
+                <div id="myRestaurants" class="section active">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4>Restaurant Details</h4>
-                        <button class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-plus-circle"></i> Request New Restaurant
-                        </button>
                     </div>
-                    <table class="table table-bordered">
-                        <tbody>
+                    <table class="table table-bordered" id="restaurantTable">
+                        <thead>
                             <tr>
                                 <th>Name</th>
-                                <td>Example Bistro</td>
-                            </tr>
-                            <tr>
+                                <th>Address</th>
+                                <th>Postal Code</th>
                                 <th>Location</th>
-                                <td>New York</td>
+                                <th>Cuisine</th>
+                                <th>Price Range</th>
+                                <th>Capacity</th>
+                                <th>Opening</th>
+                                <th>Closing</th>
                             </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated via owner.js -->
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Reservations -->
-                <div id="section-reservations" style="display: none;">
+                <div id="reservations" class="section">
                     <h4>Reservations</h4>
-                    <table class="table table-bordered">
+                    <table class="table table-bordered" id="reservationTable">
                         <thead>
                             <tr>
-                                <th>Customer Name</th>
+                                <th>Customer</th>
+                                <th>Restaurant</th>
                                 <th>Date</th>
                                 <th>Time</th>
-                                <th>Party Size</th>
+                                <th>Guests</th>
+                                <th>Status</th>
+                                <th>Special Request</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>John Doe</td>
-                                <td>2025-05-20</td>
-                                <td>7:00 PM</td>
-                                <td>4</td>
-                            </tr>
+                            <!-- Populated via owner.js -->
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Reviews -->
-                <div id="section-reviews" style="display: none;">
+                <div id="reviews" class="section">
                     <h4>Customer Reviews</h4>
-                    <table class="table table-bordered">
+                    <table class="table table-bordered" id="reviewTable">
                         <thead>
                             <tr>
+                                <th>Restaurant</th>
                                 <th>Customer</th>
                                 <th>Rating</th>
                                 <th>Comment</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Jane Smith</td>
-                                <td>5/5</td>
-                                <td>Great food and service!</td>
-                            </tr>
+                            <!-- Populated via owner.js -->
                         </tbody>
                     </table>
                 </div>
@@ -128,29 +95,67 @@
         </div>
     </div>
 
-    <script>
-        // Sidebar links
-        const links = document.querySelectorAll('.sidebar a');
-        const sections = {
-            'menu-restaurant': 'section-restaurant',
-            'menu-reservations': 'section-reservations',
-            'menu-reviews': 'section-reviews'
-        };
+    <!-- Restaurant Modal -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn-close" aria-label="Close" onclick="closeModal()"></button>
+            </div>
+            <h5 class="mb-3" id="restaurantModalTitle">Request New Restaurant</h5>
 
-        links.forEach(link => {
-            link.addEventListener('click', () => {
-                // Remove active class from all
-                links.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
+            <form onsubmit="event.preventDefault(); submitRestaurantForm();">
+                <input type="hidden" id="restaurantId"> <!-- Hidden for edit mode -->
 
-                // Show the correct section
-                for (const key in sections) {
-                    document.getElementById(sections[key]).style.display = (key === link.id) ? 'block' : 'none';
-                }
-            });
-        });
-    </script>
+                <div class="mb-3">
+                    <label for="storeName" class="form-label">Store Name</label>
+                    <input class="form-control" id="storeName" name="storeName" required>
+                </div>
+                <div class="mb-3">
+                    <label for="address" class="form-label">Address</label>
+                    <input class="form-control" id="address" name="address" required>
+                </div>
+                <div class="mb-3">
+                    <label for="postalCode" class="form-label">Postal Code</label>
+                    <input class="form-control" id="postalCode" name="postalCode" required>
+                </div>
+                <div class="mb-3">
+                    <label for="cuisine" class="form-label">Cuisine</label>
+                    <input class="form-control" id="cuisine" name="cuisine" required>
+                </div>
+                <div class="mb-3">
+                    <label for="location" class="form-label">Location</label>
+                    <input class="form-control" id="location" name="location" required>
+                </div>
+                <div class="mb-3">
+                    <label for="priceRange" class="form-label">Price Range</label>
+                    <select class="form-select" id="priceRange" name="priceRange" required>
+                        <option value="">Select...</option>
+                        <option value="$">$</option>
+                        <option value="$$">$$</option>
+                        <option value="$$$">$$$</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="totalCapacity" class="form-label">Total Capacity</label>
+                    <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
+                </div>
+                <div class="mb-3">
+                    <label for="opening" class="form-label">Opening Hour</label>
+                    <input type="time" class="form-control" id="opening" name="opening" required>
+                </div>
+                <div class="mb-3">
+                    <label for="closing" class="form-label">Closing Hour</label>
+                    <input type="time" class="form-control" id="closing" name="closing" required>
+                </div>
 
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-success" id="restaurantModalBtn">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/owner.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
