@@ -22,7 +22,6 @@ function loadDashboardStats() {
       return res.json();
     })
     .then(stats => {
-      console.log('Dashboard stats:', stats);  // still useful for debugging
       document.getElementById('totalUsers').textContent = stats.totalUsers ?? 'N/A';
       document.getElementById('totalRestaurants').textContent = stats.totalRestaurants ?? 'N/A';
       document.getElementById('totalReservations').textContent = stats.totalReservations ?? 'N/A';
