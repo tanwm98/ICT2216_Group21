@@ -56,19 +56,19 @@ router.get('/display_filtered_store', async (req, res) => {
     const values = [];
     let sql = `SELECT * FROM stores WHERE 1=1`;
 
-    // ✅ Cuisine filter
+    // Cuisine filter
     if (cuisines.length > 0) {
       values.push(cuisines);
       sql += ` AND cuisine = ANY($${values.length})`;
     }
 
-    // ✅ Price filter (as string)
+    // Price filter (as string)
     if (priceRange && typeof priceRange === 'string') {
       values.push(priceRange);
       sql += ` AND "priceRange" = $${values.length}`;
     }
 
-    // ✅ Debug logs
+    // Debug logs
     console.log("Received filters:", req.query);
     console.log("Generated SQL:", sql);
     console.log("SQL values:", values);
