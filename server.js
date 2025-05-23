@@ -39,6 +39,7 @@ app.use(session({
 app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
 app.use('/common', express.static(path.join(__dirname, 'frontend/common')));
 app.use('/static', express.static(path.join(__dirname, 'frontend/static')));
+app.use('/public', express.static(path.join(__dirname, 'frontend/public')));
 
 // Body parsers
 app.use(express.urlencoded({ extended: true }));
@@ -52,6 +53,7 @@ const ownerApi = require('./backend/routes/ownerDashboardApi');
 const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
 const search = require('./backend/routes/searchApi');
+const loggedUser = require('./backend/routes/userDashApi');
 
 
 // using the routes
@@ -63,30 +65,38 @@ app.use('/api/owner', ownerApi);
 app.use(search); 
 
 
-// ======== DEFAULT ROUTES ========
+// ======== PUBLIC ROUTES ========
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/html/home.html'));
+  res.redirect('/public/home.html');
 });
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
+});
+
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/register.html'));
+});
+
+app.get('/rOwnerReg', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/resOwnerForm.html'));
+});
+
+// ======== VERIFICATION REQUIRED ======== 
 
 app.get('/admin',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
+});
+
+app.get('/loggedUser',verifyToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerForm.html'));
 });
 
 app.get('/resOwner',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
 });
 
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/login.html'));
-});
 
-app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/register.html'));
-});
-
-app.get('/rOwnerReg',verifyToken, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerForm.html'));
-});
 
 // ======== SESSION STATUS API ========
 app.get('/api/session', (req, res) => {
