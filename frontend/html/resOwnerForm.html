@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Restaurant Owner Signup</title>
@@ -16,7 +17,7 @@
       background: white;
       padding: 2em;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     h2 {
@@ -47,7 +48,9 @@
       font-weight: bold;
     }
 
-    input, select, textarea {
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 0.6em;
       margin-top: 0.3em;
@@ -77,51 +80,55 @@
       background: #e0a900;
     }
   </style>
+  <!-- Bootstrap CSS via CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
 <body>
   <div class="container">
     <h2>Restaurant Owner Signup</h2>
 
-    <form method="POST" enctype="multipart/form-data" action="mailto:admin@example.com">
+    <form method="POST" action="/signup-owner">
 
-        <h3>Owner Information</h3>
-        <!-- Owner Info -->
-        <div class="section">
+      <h3>Owner Information</h3>
+      <!-- Owner Info -->
+      <div class="section">
 
-            <label for="ownerName">Owner Name</label>
-            <input type="text" id="ownerName" name="ownerName" required />
+        <label for="ownerName">Owner Name</label>
+        <input type="text" id="ownerName" name="ownerName" required />
 
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required />
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+
+
+      <h3>Restaurant Information</h3>
+      <!-- Restaurant Info -->
+      <div class="section">
+        <div class="mb-3">
+          <label for="storeName" class="form-label">Store Name</label>
+          <input class="form-control" id="storeName" name="storeName" required>
         </div>
-
-
-        <h3>Restaurant Information</h3>
-        <!-- Restaurant Info -->
-        <div class="section">
-        
-
-            <label for="restaurantName">Restaurant Name</label>
-            <input type="text" id="restaurantName" name="restaurantName" required />
-
-            <label for="address">Address</label>
-            <textarea id="address" name="address" rows="2" required></textarea>
-
-            <label for="postal">Postal Code</label>
-            <input type="text" id="postal" name="postal" required />
-
-            <label for="location">Location</label>
-            <input type="text" id="location" name="location" required />
-
-            <label for="image">Restaurant Image</label>
-            <input type="file" id="image" name="image" accept="image/*" required />
-
-            <label for="cuisine">Cuisine Type</label>
-            <input type="text" id="cuisine" name="cuisine" placeholder="e.g., Italian, Asian Fusion" required />
-
-            <label for="price">Price Range</label>
-            <select id="price" name="price" required>
-            <option value="">Select</option>
+        <div class="mb-3">
+          <label for="address" class="form-label">Address</label>
+          <input class="form-control" id="address" name="address" required>
+        </div>
+        <div class="mb-3">
+          <label for="postalCode" class="form-label">Postal Code</label>
+          <input class="form-control" id="postalCode" name="postalCode" required>
+        </div>
+        <div class="mb-3">
+          <label for="cuisine" class="form-label">Cuisine</label>
+          <input class="form-control" id="cuisine" name="cuisine" required>
+        </div>
+        <div class="mb-3">
+          <label for="location" class="form-label">Location</label>
+          <input class="form-control" id="location" name="location" required>
+        </div>
+        <div class="mb-3">
+          <label for="priceRange" class="form-label">Price Range</label>
+          <select class="form-select" id="priceRange" name="priceRange" required>
+            <option value="">Select...</option>
             <option value="$">$</option>
             <option value="$$">$$</option>
             <option value="$$$">$$$</option>
@@ -131,10 +138,76 @@
 
             <label for="capacity">Seating Capacity (For Reservation)</label>
             <input type="number" id="capacity" name="capacity" min="1" required />
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="totalCapacity" class="form-label">Total Capacity</label>
+          <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
+        </div>
+        <div class="mb-3">
+          <label for="opening" class="form-label">Opening Hour</label>
+          <input type="time" class="form-control" id="opening" name="opening" required>
+        </div>
+        <div class="mb-3">
+          <label for="closing" class="form-label">Closing Hour</label>
+          <input type="time" class="form-control" id="closing" name="closing" required>
         </div>
 
         <button type="submit">Submit</button>
     </form>
   </div>
+  <!-- Success Modal -->
+  <div class="modal fade" id="signupSuccessModal" tabindex="-1" aria-labelledby="signupSuccessLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="signupSuccessLabel">Signup Successful</h5>
+        </div>
+        <div class="modal-body">
+          Thanks for signing up! Your request has been sent.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Error Modal -->
+  <div class="modal fade" id="signupErrorModal" tabindex="-1" aria-labelledby="signupErrorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger" id="signupErrorLabel">Signup Failed</h5>
+        </div>
+        <div class="modal-body">
+          Sorry, we couldn't send your signup email. Please try again later.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+
+      if (urlParams.has('success')) {
+        const successModal = new bootstrap.Modal(document.getElementById('signupSuccessModal'));
+        const modalElement = document.getElementById('signupSuccessModal');
+        modalElement.addEventListener('hidden.bs.modal', () => {
+          window.location.href = '/';
+        });
+        successModal.show();
+      }
+      if (urlParams.has('error')) {
+        const errorModal = new bootstrap.Modal(document.getElementById('signupErrorModal'));
+        errorModal.show();
+      }
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
+
 </html>

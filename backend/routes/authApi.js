@@ -1,15 +1,25 @@
 const express = require('express');
 const pool = require('../../db');
 const argon2 = require('argon2');
+require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
 // POST /login
 router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-
+    const { email, password } = req.body;
+    
     try {
-        const result = await pool.query('SELECT * FROM users WHERE name = $1', [username]);
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
         if (result.rows.length === 0) {
             return res.redirect('/login?error=1');
@@ -49,10 +59,64 @@ router.post('/register', async (req, res) => {
             [name, email, hashedPassword, 'user']
         );
 
+        // await transporter.sendMail({
+        //     from: `"Your App" <${process.env.EMAIL_USER}>`,
+        //     to: "shira.yuki51@gmail.com",
+        //     subject: 'Welcome!',
+        //     text: `Hello ${name}, welcome to our app!`,
+        // });
+
         res.redirect('/login');
     } catch (err) {
         console.error('Registration error:', err);
         res.status(500).send('Server error');
+    }
+});
+
+router.post('/signup-owner', async (req, res) => {
+    const {
+        ownerName,
+        email,
+        storeName,
+        address,
+        postalCode,
+        cuisine,
+        location,
+        priceRange,
+        totalCapacity,
+        opening,
+        closing,
+    } = req.body;
+
+    const message = `
+New Restaurant Owner Signup:
+
+👤 Owner Name: ${ownerName}
+📧 Email: ${email}
+
+🏪 Store Name: ${storeName}
+📍 Address: ${address}
+🧾 Postal Code: ${postalCode}
+🍱 Cuisine: ${cuisine}
+🗺️ Location: ${location}
+💲 Price Range: ${priceRange}
+👥 Total Capacity: ${totalCapacity}
+🕒 Opening Hour: ${opening}
+🕒 Closing Hour: ${closing}
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: `"Restaurant Form" <${process.env.EMAIL_USER}>`,
+            to: 'ict2216kirby@gmail.com',
+            subject: 'New Restaurant Signup',
+            text: message,
+        });
+
+        res.redirect('/rOwnerReg?success=1');
+    } catch (err) {
+        console.error('Error sending email:', err);
+        res.redirect('/rOwnerReg?error=1');
     }
 });
 

@@ -284,7 +284,7 @@ router.get('/reservations', async (req, res) => {
       SELECT 
         r.reservation_id,
         r."noOfGuest",
-        r."reservationDate"::TEXT AS "reservationDate",
+        r."reservationDate"::TEXT,
         r."reservationTime",
         r."specialRequest",
         r.status,

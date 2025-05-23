@@ -49,17 +49,18 @@ function fetchReservations() {
       tableBody.innerHTML = '';
 
       data.forEach(reservation => {
+        const dateOnly = reservation.reservationDate.split('T')[0];  
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${reservation.userName}</td>
           <td>${reservation.storeName}</td>
-          <td>${reservation.reservationDate}</td>
+          <td>${dateOnly}</td>
           <td>${reservation.reservationTime}</td>
           <td>${reservation.noOfGuest}</td>
           <td>
-            ${reservation.status === 'pending' 
-              ? `<button class="btn btn-sm btn-success" onclick="confirmReservation(${reservation.reservation_id})">Confirm</button>` 
-              : reservation.status}
+            ${reservation.status === 'pending'
+            ? `<button class="btn btn-sm btn-success" onclick="confirmReservation(${reservation.reservation_id})">Confirm</button>`
+            : reservation.status}
           </td>
           <td>${reservation.specialRequest || ''}</td>
         `;
