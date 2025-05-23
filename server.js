@@ -5,19 +5,37 @@ const path = require('path');
 const pool = require('./db');
 const argon2 = require('argon2');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
+
+function verifyToken(req, res, next) {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(403).send('Unauthorized');
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded; // Attach decoded token to request
+        next();
+    } catch (err) {
+        return res.status(401).send('Invalid or expired token');
+    }
+}
+
+// Cookie with JWT
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+// Session to keep user_id
 const session = require('express-session');
-
-
-// Session setup
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 }
+    saveUninitialized: false
 }));
 
 // Serve frontend static files
-app.use('/html', express.static(path.join(__dirname, 'frontend/html')));
 app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
 app.use('/common', express.static(path.join(__dirname, 'frontend/common')));
 app.use('/static', express.static(path.join(__dirname, 'frontend/static')));
@@ -43,15 +61,15 @@ app.use('/api/owner', ownerApi);
 
 // ======== DEFAULT ROUTES ========
 app.get('/', (req, res) => {
-    res.redirect('/html/home.html');
+  res.sendFile(path.join(__dirname, 'frontend/html/home.html'));
 });
 
-app.get('/admin', (req, res) => {
-    res.redirect('/html/admindashboard.html');
+app.get('/admin',verifyToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
 });
 
-app.get('/resOwner', (req, res) => {
-    res.redirect('/html/resOwnerdashboard.html');
+app.get('/resOwner',verifyToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
 });
 
 app.get('/login', (req, res) => {
@@ -59,16 +77,24 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-    res.redirect('/html/register.html');
+    res.sendFile(path.join(__dirname, 'frontend/html/register.html'));
 });
 
-app.get('/rOwnerReg', (req, res) => {
+app.get('/rOwnerReg',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/resOwnerForm.html'));
 });
 
 // ======== SESSION STATUS API ========
 app.get('/api/session', (req, res) => {
-    res.json({ loggedIn: !!req.session.userId });
+     const token = req.cookies.token;
+    if (!token) return res.json({ loggedIn: false });
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        res.json({ loggedIn: true, userId: decoded.userId, role: decoded.role });
+    } catch {
+        res.json({ loggedIn: false });
+    }
 });
 
 // Start server

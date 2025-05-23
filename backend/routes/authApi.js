@@ -3,7 +3,8 @@ const pool = require('../../db');
 const argon2 = require('argon2');
 require('dotenv').config();
 const nodemailer = require('nodemailer');
-
+const jwt = require('jsonwebtoken');
+const session = require('express-session');
 const router = express.Router();
 
 const transporter = nodemailer.createTransport({
@@ -17,7 +18,7 @@ const transporter = nodemailer.createTransport({
 // POST /login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    
+
     try {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
@@ -29,6 +30,24 @@ router.post('/login', async (req, res) => {
         const isMatch = await argon2.verify(user.password, password);
 
         if (isMatch) {
+            // Create JWT token
+            const token = jwt.sign(
+                {
+                    userId: user.user_id,
+                    role: user.role,
+                    name: user.name
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+            );
+
+            // Set token in HTTP-only cookie
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 3600000 // 1 hour
+            });
+
             req.session.userId = user.user_id;
             req.session.role = user.role;
 
@@ -36,7 +55,7 @@ router.post('/login', async (req, res) => {
                 return res.redirect('/admin');
             } else if (user.role === 'user') {
                 return res.redirect('/');
-            } else if (user.role === 'owner'){
+            } else if (user.role === 'owner') {
                 return res.redirect('/resOwner');
             }
         } else {
@@ -122,10 +141,8 @@ New Restaurant Owner Signup:
 
 // GET /logout
 router.get('/logout', (req, res) => {
-    req.session.destroy(err => {
-        res.clearCookie('connect.sid');
-        res.redirect('/');
-    });
+   res.clearCookie('token');
+  res.redirect('/');
 });
 
 module.exports = router;
