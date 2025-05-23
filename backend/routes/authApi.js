@@ -73,6 +73,53 @@ router.post('/register', async (req, res) => {
     }
 });
 
+router.post('/signup-owner', async (req, res) => {
+    const {
+        ownerName,
+        email,
+        storeName,
+        address,
+        postalCode,
+        cuisine,
+        location,
+        priceRange,
+        totalCapacity,
+        opening,
+        closing,
+    } = req.body;
+
+    const message = `
+New Restaurant Owner Signup:
+
+👤 Owner Name: ${ownerName}
+📧 Email: ${email}
+
+🏪 Store Name: ${storeName}
+📍 Address: ${address}
+🧾 Postal Code: ${postalCode}
+🍱 Cuisine: ${cuisine}
+🗺️ Location: ${location}
+💲 Price Range: ${priceRange}
+👥 Total Capacity: ${totalCapacity}
+🕒 Opening Hour: ${opening}
+🕒 Closing Hour: ${closing}
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: `"Restaurant Form" <${process.env.EMAIL_USER}>`,
+            to: 'ict2216kirby@gmail.com',
+            subject: 'New Restaurant Signup',
+            text: message,
+        });
+
+        res.redirect('/rOwnerReg?success=1');
+    } catch (err) {
+        console.error('Error sending email:', err);
+        res.redirect('/rOwnerReg?error=1');
+    }
+});
+
 // GET /logout
 router.get('/logout', (req, res) => {
     req.session.destroy(err => {

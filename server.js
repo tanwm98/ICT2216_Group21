@@ -62,6 +62,10 @@ app.get('/register', (req, res) => {
     res.redirect('/html/register.html');
 });
 
+app.get('/rOwnerReg', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerForm.html'));
+});
+
 // ======== SESSION STATUS API ========
 app.get('/api/session', (req, res) => {
     res.json({ loggedIn: !!req.session.userId });
