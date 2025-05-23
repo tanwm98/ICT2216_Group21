@@ -4,15 +4,15 @@ window.onload = function () {
 };
 
 
-// BUTTON EVENTS
+//  ======== BUTTON EVENTS  ======== //
 
-// Clear all filters
+// CLEAR all filters
 document.getElementById('clear').addEventListener('click', function () {
   displayStores();
 });
 
 
-// Apply for table availability filtering
+// APPLY for table availability filtering
 document.getElementById('applyButton').addEventListener('click', function () {
   filterByReservationDetails();
 });
@@ -28,7 +28,7 @@ function filterByReservationDetails() {
 }
 
 
-// Filter according to cusine/rating/prices
+// FILTER according to cusine/rating/prices
 document.getElementById('filterButton').addEventListener('click', function () {
   filterByRestaurantDetails();
 });
@@ -67,9 +67,9 @@ function filterByRestaurantDetails() {
 
 
 
-// ASYNC FUNCTIONS TO DISPLAY STORES //
+//  ======== ASYNC FUNCTIONS TO DISPLAY STORES  ======== //
 
-// display all stores
+// display ALL stores
 async function displayStores() {
     try {
         const response = await fetch('http://localhost:3000/displayallStores');
@@ -142,7 +142,7 @@ async function displayStores() {
 
 
 
-// display filter stores
+// display Reservation Available stores
 async function displayReservationAvailability(people, date, time) {
     try {
         const query = `?people=${encodeURIComponent(people)}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`;
@@ -211,7 +211,7 @@ async function displayReservationAvailability(people, date, time) {
 
 
 
-// display filter stores
+// display FILTERED stores
 async function displayFiltered(queryParams) {
   try {
     const response = await fetch(`http://localhost:3000/display_filtered_store?${queryParams.toString()}`);
