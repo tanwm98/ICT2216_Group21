@@ -1,13 +1,15 @@
 body {
-      font-family: Arial, sans-serif;
       background-color: #f7f9fb;
       margin: 0;
       padding: 0;
-      display: flex;
-      justify-content: center;
     }
 
-    .container {
+    .reserve-area {
+      justify-content: center;
+      display: flex;
+    }
+
+    .container-reserve {
       width: 600px;
       background-color: white;
       margin: 30px;
@@ -70,14 +72,6 @@ body {
       background-color: #fff;
       cursor: pointer;
       border-radius: 5px;
-    }
-
-    .krisflyer {
-      border: 1px solid #ccc;
-      padding: 15px;
-      border-radius: 5px;
-      background-color: #fafafa;
-      margin-bottom: 20px;
     }
 
     .optional {

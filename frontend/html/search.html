@@ -11,149 +11,115 @@
   <!-- Global CSS -->
   <link rel="stylesheet" href="/static/styles/style.css">
 
+  <!-- Global CSS -->
+  <link rel="stylesheet" href="/static/styles/search.css">
+
   <!-- Head Include -->
   <div id="head-placeholder"></div>
 
 </head>
 
-<body class="test">
+<body class="search">
     <div id="header-placeholder"></div>
     
     <div class="container-search">
-        
-        <!-- Sidebar / Filters -->
-        <aside>
+      
+      <!-- Sidebar / Filters -->
+      <aside>
             <div class="sidebar-section">
                 <strong>Filtered by:</strong><br/>
                 <em style="color:#f39c12;">Bookable online</em>
             </div>
 
+            <!-- Cuisine Section -->
             <div class="sidebar-section">
-                <h4>Cuisine</h4>
-                <label><input type="checkbox" /> Asian (583)</label><br/>
-                <label><input type="checkbox" /> Asian Fusion (165)</label><br/>
-                <label><input type="checkbox" /> American (19)</label><br/>
-                
-                <a href="#">Show all</a>
+              <h4>Cuisine</h4>
+              <label><input type="checkbox" class="cuisine-filter" value="Asian" /> Asian</label><br/>
+              <label><input type="checkbox" class="cuisine-filter" value="Asian Fusion" /> Asian Fusion</label><br/>
+              <label><input type="checkbox" class="cuisine-filter" value="Korean" /> Korean</label><br/>
+              <label><input type="checkbox" class="cuisine-filter" value="Western" /> Western</label><br/>
+              <label><input type="checkbox" class="cuisine-filter" value="Italian" /> Italian</label><br/>
+              <label><input type="checkbox" class="cuisine-filter" value="Chinese" /> Chinese</label><br/>
             </div>
 
+            <!-- Review Score KIV--> 
             <div class="sidebar-section">
-                <h4>Review score</h4>
-                <input type="range" min="1" max="6" class="range" />
-                <div class="range-labels">
-                  <span>1</span>
-                  <span>2</span>
-                  <span>3</span>
-                  <span>4</span>
-                  <span>5</span>
-                  <span>6</span>
-                </div>
+              <h4>Review score</h4>
+              <input type="range" min="1" max="6" class="review-score" />
+              <div class="range-labels">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
               </div>
-              
-              <div class="sidebar-section">
-                <h4>Restaurant Price</h4>
-                <input type="range" min="1" max="4" class="range" />
-                <div class="range-labels">
-                  <span>$</span>
-                  <span>$$</span>
-                  <span>$$$</span>
-                  <span>$$$$</span>
-                </div>
-              </div>
-              
-
-            <div class="sidebar-section toggle">
-                <label><input type="checkbox" checked /> Bookable online</label>
             </div>
-        </aside>
+
+            <!-- Price -->
+            <div class="sidebar-section">
+              <h4>Restaurant Price</h4>
+              <label><input type="radio" name="priceRange" class="price-range" value="$" /> $</label><br/>
+              <label><input type="radio" name="priceRange" class="price-range" value="$$" /> $$</label><br/>
+              <label><input type="radio" name="priceRange" class="price-range" value="$$$" /> $$$</label><br/>
+              <label><input type="radio" name="priceRange" class="price-range" value="$$$$" /> $$$$</label><br/>
+            </div>
+
+            
+            <div class="search-bar">
+              <button id="filterButton">Filter now</button>
+              <button id="clear">Clear All</button>
+            </div>
+            
+
+      </aside>
         
         
-        <!-- Main Content -->
-        <main>
+      <!-- Main Content -->
+      <main>
 
         <!-- Refined Search Bar -->
         <div class="search-bar">
-            <div class="input-group">
-                <label><span></span> People</label>
-                <input type="number" min="1" value="2" placeholder="Number of people" />
-            </div>
-            <div class="input-group">
-                <label><span></span> Date</label>
-                <input type="date" />
-            </div>
-            <div class="input-group">
-                <label><span></span> Time</label>
-                <input type="time" />
-            </div>
-            <button>Apply</button>
-    </div>
+          <h4>Book your Table!</h4>
+          <div class="input-group">
+              <label><span></span> People</label>
+              <input type="number" id="peopleInput" min="1" value="2" placeholder="Number of people" />
+          </div>
+          <div class="input-group">
+              <label><span></span> Date</label>
+              <input type="date" id="dateInput" />
+          </div>
+          <div class="input-group">
+              <label><span></span> Time</label>
+              <input type="time" id="timeInput" />
+          </div>
+          <button id="applyButton">Apply</button>
+        </div>
+
   
-    <div class="filters">
-        <strong>Best Restaurants in Singapore</strong>
-        <p>Searching for the best restaurants in Singapore? Discover great places to eat out for breakfast, lunch, and dinner in Singapore...</p>
-        
-        <div>
-            <span class="label">Yishun</span>
-            <span class="label">Sembawang</span>
-            <span class="label">Ang Mo Kio</span>
-            <span class="label">Upper Thomson</span>
-            <span class="label">Punggol</span>
+        <div class="filters">
+            <strong>Best Restaurants in Singapore</strong>
+            <p>Searching for the best restaurants in Singapore? Discover great places to eat out for breakfast, lunch, and dinner in Singapore...</p>
+            
+            <div>
+                <span class="label">Yishun</span>
+                <span class="label">Sembawang</span>
+                <span class="label">Ang Mo Kio</span>
+                <span class="label">Upper Thomson</span>
+                <span class="label">Punggol</span>
+            </div>
         </div>
-    </div>
 
-    <!-- Restaurant Card -->
-    <div class="restaurant-card">
-      <img src="/static/img/blog-img/french.jpg" alt="ASTONS">
-      <div class="restaurant-info">
-        <h4>ASTONS Specialities - Sembawang Shopping Centre</h4>
-        <p>Located at Sembawang area<br/>
-        Western Restaurant • $$$$<br/>
-        Meals: Lunch, Dinner</p>
-        <span class="label">Casual</span>
-        <span class="label">Cosy</span>
-        <span class="label">Family-friendly</span>
-      </div>
-      <div class="rating">5.7/6<br/><small>120 reviews</small></div>
-    </div>
+        <!-- Restaurant Card -->
+        <!-- <div class="restaurant-card">
+          <img src="/static/img/blog-img/french.jpg" alt="ASTONS">
+          <div class="restaurant-info">
+            <h4>ASTONS Specialities - Sembawang Shopping Centre</h4>
+            <p>Located at Sembawang area</p>
+            <p>Western Restaurant </p>
+            <p>Price $$$$</p>
+          </div>
+          <div class="rating">5.7/6<br/><small>120 reviews</small></div>
+        </div> -->
 
-    <div class="restaurant-card">
-      <img src="/static/img/blog-img/french.jpg" alt="Eatzi Bistro">
-      <div class="restaurant-info">
-        <h4>Eatzi Gourmet Bistro - SAFRA Yishun</h4>
-        <p>Located at Yishun area<br/>
-        International Restaurant • $$$<br/>
-        Meals: Lunch, Dinner</p>
-        <span class="label">Cosy</span>
-        <span class="label">Halal</span>
-      </div>
-      <div class="rating">5.4/6<br/><small>219 reviews</small></div>
-    </div>
+        <!-- div for javascript to populate -->
+        <div id="res-content"></div>
 
-    <div class="restaurant-card">
-        <img src="/static/img/blog-img/french.jpg" alt="Eatzi Bistro">
-        <div class="restaurant-info">
-          <h4>Eatzi Gourmet Bistro - SAFRA Yishun</h4>
-          <p>Located at Yishun area<br/>
-          International Restaurant • $$$<br/>
-          Meals: Lunch, Dinner</p>
-          <span class="label">Cosy</span>
-          <span class="label">Halal</span>
-        </div>
-        <div class="rating">5.4/6<br/><small>219 reviews</small></div>
-    </div>
-
-    <div class="restaurant-card">
-        <img src="/static/img/blog-img/french.jpg" alt="Eatzi Bistro">
-        <div class="restaurant-info">
-          <h4>Eatzi Gourmet Bistro - SAFRA Yishun</h4>
-          <p>Located at Yishun area<br/>
-          International Restaurant • $$$<br/>
-          Meals: Lunch, Dinner</p>
-          <span class="label">Cosy</span>
-          <span class="label">Halal</span>
-        </div>
-        <div class="rating">5.4/6<br/><small>219 reviews</small></div>
-    </div>
 
 
   </main>
@@ -166,7 +132,7 @@
 <script src="/common/common_js/include.js"></script>
 
 <!-- Then page-specific JS TO CHANGE*** -->
-<script src="/js/home.js"></script>
+<script src="/js/search.js"></script>
 
 </body>
 </html>
