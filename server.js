@@ -33,6 +33,8 @@ const adminDash = require('./backend/routes/adminDashboardApi')
 const ownerApi = require('./backend/routes/ownerDashboardApi');
 const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
+const search = require('./backend/routes/searchApi');
+
 
 // using the routes
 app.use(homeRoutes);
@@ -40,6 +42,8 @@ app.use(selectedResRoutes);
 app.use('/', authRoutes);
 app.use('/api', adminDash);
 app.use('/api/owner', ownerApi);
+app.use(search); 
+
 
 // ======== DEFAULT ROUTES ========
 app.get('/', (req, res) => {
