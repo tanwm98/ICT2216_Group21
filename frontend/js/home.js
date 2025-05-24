@@ -28,7 +28,8 @@ async function displayStores() {
             // creating <a> tag for image
             const link = document.createElement('a');
             // set store name as parameter for page to show store details
-            link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+            link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+
 
             // creating img tag inside img div
             const img = document.createElement('img');
@@ -40,7 +41,7 @@ async function displayStores() {
 
             // creating div tag for store name
             const name = document.createElement('a');
-            name.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+            link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
             const nameHeader = document.createElement('h4'); // <a> <h4> </h4> </a> 
             nameHeader.innerHTML = store.storeName;
             name.appendChild(nameHeader);
