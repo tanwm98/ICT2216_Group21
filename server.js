@@ -82,6 +82,11 @@ app.get('/rOwnerReg', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/resOwnerForm.html'));
 });
 
+app.get('/selectedRes', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/selectedRes.html'));
+});
+
+
 // ======== VERIFICATION REQUIRED ======== 
 
 app.get('/admin',verifyToken, (req, res) => {
@@ -95,6 +100,7 @@ app.get('/loggedUser',verifyToken, (req, res) => {
 app.get('/resOwner',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
 });
+
 
 
 
