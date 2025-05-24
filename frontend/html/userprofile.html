@@ -1,72 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>User Profile</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Dashboard</title>
 
-    .profile-container {
-      max-width: 500px;
-      margin: 50px auto;
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      text-align: center;
-    }
+  <!-- Bootstrap CSS -->
+  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
 
-    .profile-image {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      object-fit: cover;
-      margin-bottom: 20px;
-    }
+  <!-- Global & Dashboard CSS -->
+  <link rel="stylesheet" href="/static/styles/style.css">
 
-    .profile-name {
-      font-size: 24px;
-      font-weight: bold;
-      color: #333;
-    }
-
-    .profile-bio {
-      font-size: 16px;
-      color: #666;
-      margin: 10px 0;
-    }
-
-    .profile-details {
-      text-align: left;
-      margin-top: 20px;
-    }
-
-    .profile-details strong {
-      display: inline-block;
-      width: 100px;
-      color: #333;
-    }
-  </style>
+  <!-- Head Include -->
+  <div id="head-placeholder"></div>
 </head>
+
 <body>
+  <!-- Header Include -->
+  <div id="header-placeholder"></div>
 
-  <div class="profile-container">
-    <img src="https://via.placeholder.com/120" alt="Profile Picture" class="profile-image" />
-    <div class="profile-name">Jane Doe</div>
-    <div class="profile-bio">Web Developer & UI/UX Enthusiast</div>
+  <section class="archive-area py-4">
+    <div class="container">
 
-    <div class="profile-details">
-      <p><strong>Email:</strong> jane.doe@example.com</p>
-      <p><strong>Location:</strong> New York, USA</p>
-      <p><strong>Joined:</strong> January 2022</p>
+      <h2 class="mb-4">Welcome, <span id="userName">User</span></h2>
+
+      <!-- Profile -->
+      <div class="card mb-4">
+        <div class="card-header">
+          Profile Information
+        </div>
+        <div class="card-body">
+          <p><strong>Name:</strong> <span id="profileName">Loading...</span></p>
+          <p><strong>Email:</strong> <span id="profileEmail">Loading...</span></p>
+        </div>
+      </div>
+
+      <!-- Reservations -->
+      <div class="card mb-4">
+        <div class="card-header">
+          Your Reservations
+        </div>
+        <div class="card-body">
+          <table class="table table-bordered" id="reservationTable">
+            <thead>
+              <tr>
+                <th>Restaurant</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Guests</th>
+                <th>Status</th>
+                <th>Special Request</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Populated via user.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Reviews -->
+      <div class="card mb-4">
+        <div class="card-header">
+          Your Reviews
+        </div>
+        <div class="card-body">
+          <table class="table table-bordered" id="reviewTable">
+            <thead>
+              <tr>
+                <th>Restaurant</th>
+                <th>Rating</th>
+                <th>Comment</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Populated via user.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <a href="/" class="btn btn-outline-primary mt-3">&larr; Return to Home</a>
+
     </div>
-  </div>
+  </section>
 
+  <!-- Footer Include -->
+  <div id="footer-placeholder"></div>
+
+  <!-- JS -->
+  <script src="/common/common_js/include.js"></script>
+  <script src="/js/user.js"></script>
 </body>
+
 </html>

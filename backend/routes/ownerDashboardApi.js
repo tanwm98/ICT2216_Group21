@@ -26,9 +26,7 @@ router.get('/restaurants', async (req, res) => {
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
 router.get('/reservations/:ownerId', async (req, res) => {
     const ownerId = req.session.userId;
-
-    console.log("ownerId: " + ownerId);
-
+    
     try {
         const result = await pool.query(`
             SELECT r.reservation_id, r."noOfGuest", r."reservationDate", r."reservationTime",

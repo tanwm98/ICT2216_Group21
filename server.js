@@ -53,7 +53,7 @@ const ownerApi = require('./backend/routes/ownerDashboardApi');
 const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
 const search = require('./backend/routes/searchApi');
-const loggedUser = require('./backend/routes/userDashApi');
+const loggedUser = require('./backend/routes/userProfileApi');
 
 
 // using the routes
@@ -63,7 +63,7 @@ app.use('/', authRoutes);
 app.use('/api', adminDash);
 app.use('/api/owner', ownerApi);
 app.use(search); 
-
+app.use('/api/user', loggedUser);
 
 // ======== PUBLIC ROUTES ========
 app.get('/', (req, res) => {
@@ -101,7 +101,9 @@ app.get('/resOwner',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
 });
 
-
+app.get('/profile',verifyToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/userprofile.html'));
+});
 
 
 // ======== SESSION STATUS API ========
