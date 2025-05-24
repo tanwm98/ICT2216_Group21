@@ -15,79 +15,83 @@
   <!-- Head Include -->
   <div id="head-placeholder"></div>
 </head>
+
 <body>
     <!-- Header Include -->
     <div id="header-placeholder"></div>
 
-    <div class="container">
-        <div class="timer">
+    <section class="reserve-area">
+        <div class="container-reserve">
+            <div class="timer">
 
-            <!-- I don't know if we want to do count down, maybe can remove -->
-            Hurry! Your table will only be available for the next… <span>04:57</span>
-            
-        </div>
-
-    <h2>ASTONS Specialities - Sembawang Shopping Centre</h2>
-
-    <div class="reservation-details">
-      <span>👥 2 people</span>
-      <span>📅 21 May</span>
-      <span>🕑 2:30 PM</span>
-    </div>
-
-    <form>
-        <h3>Continue with</h3>
-
-        <div class="form-group mx-1">
-            <label>Email address *</label>
-            <input type="email" required>
-        </div>
-
-        <div class="row mx-1">
-            <div class="form-group" style="flex: 1;">
-                <label>First name *</label>
-                <input type="text" required>
+                <!-- I don't know if we want to do count down, maybe can remove -->
+                Hurry! Your table will only be available for the next… <span>04:57</span>
+                
             </div>
-            <div class="form-group" style="flex: 1;">
-                <label>Last name *</label>
-                <input type="text" required>
+
+            <h2>ASTONS Specialities - Sembawang Shopping Centre</h2>
+
+            <div class="reservation-details">
+                <span>👥 2 people</span>
+                <span>📅 21 May</span>
+                <span>🕑 2:30 PM</span>
             </div>
+
+            <form>
+                <h3>Continue with</h3>
+
+                <div class="form-group mx-1">
+                    <label>Email address *</label>
+                    <input type="email" required>
+                </div>
+
+                <div class="row mx-1">
+                    <div class="form-group" style="flex: 1;">
+                        <label>First name *</label>
+                        <input type="text" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Last name *</label>
+                        <input type="text" required>
+                    </div>
+                </div>
+
+                <div class="row mx-1">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Country Code</label>
+                        <select>
+                            <option value="+65">+65</option>
+                            <!-- Add more if needed -->
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label>Phone number *</label>
+                        <input type="tel" required>
+                    </div>
+                </div>
+
+
+                <div class="login-options">
+                    <button type="button">Quandoo</button>
+                    <button type="button"> Apple</button>
+                    <button type="button">Facebook</button>
+                    <button type="button">Google</button>
+                </div>
+
+                <div class="optional">
+                    Optional
+                </div>
+
+                <div class="form-group">
+                    <label>Special request?</label>
+                    <input type="text" placeholder="E.g. table preference, space for a stroller...">
+                </div>
+
+                <button class="submit-btn" type="submit">Complete Reservation</button>
+            </form>
         </div>
-
-        <div class="row mx-1">
-            <div class="form-group" style="flex: 1;">
-                <label>Country Code</label>
-                <select>
-                    <option value="+65">+65</option>
-                    <!-- Add more if needed -->
-                </select>
-            </div>
-            <div class="form-group" style="flex: 2;">
-                <label>Phone number *</label>
-                <input type="tel" required>
-            </div>
-      </div>
-
-
-        <div class="login-options">
-            <button type="button">Quandoo</button>
-            <button type="button"> Apple</button>
-            <button type="button">Facebook</button>
-            <button type="button">Google</button>
-        </div>
-
-        <div class="optional">
-            Optional
-        </div>
-
-        <div class="form-group">
-            <label>Special request?</label>
-            <input type="text" placeholder="E.g. table preference, space for a stroller...">
-        </div>
-
-      <button class="submit-btn" type="submit">Complete Reservation</button>
-    </form>
-  </div>
+    </section>
+    
 
 
   <!-- Footer Include -->
@@ -95,6 +99,7 @@
 
   <!-- Load include.js FIRST -->
   <script src="/common/common_js/include.js"></script>
+  
   <!-- Then page-specific JS TO CHANGE***-->
   <script src="/js/home.js"></script>
 
