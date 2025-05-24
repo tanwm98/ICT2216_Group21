@@ -8,6 +8,11 @@
   <!-- Bootstrap CSS -->
   <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
 
+    
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+
   <!-- Global CSS -->
   <link rel="stylesheet" href="/static/styles/style.css">
 
@@ -49,7 +54,39 @@
           </div>
 
           <div class="mb-3">
-            <div class="fw-medium small">2 people</div>
+            <!-- Pax Selection -->
+            <div id="paxCollapse" class="mb-3">
+              <label class="form-label fw-semibold">Guests:</label>
+              <div class="d-flex flex-column gap-2">
+
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="adultDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    0 Adults
+                  </button>
+                  <ul class="dropdown-menu" aria-labelledby="adultDropdown">
+                    <li><a class="dropdown-item" href="#">1</a></li>
+                    <li><a class="dropdown-item" href="#">2</a></li>
+                    <li><a class="dropdown-item" href="#">3</a></li>
+                    <li><a class="dropdown-item" href="#">4</a></li>
+                  </ul>
+                </div>
+
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="childDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    0 Children
+                  </button>
+                  <ul class="dropdown-menu" aria-labelledby="childDropdown">
+                    <li><a class="dropdown-item" href="#">0</a></li>
+                    <li><a class="dropdown-item" href="#">1</a></li>
+                    <li><a class="dropdown-item" href="#">2</a></li>
+                    <li><a class="dropdown-item" href="#">3</a></li>
+                  </ul>
+                </div>
+
+                <div class="text-muted small mt-1" id="paxText">0 Adults</div>
+              </div>
+          </div>
+            
             <div class="text-muted small">Today (Friday)</div>
           </div>
 
@@ -103,7 +140,10 @@
   <!-- Footer Include Placeholder -->
   <div id="footer-placeholder" class="mt-5"></div>
 
+  <!-- Load include.js FIRST -->
+  <script src="/common/common_js/include.js"></script>
+
   <!-- JS -->
-  <script src="/frontend//js/selectedRes.js"></script>
+  <script src="/js/selectedRes.js"></script>
 </body>
 </html>

@@ -25,7 +25,7 @@ window.onload = function () {
             if (childCount > 0) {
                 totalpax += `, ${childCount} Children`;
             }
-            text.innerHTML = paxSummary;
+            text.innerHTML = totalpax;
         });
     });
 
