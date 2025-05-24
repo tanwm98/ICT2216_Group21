@@ -26,12 +26,10 @@ router.get('/restaurants', async (req, res) => {
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
 router.get('/reservations/:ownerId', async (req, res) => {
     const ownerId = req.session.userId;
-
-    console.log("ownerId: " + ownerId);
-
+    
     try {
         const result = await pool.query(`
-            SELECT r.reservation_id, r."noOfGuest", r."reservationDate", r."reservationTime",
+            SELECT r.reservation_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
                    r."specialRequest", r.status, u.name AS "userName", s."storeName"
             FROM reservations r
             JOIN users u ON r.user_id = u.user_id

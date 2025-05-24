@@ -89,5 +89,6 @@ async function displayStores() {
     }
 }
 
+
 // Call the function to display users when the page loads
 window.onload = displayStores;
