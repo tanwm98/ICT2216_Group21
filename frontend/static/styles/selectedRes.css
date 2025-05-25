@@ -16,3 +16,10 @@
     box-shadow: 0 8px 4px lightgrey;
 }
 
+#right-side {
+    background-color: #F9FAFB;
+    padding: 10px;
+    box-shadow: 0 2px 2px lightgrey;
+    border-radius: 5px;
+
+}
