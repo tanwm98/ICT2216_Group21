@@ -112,9 +112,6 @@ async function displayTimingOptions(stores) {
             hiddenPart.style.display = isHidden ? "unset" : "none";
             showmore.textContent = isHidden ? "Show less ▲" : "Show more ▼";
         });
-
-        console.log(hiddenPart);
-
         timing.appendChild(showmore);
 
     }
@@ -181,5 +178,32 @@ async function navTabs(stores) {
 
     // review content
     const reviewContent = document.getElementById("reviewContent");
-    
+    const response = await fetch(`http://localhost:3000/display_reviews?storeid=${stores[0].store_id}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch data');
+    }
+
+    const reviews = await response.json();
+    reviews.forEach(r => {
+        // TODO: add who the review is posted by
+        const eachReview = document.createElement("div");
+        eachReview.style.backgroundColor = "#F9FAFB";
+        eachReview.style.boxShadow = "0 2px 2px lightgrey";
+        eachReview.style.padding = "10px";
+        eachReview.style.marginBottom = "10px";
+        eachReview.style.borderRadius = "6px";
+
+
+        const ratingContent = document.createElement("p");
+        ratingContent.innerHTML = `<strong>Rating:</strong> ${r.rating}`;
+
+        const descriptionContent = document.createElement("p");
+        descriptionContent.innerHTML = `<strong>Description:</strong> ${r.description}`;
+
+        eachReview.append(ratingContent, descriptionContent);
+        reviewContent.append(eachReview);
+
+    });
+
+
 }
