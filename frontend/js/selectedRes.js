@@ -1,8 +1,4 @@
 window.onload = function () {
-    // initialize 0 adults & 0 child
-    let adultCount = 0;
-    let childCount = 0;
-
     flatpickr("#calender", {
         dateFormat: "Y-m-d",
         minDate: 'today'
@@ -11,6 +7,10 @@ window.onload = function () {
     displaySpecificStore();
     reservationForm();
 };
+
+// initialize 0 adults & 0 child
+let adultCount = 0;
+let childCount = 0;
 
 // event listener for when user changes the dropdown
 document.getElementById("adultDropdown").addEventListener("change", function () {
@@ -223,7 +223,7 @@ async function navTabs(stores) {
 async function reservationForm() {
 
     const reservationForm = document.getElementById("makeReservationForm");
-    reservationForm.addEventListener('submit', function (e) {
+    reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         const pax = document.getElementById("paxText").textContent;
         console.log("pax in form: " + pax);
@@ -239,8 +239,18 @@ async function reservationForm() {
         if (!time) {
             errorMsg.innerHTML = "Please select a timing.";
             errorMsg.style.color = "red";
+        } else {
+            // .slice (starting index, ending index)
+            const adults = pax.slice(0, 1);
+            console.log("adults: " + adults);
+
+            const children = pax.slice(10, 11);
+            console.log("children: " + children);
+            // const response = await fetch(`http://localhost:3000/reserve?storeid=${stores[0].store_id}`);
+            // if (!response.ok) {
+            //     throw new Error('Failed to fetch data');
+            // }
         }
-
-
     })
 }
+
