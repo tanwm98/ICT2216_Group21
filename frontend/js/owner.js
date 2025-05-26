@@ -13,6 +13,32 @@ function showSection(id) {
   }
 }
 
+function exportReservationsToCSV() {
+    const table = document.getElementById("reservationTable");
+    let csv = [];
+    const rows = table.querySelectorAll("tr");
+
+    for (let row of rows) {
+        const cols = row.querySelectorAll("th, td");
+        let csvRow = [];
+        for (let col of cols) {
+            let text = col.innerText.replace(/"/g, '""'); // Escape double quotes
+            csvRow.push(`"${text}"`);
+        }
+        csv.push(csvRow.join(","));
+    }
+
+    // Create a CSV Blob and trigger download
+    const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "reservations.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
 // ========== FETCH & DISPLAY OWNER'S RESTAURANTS ==========
 function fetchRestaurants() {
   fetch('/api/owner/restaurants')
