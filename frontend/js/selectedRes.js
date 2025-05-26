@@ -1,33 +1,7 @@
 window.onload = function () {
+    // initialize 0 adults & 0 child
     let adultCount = 0;
     let childCount = 0;
-
-    document.querySelectorAll('#paxCollapse .dropdown-menu a').forEach(function (item) {
-        // when clicked on a value from the dropdown
-        item.addEventListener('click', function (e) {
-            const dropdown = this.closest('.dropdown');
-            const button = dropdown.querySelector('.dropdown-toggle');
-            const text = document.getElementById("paxText");
-
-            // get number selected in the dropdown
-            // this returns whichever dropdown is active now
-            const selectedValue = parseInt(this.textContent);
-
-            if (button.id === 'adultDropdown') {
-                adultCount = selectedValue;
-                button.textContent = `${adultCount} Adults`;
-            } else if (button.id === 'childDropdown') {
-                childCount = selectedValue;
-                button.textContent = `${childCount} Children`;
-            }
-
-            let totalpax = `${adultCount} Adults`;
-            if (childCount > 0) {
-                totalpax += `, ${childCount} Children`;
-            }
-            text.innerHTML = totalpax;
-        });
-    });
 
     flatpickr("#calender", {
         dateFormat: "Y-m-d",
@@ -35,7 +9,33 @@ window.onload = function () {
     });
 
     displaySpecificStore();
+    reservationForm();
 };
+
+// event listener for when user changes the dropdown
+document.getElementById("adultDropdown").addEventListener("change", function () {
+    // convert value to int -> if empty then 0
+    // 'this' refers to the select tag
+    adultCount = parseInt(this.value) || 0;
+    console.log(adultCount);
+    changePax();
+});
+
+document.getElementById("childDropdown").addEventListener("change", function () {
+    childCount = parseInt(this.value) || 0;
+    changePax();
+});
+
+async function changePax() {
+    // to update pax count
+    const text = document.getElementById("paxText");
+    let totalpax = `${adultCount} Adults`;
+    if (childCount > 0) {
+        totalpax += `, ${childCount} Children`;
+    }
+    console.log("total pax: " + totalpax);
+    text.innerHTML = totalpax;
+}
 
 async function displayTimingOptions(stores) {
 
@@ -82,6 +82,7 @@ async function displayTimingOptions(stores) {
     timing.appendChild(hiddenPart);
 
     let count = 0;
+    let selectedBtn = null;
     while (startMin < (closeMin - 30)) {
         const btn = document.createElement('button');
         btn.style.width = "70px";
@@ -89,6 +90,22 @@ async function displayTimingOptions(stores) {
         btn.textContent = changeBack(startMin);
         btn.className = 'btn btn-outline-primary m-1';
         btn.type = 'button';
+
+        // event listener to track which btn is selected
+        btn.addEventListener('click', function () {
+            if (selectedBtn) {
+                selectedBtn.classList.remove('btn-primary');
+                selectedBtn.classList.add('btn-outline-primary');
+            }
+
+            // Set new selected button
+            selectedBtn = btn;
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+
+            const selectedTime = btn.textContent;
+            document.getElementById('selectedTimeInput').value = selectedTime;
+        })
 
         if (count < 10) {
             visiblePart.appendChild(btn);
@@ -204,6 +221,20 @@ async function navTabs(stores) {
         reviewContent.append(eachReview);
 
     });
+}
 
+async function reservationForm() {
 
+    const reservationForm = document.getElementById("makeReservationForm");
+    reservationForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const pax = document.getElementById("paxText").textContent;
+        console.log("pax in form: " + pax);
+
+        const date = document.getElementById('calender').value;
+        console.log("date: " + date);
+
+        const time = document.getElementById('selectedTimeInput').value;
+        console.log("selected time: " + time);
+    })
 }

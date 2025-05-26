@@ -51,61 +51,61 @@
 
       </div>
 
-      <div class="col-lg-5" id="right-side">
-        <div id="paxCollapse" class="mb-3">
-          <label class="form-label fw-semibold">Guests:</label>
-          <div class="d-flex flex-column gap-2">
+      <form id="makeReservationForm">
+        <div class="col-lg-5" id="right-side">
+          <div id="paxCollapse" class="mb-3">
+            <label class="form-label fw-semibold">Guests:</label>
+            <div class="d-flex flex-column gap-2">
 
-            <div class="dropdown">
-              <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="adultDropdown"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                0 Adults
-              </button>
-              <ul class="dropdown-menu" aria-labelledby="adultDropdown">
-                <li><a class="dropdown-item" href="#">1</a></li>
-                <li><a class="dropdown-item" href="#">2</a></li>
-                <li><a class="dropdown-item" href="#">3</a></li>
-                <li><a class="dropdown-item" href="#">4</a></li>
-                <li><a class="dropdown-item" href="#">5</a></li>
-                <li><a class="dropdown-item" href="#">6</a></li>
-                <li><a class="dropdown-item" href="#">7</a></li>
-                <li><a class="dropdown-item" href="#">8</a></li>
-                <li><a class="dropdown-item" href="#">9</a></li>
-                <li><a class="dropdown-item" href="#">10</a></li>
-              </ul>
+              <div class="dropdown">
+                <label for="adultDropdown" class="form-label"></label>
+                <select class="form-select" id="adultDropdown" name="adultDropdown" required>
+                  <option value="">0 Adults</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </div>
+
+              <div class="dropdown">
+                <label for="childDropdown" class="form-label mt-3"></label>
+                <select class="form-select" id="childDropdown" name="childDropdown">
+                  <option value="">0 Children</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </div>
+
+              <div class="text-muted small mt-1" id="paxText">0 Adults</div>
             </div>
-
-            <div class="dropdown">
-              <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="childDropdown"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                0 Children
-              </button>
-              <ul class="dropdown-menu" aria-labelledby="childDropdown">
-                <li><a class="dropdown-item" href="#">1</a></li>
-                <li><a class="dropdown-item" href="#">2</a></li>
-                <li><a class="dropdown-item" href="#">3</a></li>
-                <li><a class="dropdown-item" href="#">4</a></li>
-                <li><a class="dropdown-item" href="#">5</a></li>
-                <li><a class="dropdown-item" href="#">6</a></li>
-                <li><a class="dropdown-item" href="#">7</a></li>
-                <li><a class="dropdown-item" href="#">8</a></li>
-                <li><a class="dropdown-item" href="#">9</a></li>
-                <li><a class="dropdown-item" href="#">10</a></li>
-              </ul>
-            </div>
-
-            <div class="text-muted small mt-1" id="paxText">0 Adults</div>
           </div>
+
+          <input id="calender" name="reservationDate" class="form-control mb-4" placeholder="Select a date" required>
+
+          <div id="timing-options">
+          </div>
+          <input type="hidden" name="selectedTime" id="selectedTimeInput" />
+
+          <button type="submit" class="btn w-100" style="background-color: #FC6C3F; color: white;">Reserve</button>
+
         </div>
+      </form>
 
-        <input id="calender" class="form-control mb-4" placeholder="Select a date">
-
-        <div id="timing-options">
-
-        </div>
-        <button class="btn w-100" style="background-color: #FC6C3F; color: white;">Reserve</button>
-
-      </div>
 
       <hr class="border-top border-2 border-dark my-4"> <!-- line seperator -->
 
