@@ -17,7 +17,6 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
     // convert value to int -> if empty then 0
     // 'this' refers to the select tag
     adultCount = parseInt(this.value) || 0;
-    console.log(adultCount);
     changePax();
 });
 
@@ -33,7 +32,6 @@ async function changePax() {
     if (childCount > 0) {
         totalpax += `, ${childCount} Children`;
     }
-    console.log("total pax: " + totalpax);
     text.innerHTML = totalpax;
 }
 
@@ -125,7 +123,6 @@ async function displayTimingOptions(stores) {
 
         showmore.addEventListener('click', () => {
             const isHidden = hiddenPart.style.display === 'none';
-            console.log(isHidden);
             hiddenPart.style.display = isHidden ? "unset" : "none";
             showmore.textContent = isHidden ? "Show less ▲" : "Show more ▼";
         });
@@ -236,5 +233,14 @@ async function reservationForm() {
 
         const time = document.getElementById('selectedTimeInput').value;
         console.log("selected time: " + time);
+
+        const errorMsg = document.getElementById("requiredError");
+
+        if (!time) {
+            errorMsg.innerHTML = "Please select a timing.";
+            errorMsg.style.color = "red";
+        }
+
+
     })
 }

@@ -51,11 +51,11 @@
 
       </div>
 
-      <form id="makeReservationForm">
-        <div class="col-lg-5" id="right-side">
+      <div class="col-lg-5" id="right-side">
+        <form id="makeReservationForm">
+
           <div id="paxCollapse" class="mb-3">
-            <label class="form-label fw-semibold">Guests:</label>
-            <div class="d-flex flex-column gap-2">
+            <div class="d-flex flex-column">
 
               <div class="dropdown">
                 <label for="adultDropdown" class="form-label"></label>
@@ -75,7 +75,7 @@
               </div>
 
               <div class="dropdown">
-                <label for="childDropdown" class="form-label mt-3"></label>
+                <label for="childDropdown" class="form-label"></label>
                 <select class="form-select" id="childDropdown" name="childDropdown">
                   <option value="">0 Children</option>
                   <option value="1">1</option>
@@ -99,12 +99,14 @@
 
           <div id="timing-options">
           </div>
+          <p id="requiredError"></p>
+
           <input type="hidden" name="selectedTime" id="selectedTimeInput" />
 
           <button type="submit" class="btn w-100" style="background-color: #FC6C3F; color: white;">Reserve</button>
+        </form>
 
-        </div>
-      </form>
+      </div>
 
 
       <hr class="border-top border-2 border-dark my-4"> <!-- line seperator -->
