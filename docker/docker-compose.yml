@@ -1,13 +1,42 @@
 version: '3.8'
+
 services:
-  app:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../frontend/public:/usr/share/caddy:ro   
+      - ../frontend/static:/usr/share/caddy/static:ro  
+      - ../frontend/common:/usr/share/caddy/common:ro  
+      - ../frontend/js:/usr/share/caddy/js:ro          
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    ports:
-      - "3000:3000"
     env_file:
       - ../.env
+    expose:
+      - "3000"       # ⭐ Internal only, not exposed to host
     volumes:
       - ..:/app
       - /app/node_modules
+    networks:
+      - app-network
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  app-network:
+    driver: bridge
