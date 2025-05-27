@@ -48,9 +48,6 @@ router.post('/login', async (req, res) => {
                 maxAge: 3600000 // 1 hour
             });
 
-            req.session.userId = user.user_id;
-            req.session.role = user.role;
-
             if (user.role === 'admin') {
                 return res.redirect('/admin');
             } else if (user.role === 'user') {

@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../../db'); 
 const router = express.Router();
+const authenticateToken = require('../../frontend/js/token');
 
 // ======== ADMIN DASHBOARD ========
 router.get('/dashboard-stats', async (req, res) => {

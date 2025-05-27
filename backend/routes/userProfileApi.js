@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../../db');
+const argon2 = require('argon2');
+const authenticateToken = require('../../frontend/js/token');
 
 // Get user profile
-router.get('/getUser', async (req, res) => {
-  const userId = req.session.userId;
+router.get('/getUser',authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
@@ -29,8 +31,8 @@ router.get('/getUser', async (req, res) => {
 });
 
 // Get user reservations
-router.get('/reservations', async (req, res) => {
-  const userId = req.session.userId;
+router.get('/reservations',authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
@@ -55,8 +57,8 @@ router.get('/reservations', async (req, res) => {
 });
 
 // Get user reviews
-router.get('/reviews', async (req, res) => {
-  const userId = req.session.userId;
+router.get('/reviews',authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
@@ -76,6 +78,52 @@ router.get('/reviews', async (req, res) => {
   } catch (err) {
     console.error('Error fetching reviews:', err);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Reset user password
+router.post('/reset-password',authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const { newPassword } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized. Please log in.' });
+  }
+
+  if (!newPassword || newPassword.length < 5) {
+    return res.status(400).json({ error: 'Password must be at least 5 characters long.' });
+  }
+
+  try {
+    const hashedPassword = await argon2.hash(newPassword);
+
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE user_id = $2',
+      [hashedPassword, userId]
+    );
+
+    res.json({ message: 'Password reset successful.' });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user name
+router.put('/edit',authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const { name } = req.body;
+
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ message: 'Name cannot be empty.' });
+  }
+
+  try {
+    await pool.query('UPDATE users SET name = $1 WHERE user_id = $2', [name.trim(), userId]);
+    res.json({ message: 'Name updated successfully.' });
+  } catch (err) {
+    console.error('Error updating name:', err);
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
