@@ -2,6 +2,7 @@ window.addEventListener('DOMContentLoaded', () => {
   fetchUser();
   fetchReservations();
   fetchReviews();
+  setupResetPasswordHandler();
 });
 
 function fetchUser() {
@@ -60,4 +61,49 @@ function fetchReviews() {
     .catch(err => {
       console.error('Error loading reviews:', err);
     });
+}
+
+function setupResetPasswordHandler() {
+  const resetForm = document.getElementById('resetPasswordForm');
+
+  if (resetForm) {
+    resetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (newPassword !== confirmPassword) {
+        alert('Passwords do not match.');
+        return;
+      }
+
+      if (newPassword.length < 5) {
+        alert('Password must be at least 5 characters long.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword })
+        });
+
+        const result = await response.json();
+
+         if (response.ok) {
+          alert('Password has been reset successfully! You will be logged out.');
+          await fetch('/api/auth/logout', { method: 'POST' });
+          window.location.href = '/login';
+          
+        } else {
+          alert(result.error || 'Failed to reset password.');
+        }
+      } catch (err) {
+        console.error('Password reset failed:', err);
+        alert('An error occurred while resetting the password.');
+      }
+    });
+  }
 }

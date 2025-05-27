@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../../db');
+const argon2 = require('argon2');
 
 // Get user profile
 router.get('/getUser', async (req, res) => {
@@ -76,6 +77,34 @@ router.get('/reviews', async (req, res) => {
   } catch (err) {
     console.error('Error fetching reviews:', err);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Reset user password
+router.post('/reset-password', async (req, res) => {
+  const userId = req.session.userId;
+  const { newPassword } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized. Please log in.' });
+  }
+
+  if (!newPassword || newPassword.length < 5) {
+    return res.status(400).json({ error: 'Password must be at least 5 characters long.' });
+  }
+
+  try {
+    const hashedPassword = await argon2.hash(newPassword);
+
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE user_id = $2',
+      [hashedPassword, userId]
+    );
+
+    res.json({ message: 'Password reset successful.' });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
