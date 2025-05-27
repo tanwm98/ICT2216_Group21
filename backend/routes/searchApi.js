@@ -14,7 +14,7 @@ router.get('/displayallStores', async (req, res) => {
           s."storeName",
           s.image,
           s.cuisine,
-          s.address,
+          s.location,
           s."priceRange",
           ROUND(AVG(r.rating), 1) AS "average_rating",
           COUNT(r.rating) AS "review_count"
