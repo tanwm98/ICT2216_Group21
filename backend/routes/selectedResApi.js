@@ -32,5 +32,28 @@ router.get('/display_reviews', async (req, res) => {
     }
 })
 
+// add reservation into reserve table
+router.get('/reserve', async (req, res) => {
+    try {
+        // get store name from the request
+        const pax = req.query.pax;
+        const time = req.query.time;
+        const date = req.query.date;
+        // const userid = req.session[0];
+        const userid = req.query.userid;
+        const storeid = req.query.storeid;
+        console.log("userid: " + userid);
+        console.log("Pax: " + pax);
+        console.log("time: " + time);
+        console.log("date: " + date);
+        console.log("storeid: " + storeid);
+        const result = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate") VALUES ($1, $2, $3, $4, $5)', [userid, storeid, pax, time, date]);
+        res.json(result.rows); // send data back as json
+    } catch (err) {
+        console.error('Error querying database:', err);
+        res.status(500).json({ error: 'Failed to insert data' });
+    }
+})
+
 module.exports = router;
 
