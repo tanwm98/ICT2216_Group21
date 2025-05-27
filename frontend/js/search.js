@@ -26,6 +26,12 @@ document.getElementById('clear').addEventListener('click', function () {
     reviewScoreInput.value = '';
   }
 
+  // Reset the review score range input to 1
+  const reviewSlider = document.querySelector('.review-score');
+  if (reviewSlider) {
+    reviewSlider.value = 1;
+  }
+
   // Uncheck all cuisine checkboxes
   const cuisineCheckboxes = document.querySelectorAll('.cuisine-filter');
   cuisineCheckboxes.forEach(cb => cb.checked = false);
@@ -87,6 +93,35 @@ function filterByRestaurantDetails() {
 
   // Call displayFiltered with just price or all available filters
   displayFiltered(queryParams);
+}
+
+
+
+// Extract any current filters
+function getCurrentFilterQueryParams() {
+  const queryParams = new URLSearchParams();
+
+  // Price Range
+  const selectedPriceRadio = document.querySelector('.price-range:checked');
+  const priceRange = selectedPriceRadio ? selectedPriceRadio.value : "";
+  if (priceRange) {
+    queryParams.append('priceRange', priceRange);
+  }
+
+  // Cuisine Filters
+  const selectedCuisines = Array.from(document.querySelectorAll('.cuisine-filter:checked'))
+    .map(cb => cb.value);
+  if (selectedCuisines.length > 0) {
+    queryParams.append('cuisines', selectedCuisines.join(','));
+  }
+
+  // Review Score
+  const reviewScoreInput = document.querySelector('.review-score');
+  if (reviewScoreInput && reviewScoreInput.value) {
+    queryParams.append('reviewScore', reviewScoreInput.value);
+  }
+
+  return queryParams;
 }
 
 
