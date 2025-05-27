@@ -1,5 +1,5 @@
 body {
-      background-color: #f7f9fb;
+      background-color: white;
       margin: 0;
       padding: 0;
     }
@@ -55,7 +55,6 @@ body {
 
     .row {
       display: flex;
-      gap: 10px;
     }
 
     .login-options {
