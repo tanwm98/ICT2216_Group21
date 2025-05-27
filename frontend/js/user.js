@@ -3,6 +3,7 @@ window.addEventListener('DOMContentLoaded', () => {
   fetchReservations();
   fetchReviews();
   setupResetPasswordHandler();
+  setupNameEditHandlers();
 });
 
 function fetchUser() {
@@ -103,6 +104,60 @@ function setupResetPasswordHandler() {
       } catch (err) {
         console.error('Password reset failed:', err);
         alert('An error occurred while resetting the password.');
+      }
+    });
+  }
+}
+
+function setupNameEditHandlers() {
+   const editBtn = document.getElementById('editNameBtn');
+  const nameDisplay = document.getElementById('profileName');
+  const inputGroup = document.getElementById('editNameContainer');
+  const inputField = document.getElementById('editNameInput');
+  const saveBtn = document.getElementById('saveNameBtn');
+  const cancelBtn = document.getElementById('cancelNameBtn');
+
+  if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
+    editBtn.addEventListener('click', () => {
+      inputGroup.classList.remove('d-none');
+      inputField.value = nameDisplay.textContent;
+      inputField.focus();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      inputGroup.classList.add('d-none');
+      inputField.value = '';
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const newName = inputField.value.trim();
+      if (!newName) {
+        alert('Name cannot be empty.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/edit', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: newName })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert('Name updated successfully.');
+          nameDisplay.textContent = newName;
+          document.getElementById('userName').textContent = newName;
+          inputGroup.classList.add('d-none');
+        } else {
+          alert(result.message || 'Failed to update name.');
+        }
+      } catch (err) {
+        console.error('Error updating name:', err);
+        alert('An error occurred while updating name.');
       }
     });
   }
