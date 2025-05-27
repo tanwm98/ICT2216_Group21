@@ -55,5 +55,96 @@ router.get('/reserve', async (req, res) => {
     }
 })
 
+
+// Get user profile
+router.get('/getUser', async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized. Please log in.' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT name, email FROM users WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { name, email } = result.rows[0];
+    res.json({ name, email });
+
+  } catch (err) {
+    console.error('Error fetching user info:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+router.get('/check-reservation', async (req, res) => {
+  const { userid, storeid } = req.query;
+
+  console.log("Checking reservation for user:", userid, "store:", storeid);
+
+  try {
+    const result = await pool.query(`
+      SELECT * FROM reservations
+      WHERE user_id = $1 AND store_id = $2
+      LIMIT 1
+    `, [userid, storeid]);
+
+    if (result.rows.length > 0) {
+      res.json({ hasReserved: true });
+    } else {
+      res.json({ hasReserved: false });
+    }
+  } catch (err) {
+    console.error("Error checking reservation:", err);
+    res.status(500).json({ error: "Failed to check reservation." });
+  }
+});
+
+
+
+router.post('/add-review', async (req, res) => {
+  const { userid, storeid, rating, review } = req.body;
+
+  console.log("Received review submission:");
+  console.log("User ID:", userid);
+  console.log("Store ID:", storeid);
+  console.log("Rating:", rating);
+  console.log("Review Text:", review);
+
+  if (!userid || !storeid || !rating || !review) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  try {
+    const insertQuery = `
+      INSERT INTO reviews ("user_id", "store_id", rating, description)
+      VALUES ($1, $2, $3, $4)
+    `;
+
+    const values = [userid, storeid, rating, review];
+
+    const result = await pool.query(insertQuery, values);
+
+    // console.log("Insert successful. Review ID:", result.rows[0].review_id);
+
+    res.status(201).json({
+      message: 'Review submitted successfully.',
+      // review_id: result.rows[0].review_id
+    });
+  } catch (err) {
+    console.error('Error inserting review:', err);
+    res.status(500).json({ error: 'Failed to submit review.' });
+  }
+});
+
+
+
+
 module.exports = router;
 

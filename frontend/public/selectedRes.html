@@ -121,6 +121,65 @@
       </div>
 
 
+      <!-- Review Form -->
+      <!-- <div id="reviewFormContainer" class="mt-4">
+        <h3>Submit Your Review</h3>
+        <form id="reviewForm">
+          <input type="hidden" id="reviewUserId" />
+          <input type="hidden" id="reviewStoreId" />
+          <div class="mb-3">
+            <label for="reviewRating" class="form-label">Rating (0.1 - 5.0):</label>
+            <input type="number" class="form-control" id="reviewRating" min="0.1" max="5.0" step="0.1" required>
+          </div>
+          <div class="mb-3">
+            <label for="reviewText" class="form-label">Your Review:</label>
+            <textarea class="form-control" id="reviewText" rows="3" required></textarea>
+          </div>
+          <button  type="submit" class="btn btn-primary">Submit Review</button>
+          <div id="reviewError" class="text-danger mt-2"></div>
+        </form>
+      </div> -->
+
+
+      <button type="button" class="btn btn-primary w-25 mx-3" data-bs-toggle="modal" data-bs-target="#reviewModal">
+        Write a Review
+      </button>
+
+      <!-- Review Modal -->
+      <div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form id="reviewForm">
+              <div class="modal-header">
+                <h5 class="modal-title" id="reviewModalLabel">Submit Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+
+              <div class="modal-body">
+                <input type="hidden" id="reviewUserId">
+                <input type="hidden" id="reviewStoreId">
+
+                <div class="mb-3">
+                  <label for="reviewRating" class="form-label">Rating (0.1 - 5.0)</label>
+                  <input type="number" class="form-control" id="reviewRating" min="0.1" max="5.0" step="0.1" required>
+                </div>
+
+                <div class="mb-3">
+                  <label for="reviewText" class="form-label">Description</label>
+                  <textarea class="form-control" id="reviewText" rows="4" required></textarea>
+                </div>
+
+                <p id="reviewError" class="text-danger small mt-2"></p>
+              </div>
+
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-success">Submit Review</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
 
 
 

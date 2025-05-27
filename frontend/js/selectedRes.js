@@ -45,6 +45,7 @@ document.getElementById("childDropdown").addEventListener("change", function () 
     changePax();
 });
 
+
 async function changePax() {
     // to update pax count
     const text = document.getElementById("paxText");
@@ -194,6 +195,19 @@ async function displaySpecificStore() {
         link.appendChild(img);
         left.append(link);
 
+        // const userId = sessionData.loggedIn ? sessionData.userId : null;
+
+        // Set hidden input values
+        document.getElementById("reviewUserId").value = userid
+        document.getElementById("reviewStoreId").value = stores[0].store_id;
+
+        // Setup review form submission handler
+        const reviewForm = document.getElementById("reviewForm");
+        reviewForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            await submitReview(userid, stores[0].store_id);
+        });
+
     } catch (error) {
         console.error('Error:', error);
     }
@@ -282,4 +296,78 @@ async function reservationForm(stores) {
         }
     })
 }
+
+
+/// To submit a review ////
+
+// document.getElementById("reviewForm").addEventListener("submit", function (e) {
+//   e.preventDefault();
+//   submitReview(currentStoreId);  // `currentStoreId` should be globally accessible or passed in.
+// });
+
+
+async function submitReview(userId, storeId) {
+  const rating = parseFloat(document.getElementById("reviewRating").value);
+  const review = document.getElementById("reviewText").value.trim();
+  const errorMsg = document.getElementById("reviewError");
+
+  console.log("Submitting review...");
+  console.log("User:", userId, "Store:", storeId);
+  console.log("Rating:", rating, "Review:", review);
+
+  if (!userId) {
+    errorMsg.textContent = "You must be logged in to submit a review.";
+    return;
+  }
+
+  if (rating < 0.1 || rating > 5.0) {
+    errorMsg.textContent = "Rating must be between 0.1 and 5.0.";
+    return;
+  }
+
+  try {
+    const checkRes = await fetch(`/check-reservation?userid=${userId}&storeid=${storeId}`);
+    const resData = await checkRes.json();
+
+    if (!resData.hasReserved) {
+      errorMsg.textContent = "You must reserve before submitting a review.";
+      return;
+    }
+
+    const response = await fetch('/add-review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userid: userId,
+        storeid: storeId,
+        rating,
+        review
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+        errorMsg.textContent = "";
+        alert("Review submitted!");
+
+        // Success: hide and reset modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById("reviewModal"));
+        modal.hide();
+
+        document.getElementById("reviewForm").reset();
+
+        location.reload();
+
+    } else {
+      errorMsg.textContent = data.error || "Something went wrong.";
+    }
+
+  } catch (err) {
+    console.error("Error submitting review:", err);
+    errorMsg.textContent = "Server error while submitting review.";
+  }
+}
+
+
 
