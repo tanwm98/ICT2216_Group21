@@ -4,6 +4,17 @@ const express = require('express');
 // const app = express();
 const router = express.Router();
 
+// Route to get locations
+router.get('/available_locations', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT DISTINCT location FROM stores ORDER BY location`);
+    res.json(result.rows.map(row => row.location));
+  } catch (err) {
+    console.error('Error fetching locations:', err);
+    res.status(500).json({ error: 'Failed to fetch locations' });
+  }
+});
+
 
 // Route to display ALL stores
 router.get('/displayallStores', async (req, res) => {
@@ -63,6 +74,7 @@ router.get('/display_filtered_store', async (req, res) => {
     const cuisines = req.query.cuisines ? req.query.cuisines.split(',') : [];
     const priceRange = req.query.priceRange;
     const reviewScore = parseFloat(req.query.reviewScore);
+    const location = req.query.location;
 
     const values = [];
     let sql = `
@@ -72,22 +84,23 @@ router.get('/display_filtered_store', async (req, res) => {
       WHERE 1=1
     `;
 
-    // Cuisine filter
     if (cuisines.length > 0) {
       values.push(cuisines);
       sql += ` AND s.cuisine = ANY($${values.length})`;
     }
 
-    // Price filter
     if (priceRange) {
       values.push(priceRange);
       sql += ` AND s."priceRange" = $${values.length}`;
     }
 
-    // Grouping (for AVG and COUNT)
+    if (location) {
+      values.push(location);
+      sql += ` AND s.location = $${values.length}`;
+    }
+
     sql += ` GROUP BY s."store_id"`;
 
-    // Review score filter (after aggregation)
     if (!isNaN(reviewScore)) {
       values.push(reviewScore);
       sql += ` HAVING AVG(r.rating) >= $${values.length}`;
@@ -99,10 +112,12 @@ router.get('/display_filtered_store', async (req, res) => {
     const result = await pool.query(sql, values);
     res.json(result.rows);
   } catch (err) {
+
     console.error('Filter error:', err);
     res.status(500).json({ error: 'Failed to fetch filtered data' });
   }
 });
+
 
 
 

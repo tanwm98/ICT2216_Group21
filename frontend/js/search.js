@@ -6,6 +6,8 @@ window.onload = function () {
       minDate: 'today'
   });
 
+
+  loadLocations();  
   displayStores(); 
 };
 
@@ -91,45 +93,46 @@ function filterByRestaurantDetails() {
     queryParams.append('reviewScore', reviewScoreInput.value);
   }
 
+  const locationSelect = document.getElementById('locationSelect');
+  if (locationSelect && locationSelect.value) {
+    queryParams.append('location', locationSelect.value);
+  }
+
+
   // Call displayFiltered with just price or all available filters
   displayFiltered(queryParams);
 }
 
 
 
-// Extract any current filters
-function getCurrentFilterQueryParams() {
-  const queryParams = new URLSearchParams();
 
-  // Price Range
-  const selectedPriceRadio = document.querySelector('.price-range:checked');
-  const priceRange = selectedPriceRadio ? selectedPriceRadio.value : "";
-  if (priceRange) {
-    queryParams.append('priceRange', priceRange);
+
+
+
+
+//  ======== ASYNC FUNCTIONS TO DISPLAY STORES / LOAD DATA  ======== //
+
+// Load locations
+async function loadLocations() {
+  try {
+    const response = await fetch('http://localhost:3000/available_locations');
+    if (!response.ok) throw new Error('Failed to fetch locations');
+
+    const locations = await response.json();
+    const locationSelect = document.getElementById('locationSelect');
+
+    locations.forEach(loc => {
+      const option = document.createElement('option');
+      option.value = loc;
+      option.textContent = loc;
+      locationSelect.appendChild(option);
+    });
+
+  } catch (err) {
+    console.error('Error loading locations:', err);
   }
-
-  // Cuisine Filters
-  const selectedCuisines = Array.from(document.querySelectorAll('.cuisine-filter:checked'))
-    .map(cb => cb.value);
-  if (selectedCuisines.length > 0) {
-    queryParams.append('cuisines', selectedCuisines.join(','));
-  }
-
-  // Review Score
-  const reviewScoreInput = document.querySelector('.review-score');
-  if (reviewScoreInput && reviewScoreInput.value) {
-    queryParams.append('reviewScore', reviewScoreInput.value);
-  }
-
-  return queryParams;
 }
 
-
-
-
-
-
-//  ======== ASYNC FUNCTIONS TO DISPLAY STORES  ======== //
 
 // display ALL stores
 async function displayStores() {
