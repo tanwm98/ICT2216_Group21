@@ -1,10 +1,11 @@
 const express = require('express');
 const pool = require('../../db');
 const router = express.Router();
+const authenticateToken = require('../../frontend/js/token');
 
 // ========== GET ALL RESTAURANTS BY OWNER ==========
-router.get('/restaurants', async (req, res) => {
-    const ownerId = req.session.userId;
+router.get('/restaurants',authenticateToken, async (req, res) => {
+    const ownerId = req.user.userId;
 
     if (!ownerId) {
         return res.status(401).json({ error: 'Unauthorized. Please log in.' });
@@ -24,8 +25,8 @@ router.get('/restaurants', async (req, res) => {
 });
 
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
-router.get('/reservations/:ownerId', async (req, res) => {
-    const ownerId = req.session.userId;
+router.get('/reservations/:ownerId',authenticateToken, async (req, res) => {
+    const ownerId = req.user.userId;
     
     try {
         const result = await pool.query(`
@@ -67,8 +68,8 @@ router.put('/reservations/:id/cancel', async (req, res) => {
 });
 
 // ========== GET REVIEWS FOR OWNER'S RESTAURANTS ==========
-router.get('/reviews/:ownerId', async (req, res) => {
-    const ownerId = req.session.userId;
+router.get('/reviews/:ownerId',authenticateToken, async (req, res) => {
+    const ownerId = req.user.userId;
 
     try {
         const result = await pool.query(`
