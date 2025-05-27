@@ -46,12 +46,12 @@ router.get('/reservations/:ownerId', async (req, res) => {
 });
 
 // ========== CONFIRM RESERVATION ==========
-router.put('/reservations/:id/confirm', async (req, res) => {
+router.put('/reservations/:id/cancel', async (req, res) => {
     try {
         const reservationId = req.params.id;
 
         const result = await pool.query(
-            `UPDATE reservations SET status = 'confirmed' WHERE reservation_id = $1 RETURNING *`,
+            `UPDATE reservations SET status = 'cancelled' WHERE reservation_id = $1 RETURNING *`,
             [reservationId]
         );
 
@@ -59,10 +59,10 @@ router.put('/reservations/:id/confirm', async (req, res) => {
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
-        res.json({ message: 'Reservation confirmed', reservation: result.rows[0] });
+        res.json({ message: 'Reservation cancelled', reservation: result.rows[0] });
     } catch (err) {
-        console.error('Error confirming reservation:', err);
-        res.status(500).json({ error: 'Failed to confirm reservation' });
+        console.error('Error cancelling reservation:', err);
+        res.status(500).json({ error: 'Failed to cancel reservation' });
     }
 });
 

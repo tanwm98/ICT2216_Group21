@@ -1,11 +1,31 @@
+let userid;
+
 window.onload = function () {
+    // check session if logged in
+    fetch('/api/session')
+        .then(response => response.json())
+        .then(data => {
+            const reserveBtn = document.getElementById('reserveBtn');
+            if (!data.loggedIn) {
+                reserveBtn.disabled = true;
+                reserveBtn.textContent = "Login to Reserve";
+                reserveBtn.style.opacity = "0.6";
+                reserveBtn.style.cursor = "not-allowed";
+            } else {
+                userid = data.userId;
+            }
+        })
+        .catch(error => {
+            console.error('Error checking session:', error);
+        });
+
+
     flatpickr("#calender", {
         dateFormat: "Y-m-d",
         minDate: 'today'
     });
 
     displaySpecificStore();
-    reservationForm();
 };
 
 // initialize 0 adults & 0 child
@@ -147,6 +167,7 @@ async function displaySpecificStore() {
         const stores = await response.json();
         displayTimingOptions(stores);
         navTabs(stores);
+        reservationForm(stores);
 
         const storeName = document.getElementById("storeName");
         storeName.innerHTML = stores[0].storeName;
@@ -220,7 +241,7 @@ async function navTabs(stores) {
     });
 }
 
-async function reservationForm() {
+async function reservationForm(stores) {
 
     const reservationForm = document.getElementById("makeReservationForm");
     reservationForm.addEventListener('submit', async function (e) {
@@ -241,15 +262,23 @@ async function reservationForm() {
             errorMsg.style.color = "red";
         } else {
             // .slice (starting index, ending index)
-            const adults = pax.slice(0, 1);
+            const adults = parseInt(pax.slice(0, 1));
             console.log("adults: " + adults);
 
-            const children = pax.slice(10, 11);
+            const children = parseInt(pax.slice(10, 11));
             console.log("children: " + children);
-            // const response = await fetch(`http://localhost:3000/reserve?storeid=${stores[0].store_id}`);
-            // if (!response.ok) {
-            //     throw new Error('Failed to fetch data');
-            // }
+
+            const totalpeople = children + adults;
+
+            console.log("Current user: " + userid);
+
+            const storeid = stores[0].store_id;
+
+
+            const response = await fetch(`http://localhost:3000/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch data');
+            }
         }
     })
 }

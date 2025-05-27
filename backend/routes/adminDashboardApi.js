@@ -293,7 +293,6 @@ router.get('/reservations', async (req, res) => {
       FROM reservations r
       JOIN users u ON r.user_id = u.user_id
       JOIN stores s ON r.store_id = s.store_id
-      WHERE r."reservationDate"::DATE >= CURRENT_DATE
       ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
     `);
     res.json(result.rows);
@@ -303,12 +302,12 @@ router.get('/reservations', async (req, res) => {
   }
 });
 
-router.put('/reservations/:id/confirm', async (req, res) => {
+router.put('/reservations/:id/cancel', async (req, res) => {
     try {
         const reservationId = req.params.id;
 
         const result = await pool.query(
-            `UPDATE reservations SET status = 'confirmed' WHERE reservation_id = $1 RETURNING *`,
+            `UPDATE reservations SET status = 'cancelled' WHERE reservation_id = $1 RETURNING *`,
             [reservationId]
         );
 
@@ -316,10 +315,10 @@ router.put('/reservations/:id/confirm', async (req, res) => {
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
-        res.json({ message: 'Reservation confirmed', reservation: result.rows[0] });
+        res.json({ message: 'Reservation cancelled', reservation: result.rows[0] });
     } catch (err) {
-        console.error('Error confirming reservation:', err);
-        res.status(500).json({ error: 'Failed to confirm reservation' });
+        console.error('Error cancelling reservation:', err);
+        res.status(500).json({ error: 'Failed to cancel reservation' });
     }
 });
 

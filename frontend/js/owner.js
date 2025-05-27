@@ -84,8 +84,8 @@ function fetchReservations() {
           <td>${reservation.reservationTime}</td>
           <td>${reservation.noOfGuest}</td>
           <td>
-            ${reservation.status === 'pending'
-            ? `<button class="btn btn-sm btn-success" onclick="confirmReservation(${reservation.reservation_id})">Confirm</button>`
+            ${reservation.status === 'confirmed'
+            ? `<button class="btn btn-sm btn-warning" onclick="cancelReservation(${reservation.reservation_id})">cancel</button>`
             : reservation.status}
           </td>
           <td>${reservation.specialRequest || ''}</td>
@@ -96,17 +96,17 @@ function fetchReservations() {
     .catch(err => console.error('Error loading reservations:', err));
 }
 
-// ========== CONFIRM RESERVATION ==========
-function confirmReservation(reservationId) {
-  fetch(`/api/owner/reservations/${reservationId}/confirm`, {
+// ========== CANCEL RESERVATION ==========
+function cancelReservation(reservationId) {
+  fetch(`/api/owner/reservations/${reservationId}/cancel`, {
     method: 'PUT'
   })
     .then(res => res.json())
     .then(data => {
-      alert('Reservation confirmed!');
+      alert('Reservation cancelled!');
       fetchReservations(); // Refresh the list
     })
-    .catch(err => console.error('Error confirming reservation:', err));
+    .catch(err => console.error('Error cancelling reservation:', err));
 }
 
 // ========== FETCH & DISPLAY OWNER'S REVIEWS ==========
