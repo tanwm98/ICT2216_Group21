@@ -8,13 +8,23 @@ const router = express.Router();
 // Route to display ALL stores
 router.get('/displayallStores', async (req, res) => {
     try {
-        // get store name from the request
-        const storeName = req.query.name;
-        const location = req.query.location;
-
-        const result = await pool.query('SELECT * FROM stores');
-        res.json(result.rows); // send data back as json
-    } catch (err) {
+      const query = await pool.query(`
+        SELECT 
+          s."store_id",
+          s."storeName",
+          s.image,
+          s.cuisine,
+          s.address,
+          s."priceRange",
+          ROUND(AVG(r.rating), 1) AS "average_rating",
+          COUNT(r.rating) AS "review_count"
+          FROM stores s
+          LEFT JOIN reviews r ON s."store_id" = r."store_id"
+          GROUP BY s."store_id";
+        `);
+        res.json(query.rows); // send data back as json
+    
+      } catch (err) {
         console.error('Error querying database:', err);
         res.status(500).json({ error: 'Failed to fetch data' });
     }
