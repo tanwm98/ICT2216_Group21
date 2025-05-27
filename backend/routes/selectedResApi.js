@@ -19,5 +19,18 @@ router.get('/display_specific_store', async (req, res) => {
     }
 });
 
+// Route to get reviews for the selected shop
+router.get('/display_reviews', async (req, res) => {
+    try {
+        // get store name from the request
+        const storeid = req.query.storeid;
+        const result = await pool.query('SELECT * FROM reviews WHERE "store_id" = $1', [storeid]);
+        res.json(result.rows); // send data back as json
+    } catch (err) {
+        console.error('Error querying database:', err);
+        res.status(500).json({ error: 'Failed to fetch data' });
+    }
+})
+
 module.exports = router;
 
