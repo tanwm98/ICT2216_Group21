@@ -142,6 +142,7 @@ async function displayTimingOptions(stores) {
         const showmore = document.createElement('button');
         showmore.className = "btn btn-link px-0";
         showmore.textContent = "Show more ▼";
+        showmore.type = "button";
 
         showmore.addEventListener('click', () => {
             const isHidden = hiddenPart.style.display === 'none';
@@ -257,7 +258,6 @@ async function navTabs(stores) {
 }
 
 async function reservationForm(stores) {
-
     const reservationForm = document.getElementById("makeReservationForm");
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
