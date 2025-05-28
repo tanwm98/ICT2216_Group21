@@ -110,7 +110,7 @@ router.put('/reservations/:id/cancel', async (req, res) => {
 
         // Cancel the reservation
         await pool.query(
-            `UPDATE reservations SET status = 'cancelled' WHERE reservation_id = $1`,
+            `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
             [reservationId]
         );
 
