@@ -164,14 +164,16 @@ function fetchReservations() {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${reservation.userName}</td>
+          <td>${reservation.first_name}</td>
+          <td>${reservation.last_name}</td>
           <td>${reservation.storeName}</td>
           <td>${dateOnly}</td>
           <td>${reservation.reservationTime}</td>
           <td>${reservation.noOfGuest}</td>
           <td>
-            ${reservation.status === 'confirmed'
-              ? `<button class="btn btn-sm btn-warning" onclick="cancelReservation(${reservation.reservation_id})">Cancel</button>`
-              : reservation.status}
+            ${reservation.status === 'Confirmed'
+            ? `<button class="btn btn-sm btn-warning" onclick="cancelReservation(${reservation.reservation_id})">Cancel</button>`
+            : reservation.status}
           </td>
           <td>${reservation.specialRequest || ''}</td>
         `;

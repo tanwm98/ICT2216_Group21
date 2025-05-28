@@ -520,8 +520,8 @@ function fetchReservations() {
           <td>${time}</td>
           <td>${resv.status}</td>
           <td>${resv.specialRequest || '-'}</td>
-<td>
-            ${resv.status === 'confirmed'
+          <td>
+            ${resv.status === 'Confirmed'
             ? `<button data-id="${resv.reservation_id}" class="confirm-btn">cancel</button>`
             : '-'
           }
