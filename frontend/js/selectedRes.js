@@ -289,12 +289,15 @@ async function reservationForm(stores) {
 
             const storeid = stores[0].store_id;
 
+            const storename = stores[0].storeName;
+
             // to store reservation data
             sessionStorage.setItem('reservationData', JSON.stringify({
                 totalpeople,
                 date,
                 time,
                 storeid,
+                storename,
             }));
 
             window.location.href = '/reserveform';
