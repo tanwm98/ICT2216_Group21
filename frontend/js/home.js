@@ -1,3 +1,5 @@
+
+//// Display stores ////
 async function displayStores() {
     try {
         const response = await fetch('http://localhost:3000/displayStores'); // Fetch data from Express API
@@ -27,7 +29,8 @@ async function displayStores() {
 
             // creating <a> tag for image
             const link = document.createElement('a');
-            // set store name as parameter for page to show store details
+
+            // set store name as parameter for page to show store details [selectedRes.html]
             link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
 
 
@@ -64,7 +67,8 @@ async function displayStores() {
             priceRange.innerHTML = "Price Range: " + store.priceRange;
 
             const rating = document.createElement('p');
-            rating.innerHTML = "Rating: " + store.rating;
+            rating.innerHTML = `Rating: ${store.average_rating ?? 'N/A'} (${store.review_count ?? 0} reviews)`;
+
 
             // append can multiple , appendChild only 1
             detailsChild.append(cuisine, location, priceRange);

@@ -4,17 +4,38 @@ const express = require('express');
 // const app = express();
 const router = express.Router();
 
+// Route to get locations
+router.get('/available_locations', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT DISTINCT location FROM stores ORDER BY location`);
+    res.json(result.rows.map(row => row.location));
+  } catch (err) {
+    console.error('Error fetching locations:', err);
+    res.status(500).json({ error: 'Failed to fetch locations' });
+  }
+});
+
 
 // Route to display ALL stores
 router.get('/displayallStores', async (req, res) => {
     try {
-        // get store name from the request
-        const storeName = req.query.name;
-        const location = req.query.location;
-
-        const result = await pool.query('SELECT * FROM stores');
-        res.json(result.rows); // send data back as json
-    } catch (err) {
+      const query = await pool.query(`
+        SELECT 
+          s."store_id",
+          s."storeName",
+          s.image,
+          s.cuisine,
+          s.location,
+          s."priceRange",
+          ROUND(AVG(r.rating), 1) AS "average_rating",
+          COUNT(r.rating) AS "review_count"
+          FROM stores s
+          LEFT JOIN reviews r ON s."store_id" = r."store_id"
+          GROUP BY s."store_id";
+        `);
+        res.json(query.rows); // send data back as json
+    
+      } catch (err) {
         console.error('Error querying database:', err);
         res.status(500).json({ error: 'Failed to fetch data' });
     }
@@ -51,35 +72,52 @@ router.get('/display_by_ReservationAvailability', async (req, res) => {
 router.get('/display_filtered_store', async (req, res) => {
   try {
     const cuisines = req.query.cuisines ? req.query.cuisines.split(',') : [];
-    const priceRange = req.query.priceRange; // This is a string like "$$", "$$$"
+    const priceRange = req.query.priceRange;
+    const reviewScore = parseFloat(req.query.reviewScore);
+    const location = req.query.location;
 
     const values = [];
-    let sql = `SELECT * FROM stores WHERE 1=1`;
+    let sql = `
+      SELECT s.*, AVG(r.rating)::numeric(2,1) AS "average_rating", COUNT(r."store_id") AS "review_count"
+      FROM stores s
+      LEFT JOIN reviews r ON s."store_id" = r."store_id"
+      WHERE 1=1
+    `;
 
-    // Cuisine filter
     if (cuisines.length > 0) {
       values.push(cuisines);
-      sql += ` AND cuisine = ANY($${values.length})`;
+      sql += ` AND s.cuisine = ANY($${values.length})`;
     }
 
-    // Price filter (as string)
-    if (priceRange && typeof priceRange === 'string') {
+    if (priceRange) {
       values.push(priceRange);
-      sql += ` AND "priceRange" = $${values.length}`;
+      sql += ` AND s."priceRange" = $${values.length}`;
     }
 
-    // Debug logs
-    console.log("Received filters:", req.query);
-    console.log("Generated SQL:", sql);
-    console.log("SQL values:", values);
+    if (location) {
+      values.push(location);
+      sql += ` AND s.location = $${values.length}`;
+    }
+
+    sql += ` GROUP BY s."store_id"`;
+
+    if (!isNaN(reviewScore)) {
+      values.push(reviewScore);
+      sql += ` HAVING AVG(r.rating) >= $${values.length}`;
+    }
+
+    console.log("SQL:", sql);
+    console.log("Values:", values);
 
     const result = await pool.query(sql, values);
     res.json(result.rows);
   } catch (err) {
+
     console.error('Filter error:', err);
     res.status(500).json({ error: 'Failed to fetch filtered data' });
   }
 });
+
 
 
 

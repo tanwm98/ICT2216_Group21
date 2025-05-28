@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <title>Reservation Form</title>
-  <!-- Bootstrap CSS -->
-  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
-  
-  <!-- Global CSS -->
-  <link rel="stylesheet" href="/static/styles/style.css">
+    <meta charset="UTF-8">
+    <title>Reservation Form</title>
+    <!-- Bootstrap CSS -->
+    <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Specific page CSS -->
-  <link rel="stylesheet" href="/static/styles/reserve.css">
+    <!-- Global CSS -->
+    <link rel="stylesheet" href="/static/styles/style.css">
 
-  <!-- Head Include -->
-  <div id="head-placeholder"></div>
+    <!-- Specific page CSS -->
+    <link rel="stylesheet" href="/static/styles/reserve.css">
+
+    <!-- Head Include -->
+    <div id="head-placeholder"></div>
 </head>
 
 <body>
@@ -22,86 +23,49 @@
 
     <section class="reserve-area">
         <div class="container-reserve">
-            <div class="timer">
 
-                <!-- I don't know if we want to do count down, maybe can remove -->
-                Hurry! Your table will only be available for the next… <span>04:57</span>
-                
+            <h2 style="color: #4D5565; font-weight: bold;" id="storename"></h2>
+
+            <div class="reservation-details mt-3">
+                <span id="totalpax">👥 2 people</span>
+                <span id="date">📅 21 May</span>
+                <span id="time">🕑 2:30 PM</span>
             </div>
+            <hr class="border-top border-2 border-secondary my-4"> <!-- line seperator -->
 
-            <h2>ASTONS Specialities - Sembawang Shopping Centre</h2>
-
-            <div class="reservation-details">
-                <span>👥 2 people</span>
-                <span>📅 21 May</span>
-                <span>🕑 2:30 PM</span>
-            </div>
-
-            <form>
-                <h3>Continue with</h3>
-
-                <div class="form-group mx-1">
-                    <label>Email address *</label>
-                    <input type="email" required>
-                </div>
-
-                <div class="row mx-1">
-                    <div class="form-group" style="flex: 1;">
+            <form id="completeReservation">
+                <div class="row">
+                    <div class="form-group col-lg-6">
                         <label>First name *</label>
-                        <input type="text" required>
+                        <input id="firstname" type="text" required>
                     </div>
-                    <div class="form-group" style="flex: 1;">
+                    <div class="form-group col-lg-6">
                         <label>Last name *</label>
-                        <input type="text" required>
+                        <input id="lastname" type="text" required>
                     </div>
-                </div>
-
-                <div class="row mx-1">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Country Code</label>
-                        <select>
-                            <option value="+65">+65</option>
-                            <!-- Add more if needed -->
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 2;">
-                        <label>Phone number *</label>
-                        <input type="tel" required>
-                    </div>
-                </div>
-
-
-                <div class="login-options">
-                    <button type="button">Quandoo</button>
-                    <button type="button"> Apple</button>
-                    <button type="button">Facebook</button>
-                    <button type="button">Google</button>
-                </div>
-
-                <div class="optional">
-                    Optional
                 </div>
 
                 <div class="form-group">
                     <label>Special request?</label>
-                    <input type="text" placeholder="E.g. table preference, space for a stroller...">
+                    <input id="specialrequest" type="text" placeholder="E.g. table preference, space for a stroller...">
                 </div>
 
                 <button class="submit-btn" type="submit">Complete Reservation</button>
             </form>
         </div>
     </section>
-    
 
 
-  <!-- Footer Include -->
-  <div id="footer-placeholder"></div>
 
-  <!-- Load include.js FIRST -->
-  <script src="/common/common_js/include.js"></script>
-  
-  <!-- Then page-specific JS TO CHANGE***-->
-  <script src="/js/home.js"></script>
+    <!-- Footer Include -->
+    <div id="footer-placeholder"></div>
+
+    <!-- Load include.js FIRST -->
+    <script src="/common/common_js/include.js"></script>
+
+    <!-- Then page-specific JS TO CHANGE***-->
+    <script src="/js/reserve.js"></script>
 
 </body>
+
 </html>

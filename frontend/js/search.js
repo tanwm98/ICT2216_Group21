@@ -1,5 +1,13 @@
 // Load all stores on initial load
 window.onload = function () {
+
+  flatpickr("#dateInput", {
+      dateFormat: "Y-m-d",
+      minDate: 'today'
+  });
+
+
+  loadLocations();  
   displayStores(); 
 };
 
@@ -8,6 +16,33 @@ window.onload = function () {
 
 // CLEAR all filters
 document.getElementById('clear').addEventListener('click', function () {
+
+  // Reset input fields
+  document.getElementById('peopleInput').value = '';
+  document.getElementById('dateInput').value = '';
+  document.getElementById('timeInput').value = '';
+
+  // Reset review score
+  const reviewScoreInput = document.querySelector('.review-score');
+  if (reviewScoreInput) {
+    reviewScoreInput.value = '';
+  }
+
+  // Reset the review score range input to 1
+  const reviewSlider = document.querySelector('.review-score');
+  if (reviewSlider) {
+    reviewSlider.value = 1;
+  }
+
+  // Uncheck all cuisine checkboxes
+  const cuisineCheckboxes = document.querySelectorAll('.cuisine-filter');
+  cuisineCheckboxes.forEach(cb => cb.checked = false);
+
+  // Uncheck price radio buttons
+  const priceRadios = document.querySelectorAll('.price-range');
+  priceRadios.forEach(rb => rb.checked = false);
+
+  
   displayStores();
 });
 
@@ -58,6 +93,12 @@ function filterByRestaurantDetails() {
     queryParams.append('reviewScore', reviewScoreInput.value);
   }
 
+  const locationSelect = document.getElementById('locationSelect');
+  if (locationSelect && locationSelect.value) {
+    queryParams.append('location', locationSelect.value);
+  }
+
+
   // Call displayFiltered with just price or all available filters
   displayFiltered(queryParams);
 }
@@ -67,7 +108,31 @@ function filterByRestaurantDetails() {
 
 
 
-//  ======== ASYNC FUNCTIONS TO DISPLAY STORES  ======== //
+
+
+//  ======== ASYNC FUNCTIONS TO DISPLAY STORES / LOAD DATA  ======== //
+
+// Load locations
+async function loadLocations() {
+  try {
+    const response = await fetch('http://localhost:3000/available_locations');
+    if (!response.ok) throw new Error('Failed to fetch locations');
+
+    const locations = await response.json();
+    const locationSelect = document.getElementById('locationSelect');
+
+    locations.forEach(loc => {
+      const option = document.createElement('option');
+      option.value = loc;
+      option.textContent = loc;
+      locationSelect.appendChild(option);
+    });
+
+  } catch (err) {
+    console.error('Error loading locations:', err);
+  }
+}
+
 
 // display ALL stores
 async function displayStores() {
@@ -82,58 +147,56 @@ async function displayStores() {
         foodList.innerHTML = "";
 
         stores.forEach(store => {
-            const card = document.createElement('div');
-            card.classList.add('restaurant-card');
+        const card = document.createElement('div');
+        card.classList.add('restaurant-card');
 
-            // Restaurant Image
-            const img = document.createElement('img');
-            img.src = store.image;
-            img.alt = store.storeName;
-            card.appendChild(img);
+        // Restaurant Image
+        const img = document.createElement('img');
+        img.src = store.image;
+        img.alt = store.storeName;
+        card.appendChild(img);
 
-            // Restaurant Info
-            const infoDiv = document.createElement('div');
-            infoDiv.classList.add('restaurant-info');
+        // Restaurant Info
+        const infoDiv = document.createElement('div');
+        infoDiv.classList.add('restaurant-info');
 
-            const name = document.createElement('h4');
-            name.innerText = store.storeName;
-            infoDiv.appendChild(name);
+        const name = document.createElement('h4');
+        name.innerText = store.storeName;
+        infoDiv.appendChild(name);
 
-            const location = document.createElement('p');
-            location.innerText = store.location;
-            infoDiv.appendChild(location);
+        const location = document.createElement('p');
+        location.innerText = store.location;
+        infoDiv.appendChild(location);
 
-            const cuisine = document.createElement('p');
-            cuisine.innerText = store.cuisine;
-            infoDiv.appendChild(cuisine);
+        const cuisine = document.createElement('p');
+        cuisine.innerText = store.cuisine;
+        infoDiv.appendChild(cuisine);
 
-            const price = document.createElement('p');
-            price.innerText = "Price " + store.priceRange;
-            infoDiv.appendChild(price);
+        const price = document.createElement('p');
+        price.innerText = "Price " + store.priceRange;
+        infoDiv.appendChild(price);
 
-            card.appendChild(infoDiv);
+        card.appendChild(infoDiv);
 
-            // Rating Section
-            const ratingDiv = document.createElement('div');
-            const ratingValue = store.rating !== undefined ? store.rating : 'N/A';
-            const reviewText = store.reviewCount !== undefined ? `${store.reviewCount} reviews` : 'No reviews';
+        // Rating Section
+        const ratingDiv = document.createElement('div');
+        ratingDiv.classList.add('rating-info');
 
-            ratingDiv.innerHTML = `${ratingValue}<br/><small>${reviewText}</small>`;
-            card.appendChild(ratingDiv);
+        const averageRating = store.average_rating !== null ? parseFloat(store.average_rating).toFixed(1) : 'N/A';
+        const reviewCount = store.review_count || 0;
 
-            const link = document.createElement('a');
-            link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
-            link.style.textDecoration = 'none';
-            link.style.color = 'inherit';
+        ratingDiv.innerHTML = `Rating: ${averageRating} <br/><small>(${reviewCount} reviews)</small>`;
+        card.appendChild(ratingDiv);
 
-            link.appendChild(card); // 'card' is the .restaurant-card
-            foodList.appendChild(link)
-        });
+        // Link to access this selected restaurant page [selectedRes.html]
+        const link = document.createElement('a');
+        link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+        link.style.textDecoration = 'none';
+        link.style.color = 'inherit';
 
-
-
-    
-
+        link.appendChild(card); // 'card' is the .restaurant-card
+        foodList.appendChild(link)
+      });
     
     } catch (error) {
         console.error('Error:', error);
@@ -156,52 +219,56 @@ async function displayReservationAvailability(people, date, time) {
         foodList.innerHTML = "";
 
         stores.forEach(store => {
-            const card = document.createElement('div');
-            card.classList.add('restaurant-card');
+          const card = document.createElement('div');
+          card.classList.add('restaurant-card');
 
-            // Restaurant Image
-            const img = document.createElement('img');
-            img.src = store.image;
-            img.alt = store.storeName;
-            card.appendChild(img);
+          // Restaurant Image
+          const img = document.createElement('img');
+          img.src = store.image;
+          img.alt = store.storeName;
+          card.appendChild(img);
 
-            // Restaurant Info
-            const infoDiv = document.createElement('div');
-            infoDiv.classList.add('restaurant-info');
+          // Restaurant Info
+          const infoDiv = document.createElement('div');
+          infoDiv.classList.add('restaurant-info');
 
-            const name = document.createElement('h4');
-            name.innerText = store.storeName;
-            infoDiv.appendChild(name);
+          const name = document.createElement('h4');
+          name.innerText = store.storeName;
+          infoDiv.appendChild(name);
 
-            const location = document.createElement('p');
-            location.innerText = store.location;
-            infoDiv.appendChild(location);
+          const location = document.createElement('p');
+          location.innerText = store.location;
+          infoDiv.appendChild(location);
 
-            const cuisine = document.createElement('p');
-            cuisine.innerText = store.cuisine;
-            infoDiv.appendChild(cuisine);
+          const cuisine = document.createElement('p');
+          cuisine.innerText = store.cuisine;
+          infoDiv.appendChild(cuisine);
 
-            const price = document.createElement('p');
-            price.innerText = "Price " + store.priceRange;
-            infoDiv.appendChild(price);
+          const price = document.createElement('p');
+          price.innerText = "Price " + store.priceRange;
+          infoDiv.appendChild(price);
 
-            card.appendChild(infoDiv);
+          card.appendChild(infoDiv);
 
-            // Rating Section
-            const ratingDiv = document.createElement('div');
-            const ratingValue = store.rating !== undefined ? store.rating : 'N/A';
-            const reviewText = store.reviewCount !== undefined ? `${store.reviewCount} reviews` : 'No reviews';
+          // Rating Section
+          const ratingDiv = document.createElement('div');
+          ratingDiv.classList.add('rating-info');
 
-            ratingDiv.innerHTML = `${ratingValue}<br/><small>${reviewText}</small>`;
-            card.appendChild(ratingDiv);
+          const averageRating = store.average_rating !== null ? parseFloat(store.average_rating).toFixed(1) : 'N/A';
+          const reviewCount = store.review_count || 0;
 
-            const link = document.createElement('a');
-            link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
-            link.style.textDecoration = 'none';
-            link.style.color = 'inherit';
+          ratingDiv.innerHTML = `Rating: ${averageRating} <br/><small>(${reviewCount} reviews)</small>`;
+          card.appendChild(ratingDiv);
 
-            link.appendChild(card); // 'card' is the .restaurant-card
-            foodList.appendChild(link)
+
+          // Link to access this selected restaurant page [selectedRes.html]
+          const link = document.createElement('a');
+          link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+          link.style.textDecoration = 'none';
+          link.style.color = 'inherit';
+
+          link.appendChild(card); // 'card' is the .restaurant-card
+          foodList.appendChild(link)
         });
     
     } catch (error) {
@@ -257,12 +324,15 @@ async function displayFiltered(queryParams) {
 
       // Rating Section
       const ratingDiv = document.createElement('div');
-      const ratingValue = store.rating !== undefined ? store.rating : 'N/A';
-      const reviewText = store.reviewCount !== undefined ? `${store.reviewCount} reviews` : 'No reviews';
+      ratingDiv.classList.add('rating-info');
 
-      ratingDiv.innerHTML = `${ratingValue}<br/><small>${reviewText}</small>`;
+      const averageRating = store.average_rating !== null ? parseFloat(store.average_rating).toFixed(1) : 'N/A';
+      const reviewCount = store.review_count || 0;
+
+      ratingDiv.innerHTML = `Rating: ${averageRating} <br/><small>(${reviewCount} reviews)</small>`;
       card.appendChild(ratingDiv);
 
+      // Link to access this selected restaurant page [selectedRes.html]
       const link = document.createElement('a');
       link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
       link.style.textDecoration = 'none';

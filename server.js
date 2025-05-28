@@ -54,6 +54,7 @@ const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
 const search = require('./backend/routes/searchApi');
 const loggedUser = require('./backend/routes/userProfileApi');
+const { verify } = require('crypto');
 
 
 // using the routes
@@ -87,14 +88,13 @@ app.get('/selectedRes', (req, res) => {
 });
 
 
+
+
+
 // ======== VERIFICATION REQUIRED ======== 
 
 app.get('/admin',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
-});
-
-app.get('/loggedUser',verifyToken, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerForm.html'));
 });
 
 app.get('/resOwner',verifyToken, (req, res) => {
@@ -105,6 +105,9 @@ app.get('/profile',verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/userprofile.html'));
 });
 
+app.get('/reserveform', verifyToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
+});
 
 // ======== SESSION STATUS API ========
 app.get('/api/session', (req, res) => {

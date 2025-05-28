@@ -1,4 +1,3 @@
-// Dynamically load shared HTML components
 window.addEventListener('DOMContentLoaded', () => {
   // First, check session status
   fetch('/api/session')
@@ -10,10 +9,10 @@ window.addEventListener('DOMContentLoaded', () => {
         footer: '/common/footer.html'
       };
 
-      for (const [key, path] of Object.entries(includes)) {
+      const loadIncludes = Object.entries(includes).map(([key, path]) => {
         const el = document.getElementById(`${key}-placeholder`);
         if (el) {
-          fetch(path)
+          return fetch(path)
             .then(res => res.text())
             .then(html => {
               el.innerHTML = html;
@@ -22,7 +21,20 @@ window.addEventListener('DOMContentLoaded', () => {
               console.error(`Error loading ${key}:`, err);
             });
         }
-      }
+      });
+
+      // After all includes loaded
+      Promise.all(loadIncludes).then(() => {
+        // Check for URL hash or trigger condition
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('reset') === '1') {
+          const modalEl = document.getElementById('resetPasswordModal');
+          if (modalEl) {
+            const resetModal = new bootstrap.Modal(modalEl);
+            resetModal.show();
+          }
+        }
+      });
     })
     .catch(err => {
       console.error('Error checking session:', err);

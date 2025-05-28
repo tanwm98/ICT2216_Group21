@@ -520,9 +520,9 @@ function fetchReservations() {
           <td>${time}</td>
           <td>${resv.status}</td>
           <td>${resv.specialRequest || '-'}</td>
-<td>
-            ${resv.status === 'pending'
-            ? `<button data-id="${resv.reservation_id}" class="confirm-btn">Confirm</button>`
+          <td>
+            ${resv.status === 'Confirmed'
+            ? `<button data-id="${resv.reservation_id}" class="confirm-btn">cancel</button>`
             : '-'
           }
           </td>
@@ -534,7 +534,7 @@ function fetchReservations() {
       document.querySelectorAll('.confirm-btn').forEach(button => {
         button.addEventListener('click', () => {
           const id = button.getAttribute('data-id');
-          confirmReservation(id);
+          cancelReservation(id);
         });
       });
     })
@@ -543,8 +543,8 @@ function fetchReservations() {
     });
 }
 
-function confirmReservation(id) {
-  fetch(`/api/reservations/${id}/confirm`, {
+function cancelReservation(id) {
+  fetch(`/api/reservations/${id}/cancel`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json'
@@ -552,11 +552,10 @@ function confirmReservation(id) {
   })
     .then(res => res.json())
     .then(data => {
-      console.log('Reservation confirmed:', data);
       fetchReservations(); // Refresh the table
     })
     .catch(err => {
-      console.error('Error confirming reservation:', err);
+      console.error('Error cancelling reservation:', err);
     });
 }
 
