@@ -46,17 +46,22 @@ router.get('/reserve', async (req, res) => {
         const lastname = req.query.lastname;
         const specialreq = req.query.specialrequest;
 
-        console.log("userid: " + userid);
-        console.log("Pax: " + pax);
-        console.log("time: " + time);
-        console.log("date: " + date);
-        console.log("storeid: " + storeid);
-        console.log("firstname: " + firstname);
-        console.log("lastname: " + lastname);
-        console.log("specialreq: " + specialreq);
+        // console.log("userid: " + userid);
+        // console.log("Pax: " + pax);
+        // console.log("time: " + time);
+        // console.log("date: " + date);
+        // console.log("storeid: " + storeid);
+        // console.log("firstname: " + firstname);
+        // console.log("lastname: " + lastname);
+        // console.log("specialreq: " + specialreq);
 
-        const result = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [userid, storeid, pax, time, date, specialreq, firstname, lastname]);
-        res.json(result.rows); // send data back as json
+        // insert into reservation
+        const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [userid, storeid, pax, time, date, specialreq, firstname, lastname]);
+        
+        // update current capacity of stores table
+        await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2', [pax, storeid]);
+
+        res.json(reserveresult.rows); // send data back as json
     } catch (err) {
         console.error('Error querying database:', err);
         res.status(500).json({ error: 'Failed to insert data' });
