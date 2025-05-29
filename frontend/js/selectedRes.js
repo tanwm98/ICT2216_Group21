@@ -308,6 +308,10 @@ async function reservationForm(stores) {
     const reservationForm = document.getElementById("makeReservationForm");
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
+
+        const paxError = document.getElementById("paxError");
+
+
         const pax = document.getElementById("paxText").textContent;
         console.log("pax in form: " + pax);
 
@@ -318,8 +322,12 @@ async function reservationForm(stores) {
         console.log("selected time: " + time);
 
         const errorMsg = document.getElementById("requiredError");
-
-        if (!time) {
+        
+        if (adultCount == 0 && childCount == 0) {
+            paxError.innerHTML = "Pax cannot be 0!";
+            paxError.style.color = "red";
+        }
+        else if (!time) {
             errorMsg.innerHTML = "Please select a timing.";
             errorMsg.style.color = "red";
         } else {
