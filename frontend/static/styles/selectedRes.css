@@ -19,3 +19,8 @@
     border-radius: 5px;
 
 }
+
+.timingButtons:hover {
+    background-color: #fc6c3f;
+    color: white !important;
+}

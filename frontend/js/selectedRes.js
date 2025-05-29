@@ -62,6 +62,13 @@ async function displayTimingOptions(stores) {
     const timing = document.getElementById('timing-options');
     timing.innerHTML = "";
 
+    // ===========================================
+    // options that timing have already passed current time should be disabled 
+    // ===========================================
+
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    console.log(currentTime);
+
     // for timing js
     const openTime = stores[0].opening;
     const closeTime = stores[0].closing;
@@ -105,23 +112,41 @@ async function displayTimingOptions(stores) {
     let selectedBtn = null;
     while (startMin < (closeMin - 30)) {
         const btn = document.createElement('button');
+
         btn.style.width = "70px";
         btn.style.height = "38px";
         btn.textContent = changeBack(startMin);
-        btn.className = 'btn btn-outline-primary m-1';
+        btn.className = 'btn m-1';
         btn.type = 'button';
+
+        // if button timing past current time, disable
+        if (btn.textContent < currentTime) {
+            btn.disabled = true;
+            btn.classList.add("btn-outline-secondary")
+        }
+
+        if (btn.disabled) {
+            btn.classList.add('btn-outline-secondary');
+        } else {
+            btn.style.border = '1px solid #fc6c3f';
+            btn.style.color = '#fc6c3f';
+            btn.classList.add("timingButtons");
+        }
 
         // event listener to track which btn is selected
         btn.addEventListener('click', function () {
             if (selectedBtn) {
-                selectedBtn.classList.remove('btn-primary');
-                selectedBtn.classList.add('btn-outline-primary');
+                // reset style of previously selected button
+                selectedBtn.style.border = '1px solid #fc6c3f';
+                selectedBtn.style.backgroundColor = 'white';
+                selectedBtn.style.color = '#fc6c3f';
             }
 
-            // Set new selected button
+            // Set selected as newly selected btn
             selectedBtn = btn;
             btn.classList.remove('btn-outline-primary');
-            btn.classList.add('btn-primary');
+            btn.style.backgroundColor = "#fc6c3f";
+            btn.style.color = "white";
 
             const selectedTime = btn.textContent;
             document.getElementById('selectedTimeInput').value = selectedTime;
@@ -140,7 +165,7 @@ async function displayTimingOptions(stores) {
     // if there is timings in hidden part, means need to display " show more "
     if (hiddenPart.children.length > 0) {
         const showmore = document.createElement('button');
-        showmore.className = "btn btn-link px-0";
+        showmore.className = "btn btn-link px-0 text-primary";
         showmore.textContent = "Show more ▼";
         showmore.type = "button";
 
@@ -152,6 +177,10 @@ async function displayTimingOptions(stores) {
         timing.appendChild(showmore);
 
     }
+
+
+    ;
+
 
 
 }
