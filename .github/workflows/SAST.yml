@@ -1,0 +1,24 @@
+name: Aikido Release Gated Scan
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  aikido-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      # Step 2: Install dependencies
+      - name: Install Aikido CI API Client
+        run: npm install --global @aikidosec/ci-api-client
+
+      # Step 3: Run Aikido Scan Release
+      - name: Run Aikido Scan
+        run: aikido-api-client scan-release ${{ github.event.repository.name }} $GITHUB_SHA --apikey ${{ secrets.AIKIDO_CLIENT_API_KEY }} --fail-on-sast-scan --fail-on-iac-scan --fail-on-secrets-scan
