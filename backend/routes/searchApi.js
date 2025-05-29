@@ -49,14 +49,21 @@ router.get('/display_by_ReservationAvailability', async (req, res) => {
         const time = req.query.time; // e.g., '18:30'
 
         const result = await pool.query(
-            `SELECT * FROM stores s
-                WHERE s."currentCapacity" >= $1
-                    AND NOT EXISTS (
-                        SELECT 1 FROM reservations r
-                        WHERE r.store_id = s.store_id
-                        AND r."reservationDate" = $2
-                        AND r."reservationTime" = $3
-                    )`, //please future me of tdy and check this logic pray i succeeded
+            `
+            SELECT s.*, 
+                   AVG(rv.rating)::numeric(2,1) AS "average_rating", 
+                   COUNT(rv."store_id") AS "review_count"
+            FROM stores s
+            LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
+            WHERE s."currentCapacity" >= $1
+              AND NOT EXISTS (
+                    SELECT 1 FROM reservations r
+                    WHERE r.store_id = s.store_id
+                      AND r."reservationDate" = $2
+                      AND r."reservationTime" = $3
+              )
+            GROUP BY s.store_id
+            `,
             [people, date, time]
         );
 
@@ -67,6 +74,7 @@ router.get('/display_by_ReservationAvailability', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
+
 
 
 router.get('/display_filtered_store', async (req, res) => {
@@ -102,8 +110,11 @@ router.get('/display_filtered_store', async (req, res) => {
     sql += ` GROUP BY s."store_id"`;
 
     if (!isNaN(reviewScore)) {
-      values.push(reviewScore);
+      values.push(reviewScore - 0.5);
       sql += ` HAVING AVG(r.rating) >= $${values.length}`;
+      values.push(reviewScore + 0.5);
+      sql += ` AND AVG(r.rating) <= $${values.length}`;
+
     }
 
     console.log("SQL:", sql);
