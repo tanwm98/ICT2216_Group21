@@ -52,10 +52,11 @@ document.getElementById("childDropdown").addEventListener("change", function () 
 async function changePax() {
     // to update pax count
     const text = document.getElementById("paxText");
-    let totalpax = `${adultCount} Adults`;
-    if (childCount > 0) {
-        totalpax += `, ${childCount} Children`;
-    }
+    let totalpax = `${adultCount} Adults, ${childCount} Children`;
+
+    // if (childCount > 0) {
+    //     totalpax += `, ${childCount} Children`;
+    // }
     text.innerHTML = totalpax;
 }
 
@@ -216,6 +217,7 @@ async function displaySpecificStore() {
         displayTimingOptions(stores);
         navTabs(stores);
         reservationForm(stores);
+        validateCapacity(stores);
 
         const storeName = document.getElementById("storeName");
         storeName.innerHTML = stores[0].storeName;
@@ -348,6 +350,11 @@ async function reservationForm(stores) {
             window.location.href = '/reserveform';
         }
     })
+}
+
+async function validateCapacity(stores) {
+    const currentcapacity = stores[0].currentCapacity;
+    console.log("current capacity: " + currentcapacity);
 }
 
 
