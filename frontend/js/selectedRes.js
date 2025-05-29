@@ -33,6 +33,7 @@ window.onload = function () {
 // initialize 0 adults & 0 child
 let adultCount = 0;
 let childCount = 0;
+let currentcapacity = 0;
 let stores;
 
 // event listener for when user changes the dropdown
@@ -41,21 +42,24 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
     // 'this' refers to the select tag
     adultCount = parseInt(this.value) || 0;
     changePax();
+    validateCapacity();
 });
 
 document.getElementById("childDropdown").addEventListener("change", function () {
     childCount = parseInt(this.value) || 0;
     changePax();
+    validateCapacity();
 });
 
 
 async function changePax() {
     // to update pax count
     const text = document.getElementById("paxText");
-    let totalpax = `${adultCount} Adults`;
-    if (childCount > 0) {
-        totalpax += `, ${childCount} Children`;
-    }
+    let totalpax = `${adultCount} Adults, ${childCount} Children`;
+
+    // if (childCount > 0) {
+    //     totalpax += `, ${childCount} Children`;
+    // }
     text.innerHTML = totalpax;
 }
 
@@ -217,6 +221,8 @@ async function displaySpecificStore() {
         navTabs(stores);
         reservationForm(stores);
 
+        currentcapacity = stores[0].currentCapacity;
+
         const storeName = document.getElementById("storeName");
         storeName.innerHTML = stores[0].storeName;
 
@@ -306,6 +312,9 @@ async function reservationForm(stores) {
     const reservationForm = document.getElementById("makeReservationForm");
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
+
+        const paxError = document.getElementById("paxError");
+
         const pax = document.getElementById("paxText").textContent;
         console.log("pax in form: " + pax);
 
@@ -317,18 +326,23 @@ async function reservationForm(stores) {
 
         const errorMsg = document.getElementById("requiredError");
 
-        if (!time) {
+        if (adultCount == 0 && childCount == 0) {
+            paxError.innerHTML = "Pax cannot be 0!";
+            paxError.style.color = "red";
+            paxError.style.display = "unset";
+        }
+        else if (!time) {
             errorMsg.innerHTML = "Please select a timing.";
             errorMsg.style.color = "red";
-        } else {
-            // .slice (starting index, ending index)
-            const adults = parseInt(pax.slice(0, 1));
-            console.log("adults: " + adults);
+            errorMsg.style.display = "unset";
 
-            const children = parseInt(pax.slice(10, 11));
-            console.log("children: " + children);
+        } else if (!validateCapacity()) {
 
-            const totalpeople = children + adults;
+        }
+        else {
+            const totalpeople = childCount + adultCount;
+
+            console.log("totalpax; " + totalpeople);
 
             console.log("Current user: " + userid);
 
@@ -348,6 +362,25 @@ async function reservationForm(stores) {
             window.location.href = '/reserveform';
         }
     })
+}
+
+async function validateCapacity() {
+    console.log("current capacity: " + currentcapacity);
+
+    const totalpeople = adultCount + childCount;
+
+    const paxError = document.getElementById("paxError");
+
+    if (totalpeople > currentcapacity) {
+        paxError.innerHTML = "No seats available.";
+        paxError.style.color = "red";
+        paxError.style.display = "unset";
+        return false;
+    } else {
+        paxError.innerHTML = "";
+        paxError.style.display = "none";
+        return true;
+    }
 }
 
 

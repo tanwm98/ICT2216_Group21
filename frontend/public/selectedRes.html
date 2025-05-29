@@ -92,18 +92,21 @@
               </div>
 
               <div class="text-muted small mt-1" id="paxText">0 Adults</div>
+              <p id="paxError" style="display: none; font-weight: bold;"></p>
+
             </div>
           </div>
 
-            <input id="calender" name="reservationDate" class="form-control mb-4" placeholder="Select a date" required>
+          <input id="calender" name="reservationDate" class="form-control mb-2" placeholder="Select a date" required>
 
           <div id="timing-options">
           </div>
-          <p id="requiredError"></p>
+          <p id="requiredError" style="display: none; font-weight: bold;"></p>
 
           <input type="hidden" name="selectedTime" id="selectedTimeInput" />
 
-          <button type="submit" id="reserveBtn" class="btn w-100" style="background-color: #FC6C3F; color: white;">Reserve</button>
+          <button type="submit" id="reserveBtn" class="btn w-100"
+            style="background-color: #FC6C3F; color: white;">Reserve</button>
         </form>
 
       </div>
