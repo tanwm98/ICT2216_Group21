@@ -20,9 +20,11 @@ window.onload = function () {
         });
 
 
+
     flatpickr("#calender", {
         dateFormat: "Y-m-d",
-        minDate: 'today'
+        minDate: 'today',
+        defaultDate: 'today',
     });
 
     displaySpecificStore();
@@ -62,13 +64,6 @@ async function displayTimingOptions(stores) {
     const timing = document.getElementById('timing-options');
     timing.innerHTML = "";
 
-    // ===========================================
-    // options that timing have already passed current time should be disabled 
-    // ===========================================
-
-    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    console.log(currentTime);
-
     // for timing js
     const openTime = stores[0].opening;
     const closeTime = stores[0].closing;
@@ -84,9 +79,6 @@ async function displayTimingOptions(stores) {
         return hours * 60 + minutes;
     }
 
-    let startMin = toMinutes(openTime);
-    let closeMin = toMinutes(closeTime);
-
     // convert startMin (mins) to HH:MM format ( for display time )
     function changeBack(mins) {
         const hours = Math.floor(mins / 60);
@@ -99,89 +91,113 @@ async function displayTimingOptions(stores) {
 
     // visible container to show a few timing options initially
     const visiblePart = document.createElement("div");
-    // visiblePart.className = "d-flex flex-wrap mb-2";
     timing.appendChild(visiblePart);
 
     // hidden part 
     const hiddenPart = document.createElement('div');
-    // hiddenPart.className = "d-flex flex-wrap";
     hiddenPart.style.display = 'none';
     timing.appendChild(hiddenPart);
 
-    let count = 0;
+    // if timing past & same date, then disable -> to prevent it from disabling timings from other dates
+    const date = document.getElementById('calender');
+    const today = new Date();
+    const currentdate = today.toISOString().split('T')[0];
+
     let selectedBtn = null;
-    while (startMin < (closeMin - 30)) {
-        const btn = document.createElement('button');
 
-        btn.style.width = "70px";
-        btn.style.height = "38px";
-        btn.textContent = changeBack(startMin);
-        btn.className = 'btn m-1';
-        btn.type = 'button';
+    function handleDisable() {
+        // Clear existing buttons on each regeneration
+        visiblePart.innerHTML = '';
+        hiddenPart.innerHTML = '';
 
-        // if button timing past current time, disable
-        if (btn.textContent < currentTime) {
-            btn.disabled = true;
-            btn.classList.add("btn-outline-secondary")
-        }
+        // whenever change date, it will hide the excess timings and do show more
+        hiddenPart.style.display = 'none';
 
-        if (btn.disabled) {
-            btn.classList.add('btn-outline-secondary');
-        } else {
-            btn.style.border = '1px solid #fc6c3f';
-            btn.style.color = '#fc6c3f';
-            btn.classList.add("timingButtons");
-        }
+        // need to clear the show more cuz it will keep adding everytime change date -> cuz this func runs everytime change date
+        const oldShowMore = document.getElementById('showMoreBtn');
+        if (oldShowMore) oldShowMore.remove();
 
-        // event listener to track which btn is selected
-        btn.addEventListener('click', function () {
-            if (selectedBtn) {
-                // reset style of previously selected button
-                selectedBtn.style.border = '1px solid #fc6c3f';
-                selectedBtn.style.backgroundColor = 'white';
-                selectedBtn.style.color = '#fc6c3f';
+        let startMin = toMinutes(openTime);
+        let closeMin = toMinutes(closeTime);
+
+        let count = 0;
+        const selectedDate = date.value;
+
+        const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+        while (startMin <= (closeMin - 30)) {
+            const btn = document.createElement('button');
+
+            btn.style.width = "70px";
+            btn.style.height = "38px";
+            btn.textContent = changeBack(startMin);
+            btn.className = 'btn m-1';
+            btn.type = 'button';
+
+            // disable button if date is today & time already passed
+            if (btn.textContent <= currentTime && selectedDate === currentdate) {
+                btn.disabled = true;
+                btn.classList.add("btn-outline-secondary")
             }
 
-            // Set selected as newly selected btn
-            selectedBtn = btn;
-            btn.classList.remove('btn-outline-primary');
-            btn.style.backgroundColor = "#fc6c3f";
-            btn.style.color = "white";
+            if (btn.disabled) {
+                btn.classList.add('btn-outline-secondary');
+            } else {
+                btn.style.border = '1px solid #fc6c3f';
+                btn.style.color = '#fc6c3f';
+                btn.classList.add("timingButtons");
+            }
 
-            const selectedTime = btn.textContent;
-            document.getElementById('selectedTimeInput').value = selectedTime;
-        })
+            // event listener to track which btn is selected
+            btn.addEventListener('click', function () {
+                if (selectedBtn) {
+                    // reset style of previously selected button
+                    selectedBtn.style.border = '1px solid #fc6c3f';
+                    selectedBtn.style.backgroundColor = 'white';
+                    selectedBtn.style.color = '#fc6c3f';
+                }
 
-        if (count < 10) {
-            visiblePart.appendChild(btn);
-        } else {
-            hiddenPart.appendChild(btn);
+                // Set selected as newly selected btn
+                selectedBtn = btn;
+                btn.classList.remove('btn-outline-primary');
+                btn.style.backgroundColor = "#fc6c3f";
+                btn.style.color = "white";
+
+                const selectedTime = btn.textContent;
+                document.getElementById('selectedTimeInput').value = selectedTime;
+            })
+
+            if (count < 10) {
+                visiblePart.appendChild(btn);
+            } else {
+                hiddenPart.appendChild(btn);
+            }
+
+            startMin += 30;
+            count++;
         }
 
-        startMin += 30;
-        count++;
+        // if there is timings in hidden part, means need to display " show more "
+        if (hiddenPart.children.length > 0) {
+            const showmore = document.createElement('button');
+            showmore.className = "btn btn-link px-0 text-primary";
+            showmore.textContent = "Show more ▼";
+            showmore.type = "button";
+            showmore.id = 'showMoreBtn';
+
+            showmore.addEventListener('click', () => {
+                const isHidden = hiddenPart.style.display === 'none';
+                hiddenPart.style.display = isHidden ? "unset" : "none";
+                showmore.textContent = isHidden ? "Show less ▲" : "Show more ▼";
+            });
+            timing.appendChild(showmore);
+
+        }
     }
 
-    // if there is timings in hidden part, means need to display " show more "
-    if (hiddenPart.children.length > 0) {
-        const showmore = document.createElement('button');
-        showmore.className = "btn btn-link px-0 text-primary";
-        showmore.textContent = "Show more ▼";
-        showmore.type = "button";
+    handleDisable();
 
-        showmore.addEventListener('click', () => {
-            const isHidden = hiddenPart.style.display === 'none';
-            hiddenPart.style.display = isHidden ? "unset" : "none";
-            showmore.textContent = isHidden ? "Show less ▲" : "Show more ▼";
-        });
-        timing.appendChild(showmore);
-
-    }
-
-
-    ;
-
-
+    date.addEventListener('change', handleDisable);
 
 }
 
@@ -330,12 +346,6 @@ async function reservationForm(stores) {
             }));
 
             window.location.href = '/reserveform';
-
-
-            // const response = await fetch(`http://localhost:3000/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}`);
-            // if (!response.ok) {
-            //     throw new Error('Failed to fetch data');
-            // }
         }
     })
 }
