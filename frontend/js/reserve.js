@@ -58,7 +58,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
             const specialrequest = document.getElementById('specialrequest').value;
             console.log("specialrequest: " + specialrequest);
 
-            const response = await fetch(`http://localhost:3000/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}`);
+            const response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch data');
             }
