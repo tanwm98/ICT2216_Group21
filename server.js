@@ -71,6 +71,10 @@ app.get('/', (req, res) => {
   res.redirect('/public/home.html');
 });
 
+app.get('/search', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/search.html'));
+});
+
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
 });

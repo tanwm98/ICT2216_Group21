@@ -155,6 +155,53 @@ router.put('/reservations/:id/cancel', async (req, res) => {
 });
 
 
+// ========== UPDATE EXISTING RESTAURANT ==========
+router.put('/restaurants/:id', authenticateToken, async (req, res) => {
+    const ownerId = req.user.userId;
+    const restaurantId = req.params.id;
+    const {
+        storeName,
+        address,
+        postalCode,
+        location,
+        cuisine,
+        priceRange,
+        totalCapacity,
+        opening,
+        closing
+    } = req.body;
+
+    try {
+        const result = await pool.query(`
+            UPDATE stores
+            SET "storeName" = $1,
+                address = $2,
+                "postalCode" = $3,
+                location = $4,
+                cuisine = $5,
+                "priceRange" = $6,
+                "totalCapacity" = $7,
+                opening = $8,
+                closing = $9
+            WHERE store_id = $10 AND owner_id = $11
+            RETURNING *
+        `, [
+            storeName, address, postalCode, location, cuisine,
+            priceRange, totalCapacity, opening, closing,
+            restaurantId, ownerId
+        ]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Restaurant not found or unauthorized' });
+        }
+
+        res.json({ message: 'Restaurant updated successfully', restaurant: result.rows[0] });
+    } catch (err) {
+        console.error('Error updating restaurant:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // ========== GET REVIEWS FOR OWNER'S RESTAURANTS ==========
 router.get('/reviews/:ownerId',authenticateToken, async (req, res) => {
     const ownerId = req.user.userId;

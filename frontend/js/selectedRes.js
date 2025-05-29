@@ -142,6 +142,7 @@ async function displayTimingOptions(stores) {
         const showmore = document.createElement('button');
         showmore.className = "btn btn-link px-0";
         showmore.textContent = "Show more ▼";
+        showmore.type = "button";
 
         showmore.addEventListener('click', () => {
             const isHidden = hiddenPart.style.display === 'none';
@@ -161,7 +162,7 @@ async function displaySpecificStore() {
         const name = urlParams.get('name');
         const location = urlParams.get('location');
 
-        const response = await fetch(`http://localhost:3000/display_specific_store?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
+        const response = await fetch(`/display_specific_store?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -228,7 +229,7 @@ async function navTabs(stores) {
 
     // review content
     const reviewContent = document.getElementById("reviewContent");
-    const response = await fetch(`http://localhost:3000/display_reviews?storeid=${stores[0].store_id}`);
+    const response = await fetch(`/display_reviews?storeid=${stores[0].store_id}`);
     if (!response.ok) {
         throw new Error('Failed to fetch data');
     }
@@ -257,7 +258,6 @@ async function navTabs(stores) {
 }
 
 async function reservationForm(stores) {
-
     const reservationForm = document.getElementById("makeReservationForm");
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -289,12 +289,15 @@ async function reservationForm(stores) {
 
             const storeid = stores[0].store_id;
 
+            const storename = stores[0].storeName;
+
             // to store reservation data
             sessionStorage.setItem('reservationData', JSON.stringify({
                 totalpeople,
                 date,
                 time,
                 storeid,
+                storename,
             }));
 
             window.location.href = '/reserveform';
