@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Request Password Reset</title>
+  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles/style.css">
+</head>
+<body>
+  <div class="container py-5">
+    <h2 class="mb-4">Forgot your password?</h2>
+    <p>Enter your email address and we'll send you a link to reset your password.</p>
+
+    <div class="card">
+      <div class="card-body">
+        <form id="requestResetForm">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email address</label>
+            <input type="email" class="form-control" id="email" required>
+          </div>
+          <div id="requestMessage" class="mb-3 text-center"></div>
+          <button type="submit" class="btn btn-primary w-100">Send Reset Link</button>
+        </form>
+      </div>
+    </div>
+
+    <a href="/login" class="btn btn-link mt-3">&larr; Back to login</a>
+  </div>
+
+  <script>
+    document.getElementById('requestResetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      const messageDiv = document.getElementById('requestMessage');
+
+      try {
+        const res = await fetch('/request-reset', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.message || 'Something went wrong');
+
+        messageDiv.textContent = 'Check your email for the password reset link.';
+        messageDiv.className = 'text-success';
+        document.getElementById('requestResetForm').reset();
+      } catch (err) {
+        messageDiv.textContent = err.message;
+        messageDiv.className = 'text-danger';
+      }
+    });
+  </script>
+</body>
+</html>
