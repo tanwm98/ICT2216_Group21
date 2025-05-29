@@ -1,14 +1,53 @@
 localhost {
-    root * /usr/share/caddy
-    @rootPath path /
-    rewrite @rootPath /home
-    
-    try_files {path} {path}.html {path}/index.html
-    
-    file_server
-    
-    reverse_proxy /api/* backend:3000
-    
+    # Static assets
+    @static path /static/* /js/*
+    handle @static {
+        root * /usr/share/caddy
+        file_server
+    }
+
+    # API routes
+    @api path /api/*
+    handle @api {
+        reverse_proxy backend:3000
+    }
+
+    # Root redirect
+    @root path /
+    handle @root {
+        root * /usr/share/caddy/public
+        rewrite * /home.html
+        file_server
+    }
+
+    # Try HTML files from multiple locations
+    handle {
+        # First try public folder (login, register, search, etc.)
+        root * /usr/share/caddy/public
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Then try html folder (admin, profile, dashboards)
+        root * /usr/share/caddy/html
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Then try common folder (header, footer components)
+        root * /usr/share/caddy/common
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Finally fallback to backend
+        reverse_proxy backend:3000
+    }
+
+    # Security headers
     header {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY

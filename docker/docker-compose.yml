@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   caddy:
     image: caddy:2-alpine
@@ -7,10 +5,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ../frontend/public:/usr/share/caddy:ro   
-      - ../frontend/static:/usr/share/caddy/static:ro  
-      - ../frontend/common:/usr/share/caddy/common:ro  
-      - ../frontend/js:/usr/share/caddy/js:ro          
+      - ../frontend:/usr/share/caddy:ro 
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -26,7 +21,7 @@ services:
     env_file:
       - ../.env
     expose:
-      - "3000"       # ⭐ Internal only, not exposed to host
+      - "3000"
     volumes:
       - ..:/app
       - /app/node_modules

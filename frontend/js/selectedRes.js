@@ -162,7 +162,7 @@ async function displaySpecificStore() {
         const name = urlParams.get('name');
         const location = urlParams.get('location');
 
-        const response = await fetch(`http://localhost:3000/display_specific_store?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
+        const response = await fetch(`/display_specific_store?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -229,7 +229,7 @@ async function navTabs(stores) {
 
     // review content
     const reviewContent = document.getElementById("reviewContent");
-    const response = await fetch(`http://localhost:3000/display_reviews?storeid=${stores[0].store_id}`);
+    const response = await fetch(`/display_reviews?storeid=${stores[0].store_id}`);
     if (!response.ok) {
         throw new Error('Failed to fetch data');
     }
