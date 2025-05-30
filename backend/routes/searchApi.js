@@ -81,7 +81,8 @@ router.get('/display_filtered_store', async (req, res) => {
   try {
     const cuisines = req.query.cuisines ? req.query.cuisines.split(',') : [];
     const priceRange = req.query.priceRange;
-    const reviewScore = parseFloat(req.query.reviewScore);
+    const reviewScoreMin = parseFloat(req.query.reviewScoreMin);
+    const reviewScoreMax = parseFloat(req.query.reviewScoreMax);
     const location = req.query.location;
 
     const values = [];
@@ -109,12 +110,11 @@ router.get('/display_filtered_store', async (req, res) => {
 
     sql += ` GROUP BY s."store_id"`;
 
-    if (!isNaN(reviewScore)) {
-      values.push(reviewScore - 0.5);
+    if (!isNaN(reviewScoreMin) && !isNaN(reviewScoreMax)) {
+      values.push(reviewScoreMin - 0.5);
       sql += ` HAVING AVG(r.rating) >= $${values.length}`;
-      values.push(reviewScore + 0.5);
+      values.push(reviewScoreMax + 0.5);
       sql += ` AND AVG(r.rating) <= $${values.length}`;
-
     }
 
     console.log("SQL:", sql);
