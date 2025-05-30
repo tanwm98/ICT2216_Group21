@@ -6,66 +6,76 @@ const router = express.Router();
 
 // Route to display data
 router.get('/display_specific_store', async (req, res) => {
-    try {
-        // get store name from the request
-        const storeName = req.query.name;
-        const location = req.query.location;
+  try {
+    // get store name from the request
+    const storeName = req.query.name;
+    const location = req.query.location;
 
-        const result = await pool.query('SELECT * FROM stores WHERE "storeName" = $1 AND location = $2', [storeName, location]);
-        res.json(result.rows); // send data back as json
-    } catch (err) {
-        console.error('Error querying database:', err);
-        res.status(500).json({ error: 'Failed to fetch data' });
-    }
+    const result = await pool.query('SELECT * FROM stores WHERE "storeName" = $1 AND location = $2', [storeName, location]);
+    res.json(result.rows); // send data back as json
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
 });
 
 // Route to get reviews for the selected shop
 router.get('/display_reviews', async (req, res) => {
-    try {
-        // get store name from the request
-        const storeid = req.query.storeid;
-        const result = await pool.query('SELECT * FROM reviews WHERE "store_id" = $1', [storeid]);
-        res.json(result.rows); // send data back as json
-    } catch (err) {
-        console.error('Error querying database:', err);
-        res.status(500).json({ error: 'Failed to fetch data' });
-    }
+  try {
+    // get store name from the request
+    const storeid = req.query.storeid;
+    const result = await pool.query('SELECT * FROM reviews WHERE "store_id" = $1', [storeid]);
+    res.json(result.rows); // send data back as json
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
 })
 
 // add reservation into reserve table
 router.get('/reserve', async (req, res) => {
-    try {
-        // get store name from the request
-        const pax = req.query.pax;
-        const time = req.query.time;
-        const date = req.query.date;
-        // const userid = req.session[0];
-        const userid = req.query.userid;
-        const storeid = req.query.storeid;
-        const firstname = req.query.firstname;
-        const lastname = req.query.lastname;
-        const specialreq = req.query.specialrequest;
+  try {
+    // get store name from the request
+    const pax = req.query.pax;
+    const time = req.query.time;
+    const date = req.query.date;
+    // const userid = req.session[0];
+    const userid = req.query.userid;
+    const storeid = req.query.storeid;
+    const firstname = req.query.firstname;
+    const lastname = req.query.lastname;
+    const specialreq = req.query.specialrequest;
 
-        // console.log("userid: " + userid);
-        // console.log("Pax: " + pax);
-        // console.log("time: " + time);
-        // console.log("date: " + date);
-        // console.log("storeid: " + storeid);
-        // console.log("firstname: " + firstname);
-        // console.log("lastname: " + lastname);
-        // console.log("specialreq: " + specialreq);
+    // console.log("userid: " + userid);
+    // console.log("Pax: " + pax);
+    console.log("time: " + time);
+    // console.log("date: " + date);
+    // console.log("storeid: " + storeid);
+    // console.log("firstname: " + firstname);
+    // console.log("lastname: " + lastname);
+    // console.log("specialreq: " + specialreq);
 
-        // insert into reservation
-        const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [userid, storeid, pax, time, date, specialreq, firstname, lastname]);
-        
-        // update current capacity of stores table
-        await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2', [pax, storeid]);
+    // check if reservation exist alr by same person, time and shop
+    const checkExistingReservation = await pool.query('SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3', [storeid, userid, time]);
+    console.log(checkExistingReservation.rows);
 
-        res.json(reserveresult.rows); // send data back as json
-    } catch (err) {
-        console.error('Error querying database:', err);
-        res.status(500).json({ error: 'Failed to insert data' });
+    if (checkExistingReservation.rows.length > 0) {
+      return res.status(400).json({ message: "You already have a reservation for that time." });
+    } else {
+
+      // insert into reservation
+      const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [userid, storeid, pax, time, date, specialreq, firstname, lastname]);
+
+      // // update current capacity of stores table
+      await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2', [pax, storeid]);
+
+      res.json(reserveresult.rows); // send data back as json
     }
+
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to insert data' });
+  }
 })
 
 
