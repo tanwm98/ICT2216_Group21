@@ -1,18 +1,44 @@
 name: Node using Snyk
-on: push
+
+on:
+  push:
+
 jobs:
   security:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read              # for checkout
+      security-events: write      # for SARIF upload
+      actions: read               # for upload action in private repos
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
     steps:
-      - uses: actions/checkout@master
-      - name: Run Snyk to check for vulnerabilities
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Snyk Node SCA scan
         uses: snyk/actions/node@master
-        continue-on-error: true # To make sure that SARIF upload gets called
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true     # don’t abort on vulnerabilities
         with:
-          args: --sarif-file-output=snyk.sarif
-      - name: Upload result to GitHub Code Scanning
+          args: --all-projects --sarif-file-output=snyk-node.sarif
+
+      - name: Snyk Code (SAST) test
+        run: snyk code test --sarif > snyk-code.sarif || true
+
+      - name: Snyk IaC test
+        run: snyk iac test --report || true
+
+      #- name: Build Docker image
+      #  run: docker build --file=Dockerfile -t my-image-to-test . || true
+
+    #  - name: Snyk Container monitor
+      #  run: snyk container monitor my-image-to-test --file=Dockerfile || true
+
+      - name: Upload all SARIF results
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: snyk.sarif
+          # you can either list the files or use a wildcard
+          sarif_file: |
+            snyk-node.sarif
+            snyk-code.sarif
