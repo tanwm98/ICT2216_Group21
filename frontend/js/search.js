@@ -88,10 +88,20 @@ function filterByRestaurantDetails() {
     queryParams.append('cuisines', selectedCuisines.join(','));
   }
 
-  const reviewScoreInput = document.querySelector('.review-score');
-  if (reviewScoreInput && reviewScoreInput.value) {
-    queryParams.append('reviewScore', reviewScoreInput.value);
+
+  const slider = document.getElementById('review-score-slider');
+
+  if (slider && slider.noUiSlider) {
+    const values = slider.noUiSlider.get();
+    const min = parseInt(values[0]);
+    const max = parseInt(values[1]);
+
+    if (!isNaN(min) && !isNaN(max)) {
+      queryParams.append('reviewScoreMin', min);
+      queryParams.append('reviewScoreMax', max);
+    }
   }
+
 
   const locationSelect = document.getElementById('locationSelect');
   if (locationSelect && locationSelect.value) {
