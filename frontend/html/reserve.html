@@ -57,7 +57,14 @@
         </div>
     </section>
 
-
+    <!-- confirmation/error popup modal -->
+    <div id="popupModal" class="popup-modal" style="display: none;">
+        <div class="popup-box">
+            <div class="popup-icon">🎉</div>
+            <p id="popupMessage" class="popup-text"></p>
+            <button class="popup-ok-btn" onclick="closePopup()">OK</button>
+        </div>
+    </div>
 
     <!-- Footer Include -->
     <div id="footer-placeholder"></div>
@@ -71,3 +78,11 @@
 </body>
 
 </html>
+
+<script>
+    // Hide popup
+function closePopup() {
+    document.getElementById('popupModal').style.display = 'none';
+    window.location.href = '/'
+}
+</script>

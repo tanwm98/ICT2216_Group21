@@ -87,3 +87,86 @@ input, select {
   cursor: pointer;
   font-size: 16px;
 }
+
+/* pop up styles */
+.popup-modal {
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  /* Hidden by default */
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.3s ease;
+  display: flex;
+}
+
+/* Modal content box */
+.popup-box {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 30px 40px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  position: relative;
+  text-align: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Close (X) button */
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #888;
+  cursor: pointer;
+}
+
+/* Icon */
+.popup-icon {
+  font-size: 40px;
+  margin-bottom: 15px;
+}
+
+/* Message text */
+.popup-text {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+/* OK button */
+.popup-ok-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.popup-ok-btn:hover {
+  background-color: #45a049;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

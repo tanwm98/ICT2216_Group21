@@ -33,12 +33,12 @@ window.onload = function () {
 
 async function makeReservation(totalpeople, date, time, userid, storeid, storename) {
     try {
-        console.log("userid: " + userid);
-        console.log("Pax: " + totalpeople);
-        console.log("time: " + time);
-        console.log("date: " + date);
-        console.log("storeid: " + storeid);
-        console.log("storename: " + storename);
+        // console.log("userid: " + userid);
+        // console.log("Pax: " + totalpeople);
+        // console.log("time: " + time);
+        // console.log("date: " + date);
+        // console.log("storeid: " + storeid);
+        // console.log("storename: " + storename);
 
         document.getElementById("storename").innerHTML = storename;
         document.getElementById("totalpax").innerHTML = `👤 ${totalpeople}`;
@@ -66,6 +66,12 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                 // need tot throw error, then the catch work
                 if (!response.ok) {
                     throw new Error(result.message || 'Reservation failed');
+                } else {
+                    // reservation successful
+                    document.getElementById('popupMessage').textContent = "Reservation completed successfully!";
+                    document.querySelector('.popup-icon').textContent = "✅";
+                    document.getElementById('popupModal').style.display = 'flex';
+
                 }
 
 
