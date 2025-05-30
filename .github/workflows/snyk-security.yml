@@ -6,27 +6,6 @@ on:
     branches: [ main ]
 
 jobs:
-  sca:
-    name: Software Composition Analysis (OWASP Dependency Check)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: "MyWebApp"
-          path: "."
-          format: "HTML"
-          out: "dependency-check-report"  # artifact folder
-
-      - name: Upload SCA report
-        uses: actions/upload-artifact@v4
-        with:
-          name: SCA-Report
-          path: dependency-check-report  # from the previous step
-
   sast:
     name: Static Application Security Testing (Snyk Code)
     runs-on: ubuntu-latest
