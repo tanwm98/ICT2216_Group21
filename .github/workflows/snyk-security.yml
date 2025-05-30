@@ -1,44 +1,50 @@
-name: Node using Snyk
-
+name: SNYK Scans
 on:
   push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  security:
+  sca:
+    name: Software Composition Analysis (OWASP Dependency Check)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read              # for checkout
-      security-events: write      # for SARIF upload
-      actions: read               # for upload action in private repos
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
     steps:
-      - name: Check out code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Snyk Node SCA scan
-        uses: snyk/actions/node@master
-        continue-on-error: true     # don’t abort on vulnerabilities
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
         with:
-          args: --all-projects --sarif-file-output=snyk-node.sarif
+          project: "MyWebApp"
+          path: "."
+          format: "HTML"
+          out: "dependency-check-report"  # artifact folder
 
-      - name: Snyk Code (SAST) test
-        run: snyk code test --sarif > snyk-code.sarif || true
+      - name: Upload SCA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCA-Report
+          path: dependency-check-report  # from the previous step
 
-      - name: Snyk IaC test
-        run: snyk iac test --report || true
+  sast:
+    name: Static Application Security Testing (Snyk Code)
+    runs-on: ubuntu-latest
+    needs: sca                        # optional: run after SCA
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      #- name: Build Docker image
-      #  run: docker build --file=Dockerfile -t my-image-to-test . || true
+      - name: Run Snyk Code Test
+        uses: snyk/actions/node@master
+        continue-on-error: true        # so that SARIF upload always runs
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --sarif-file-output=snyk.sarif
 
-    #  - name: Snyk Container monitor
-      #  run: snyk container monitor my-image-to-test --file=Dockerfile || true
-
-      - name: Upload all SARIF results
+      - name: Upload SAST results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
-          # you can either list the files or use a wildcard
-          sarif_file: |
-            snyk-node.sarif
-            snyk-code.sarif
+          sarif_file: snyk.sarif
