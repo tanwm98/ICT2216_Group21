@@ -88,10 +88,20 @@ function filterByRestaurantDetails() {
     queryParams.append('cuisines', selectedCuisines.join(','));
   }
 
-  const reviewScoreInput = document.querySelector('.review-score');
-  if (reviewScoreInput && reviewScoreInput.value) {
-    queryParams.append('reviewScore', reviewScoreInput.value);
+
+  const slider = document.getElementById('review-score-slider');
+
+  if (slider && slider.noUiSlider) {
+    const values = slider.noUiSlider.get();
+    const min = parseInt(values[0]);
+    const max = parseInt(values[1]);
+
+    if (!isNaN(min) && !isNaN(max)) {
+      queryParams.append('reviewScoreMin', min);
+      queryParams.append('reviewScoreMax', max);
+    }
   }
+
 
   const locationSelect = document.getElementById('locationSelect');
   if (locationSelect && locationSelect.value) {
@@ -115,7 +125,7 @@ function filterByRestaurantDetails() {
 // Load locations
 async function loadLocations() {
   try {
-    const response = await fetch('http://localhost:3000/available_locations');
+    const response = await fetch('/available_locations');
     if (!response.ok) throw new Error('Failed to fetch locations');
 
     const locations = await response.json();
@@ -137,7 +147,7 @@ async function loadLocations() {
 // display ALL stores
 async function displayStores() {
     try {
-        const response = await fetch('http://localhost:3000/displayallStores');
+        const response = await fetch('/displayallStores');
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -190,7 +200,7 @@ async function displayStores() {
 
         // Link to access this selected restaurant page [selectedRes.html]
         const link = document.createElement('a');
-        link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+        link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
         link.style.textDecoration = 'none';
         link.style.color = 'inherit';
 
@@ -209,7 +219,7 @@ async function displayStores() {
 async function displayReservationAvailability(people, date, time) {
     try {
         const query = `?people=${encodeURIComponent(people)}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`;
-        const response = await fetch(`http://localhost:3000/display_by_ReservationAvailability${query}`);
+        const response = await fetch(`/display_by_ReservationAvailability${query}`);
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -263,7 +273,7 @@ async function displayReservationAvailability(people, date, time) {
 
           // Link to access this selected restaurant page [selectedRes.html]
           const link = document.createElement('a');
-          link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+          link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
           link.style.textDecoration = 'none';
           link.style.color = 'inherit';
 
@@ -281,7 +291,7 @@ async function displayReservationAvailability(people, date, time) {
 // display FILTERED stores
 async function displayFiltered(queryParams) {
   try {
-    const response = await fetch(`http://localhost:3000/display_filtered_store?${queryParams.toString()}`);
+    const response = await fetch(`/display_filtered_store?${queryParams.toString()}`);
     if (!response.ok) {
       throw new Error('Failed to fetch data');
     }
@@ -334,7 +344,7 @@ async function displayFiltered(queryParams) {
 
       // Link to access this selected restaurant page [selectedRes.html]
       const link = document.createElement('a');
-      link.href = `selectedRes.html?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+      link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
       link.style.textDecoration = 'none';
       link.style.color = 'inherit';
 

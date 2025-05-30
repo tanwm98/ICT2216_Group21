@@ -2,7 +2,7 @@
 //// Display stores ////
 async function displayStores() {
     try {
-        const response = await fetch('http://localhost:3000/displayStores'); // Fetch data from Express API
+        const response = await fetch('/displayStores'); // Fetch data from Express API
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }

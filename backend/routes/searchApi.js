@@ -49,14 +49,21 @@ router.get('/display_by_ReservationAvailability', async (req, res) => {
         const time = req.query.time; // e.g., '18:30'
 
         const result = await pool.query(
-            `SELECT * FROM stores s
-                WHERE s."currentCapacity" >= $1
-                    AND NOT EXISTS (
-                        SELECT 1 FROM reservations r
-                        WHERE r.store_id = s.store_id
-                        AND r."reservationDate" = $2
-                        AND r."reservationTime" = $3
-                    )`, //please future me of tdy and check this logic pray i succeeded
+            `
+            SELECT s.*, 
+                   AVG(rv.rating)::numeric(2,1) AS "average_rating", 
+                   COUNT(rv."store_id") AS "review_count"
+            FROM stores s
+            LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
+            WHERE s."currentCapacity" >= $1
+              AND NOT EXISTS (
+                    SELECT 1 FROM reservations r
+                    WHERE r.store_id = s.store_id
+                      AND r."reservationDate" = $2
+                      AND r."reservationTime" = $3
+              )
+            GROUP BY s.store_id
+            `,
             [people, date, time]
         );
 
@@ -69,11 +76,13 @@ router.get('/display_by_ReservationAvailability', async (req, res) => {
 });
 
 
+
 router.get('/display_filtered_store', async (req, res) => {
   try {
     const cuisines = req.query.cuisines ? req.query.cuisines.split(',') : [];
     const priceRange = req.query.priceRange;
-    const reviewScore = parseFloat(req.query.reviewScore);
+    const reviewScoreMin = parseFloat(req.query.reviewScoreMin);
+    const reviewScoreMax = parseFloat(req.query.reviewScoreMax);
     const location = req.query.location;
 
     const values = [];
@@ -101,9 +110,11 @@ router.get('/display_filtered_store', async (req, res) => {
 
     sql += ` GROUP BY s."store_id"`;
 
-    if (!isNaN(reviewScore)) {
-      values.push(reviewScore);
+    if (!isNaN(reviewScoreMin) && !isNaN(reviewScoreMax)) {
+      values.push(reviewScoreMin - 0.5);
       sql += ` HAVING AVG(r.rating) >= $${values.length}`;
+      values.push(reviewScoreMax + 0.5);
+      sql += ` AND AVG(r.rating) <= $${values.length}`;
     }
 
     console.log("SQL:", sql);

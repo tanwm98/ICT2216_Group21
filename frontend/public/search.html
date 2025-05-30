@@ -14,9 +14,14 @@
   <!-- Search CSS -->
   <link rel="stylesheet" href="/static/styles/search.css">
 
-  <!-- Java Scripts-->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <!-- flatpickr CSS & JS -->
+  <link rel="stylesheet" href="/static/styles/others/flatpickr.min.css">
+  <script src="/static/scripts/others/flatpickr.min.js"></script>
+
+  <!-- noUiSlider CSS & JS -->
+  <link rel="stylesheet" href="/static/styles/others/nouislider.min.css" />
+  <script src="/static/scripts/others/nouislider.min.js"></script>
+
 
 
   <!-- Head Include -->
@@ -48,20 +53,25 @@
             </div>
             
             <!-- Location Selection -->
-            <label for="locationSelect">Location:</label>
-            <select id="locationSelect">
-              <option value="">All</option>
-            </select>
+            <div class="sidebar-section">
+              <h4>Location</h4>
+              <select id="locationSelect">
+                <option value="">All</option>
+              </select>
 
-
-            <!-- Review Score --> 
+            </div>
+            
+            <!-- Review Score Range -->
+            <!-- Review Score Section -->
             <div class="sidebar-section">
               <h4>Review score</h4>
-              <input type="range" min="1" max="6" value="1" class="review-score" style="width: 220px;"/>
-              <div class="range-labels">
+              <div id="review-score-slider" style="margin: 20px 0;"></div>
+              <div class="range-labels" style="display: flex; justify-content: space-between; padding: 0 10px;">
                 <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
               </div>
             </div>
+
+
 
             <!-- Price -->
             <div class="sidebar-section">
@@ -106,13 +116,6 @@
             <strong>Best Restaurants in Singapore</strong>
             <p>Searching for the best restaurants in Singapore? Discover great places to eat out for breakfast, lunch, and dinner in Singapore...</p>
             
-            <!-- <div>
-                <span class="label">Yishun</span>
-                <span class="label">Sembawang</span>
-                <span class="label">Ang Mo Kio</span>
-                <span class="label">Upper Thomson</span>
-                <span class="label">Punggol</span>
-            </div> -->
         </div>
 
         <!-- Restaurant Card -->
@@ -143,6 +146,36 @@
 
 <!-- Then page-specific JS TO CHANGE*** -->
 <script src="/js/search.js"></script>
+
+<script>
+  const slider = document.getElementById('review-score-slider');
+
+  noUiSlider.create(slider, {
+    start: [1, 6],      // Initial values
+    connect: true,
+    step: 1,
+    range: {
+      'min': 1,
+      'max': 6
+    },
+    format: {
+      to: value => Math.round(value),
+      from: value => Number(value)
+    }
+  });
+
+  // Export values for query params
+  slider.noUiSlider.on('change', function (values) {
+    const [min, max] = values.map(v => parseInt(v));
+    // Example: use in query string
+    const params = new URLSearchParams(window.location.search);
+    params.set('reviewScoreMin', min);
+    params.set('reviewScoreMax', max);
+    // Reload or fetch data using params.toString()
+    console.log(`Review score range: ${min} - ${max}`);
+  });
+</script>
+
 
 </body>
 </html>

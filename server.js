@@ -6,6 +6,8 @@ const pool = require('./db');
 const argon2 = require('argon2');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 function verifyToken(req, res, next) {
     const token = req.cookies.token;
@@ -71,6 +73,10 @@ app.get('/', (req, res) => {
   res.redirect('/public/home.html');
 });
 
+app.get('/search', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/search.html'));
+});
+
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
 });
@@ -87,8 +93,13 @@ app.get('/selectedRes', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/selectedRes.html'));
 });
 
+app.get('/request-reset', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/public/request-reset.html'));
+});
 
-
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/public/reset-password.html'));
+});
 
 
 // ======== VERIFICATION REQUIRED ======== 
@@ -125,4 +136,81 @@ app.get('/api/session', (req, res) => {
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
+});
+
+// ===========
+app.post('/request-reset', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 3600_000); // 1 hour
+
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3',
+      [token, expires, email]
+    );
+
+    const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+
+    // Configure email (adjust to your email provider)
+    const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+        from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+        to: 'shira.yuki51@gmail.com',
+        subject: 'Password Reset Request',
+        html: `<p>Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`,
+    });
+
+    res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+app.put('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ message: 'Missing token or new password' });
+  }
+
+  try {
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+      [token]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+
+    const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
+
+    await pool.query(
+      'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE reset_token = $2',
+      [hashedPassword, token]
+    );
+
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
