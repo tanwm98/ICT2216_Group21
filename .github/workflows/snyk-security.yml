@@ -3,10 +3,6 @@ on: push
 jobs:
   security:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      repository-projects: write
     steps:
       - uses: actions/checkout@master
       - name: Run Snyk to check for vulnerabilities
