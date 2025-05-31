@@ -1,3 +1,5 @@
+
+
 let userid;
 
 window.onload = function () {
@@ -59,7 +61,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
             console.log("specialrequest: " + specialrequest);
 
             try {
-                const response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}`);
+                const response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}&storename=${storename}`);
 
                 const result = await response.json();
 
@@ -71,7 +73,6 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                     document.getElementById('popupMessage').textContent = "Reservation completed successfully!";
                     document.querySelector('.popup-icon').textContent = "✅";
                     document.getElementById('popupModal').style.display = 'flex';
-
                 }
 
 

@@ -4,6 +4,17 @@ const express = require('express');
 // const app = express();
 const router = express.Router();
 
+const nodemailer = require('nodemailer');
+
+// Configure email 
+const transporter = nodemailer.createTransport({
+  service: 'Gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
 // Route to display data
 router.get('/display_specific_store', async (req, res) => {
   try {
@@ -39,16 +50,16 @@ router.get('/reserve', async (req, res) => {
     const pax = req.query.pax;
     const time = req.query.time;
     const date = req.query.date;
-    // const userid = req.session[0];
     const userid = req.query.userid;
     const storeid = req.query.storeid;
     const firstname = req.query.firstname;
     const lastname = req.query.lastname;
     const specialreq = req.query.specialrequest;
+    const storename = req.query.storename;
 
     // console.log("userid: " + userid);
     // console.log("Pax: " + pax);
-    console.log("time: " + time);
+    // console.log("time: " + time);
     // console.log("date: " + date);
     // console.log("storeid: " + storeid);
     // console.log("firstname: " + firstname);
@@ -68,6 +79,32 @@ router.get('/reserve', async (req, res) => {
 
       // // update current capacity of stores table
       await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2', [pax, storeid]);
+
+      // get current username 
+      const usernameResult = await pool.query("SELECT name FROM users WHERE user_id = $1", [userid]);
+
+      const username = usernameResult.rows[0]?.name;
+
+      // upon successful reservation, send email to user
+      await transporter.sendMail({
+        from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+        to: 'chuaxinjing03@gmail.com',
+        subject: `Reservation Confirmed at ${storename} `,
+        html: `
+              <p>Hello ${username},</p>
+              <p>Your reservation with ${storename} is <strong>confirmed</strong>. See below for more details.</p>
+              <h4>Reservation Details:</h4>
+              <ul>
+                  <li><strong>🏪 Restaurant:</strong> ${storename}</li>
+                  <li><strong>📅 Date:</strong> ${date}</li>
+                  <li><strong>🕒 Time:</strong> ${time}</li>
+                  <li><strong>👥 Number of Guests:</strong> ${pax}</li>
+                  ${specialreq ? `<li><strong>📢 Special Request:</strong> ${specialreq}</li>` : ''}
+              </ul>
+              <p>Thank you!</p>
+              <p>Kirby Chope</p>
+            `
+      })
 
       res.json(reserveresult.rows); // send data back as json
     }
