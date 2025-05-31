@@ -3,6 +3,7 @@ const express = require('express');
 
 // const app = express();
 const router = express.Router();
+const cron = require('node-cron');
 
 const nodemailer = require('nodemailer');
 
@@ -115,6 +116,44 @@ router.get('/reserve', async (req, res) => {
   }
 })
 
+// node-cron for real-time reservation updates
+// will run every minute
+// * in order means -> minute, hour, day of month, month, day of wk
+// cron.schedule('* * * * *', async () => {
+//   console.log('checking for reservations...');
+
+//   // sql query to get reservations that has been at least 1 hours since the reservation time
+//   // like if the reservation time is 2pm, resrvation time +1 hours = 3pm 
+//   // now() lets say 3pm -> it will return because the current time is at least 1 hr aft the reservtation
+
+//   // if reservation time is 2pm, then +1 hours = 3pm
+//   // if now() is 230pm (haven over) -> wont return
+//   const result = await pool.query(
+//     `
+//         SELECT * FROM reservations WHERE 
+//         NOW() >= ("reservationTime" + "reservationDate")::timestamp + INTERVAL '1 hour' AND status = 'Confirmed'
+//       `
+//   )
+
+//   const results = result.rows;
+//   console.log("=========================================================");
+
+//   for (const r of results) {
+//     // Access each reservation record
+//     console.log(`Reservation ID: ${r.reservation_id}`);
+
+//     // reservation over, so need to update status of reservation to compelted & update the current capacity in stores
+
+//     // update status of reservation
+//     await pool.query(`UPDATE reservations SET status = 'Completed' WHERE reservation_id = $1`, [r.reservation_id]);
+
+//     // update capacity of stores (to add back the no of pax that was minus when reservation made)
+//     await pool.query(`UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2`, [r.noOfGuest, r.store_id]);
+//   }
+
+
+// })
+
 
 // Get user profile
 router.get('/getUser', async (req, res) => {
@@ -202,6 +241,8 @@ router.post('/add-review', async (req, res) => {
     res.status(500).json({ error: 'Failed to submit review.' });
   }
 });
+
+
 
 
 
