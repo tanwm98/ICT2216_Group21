@@ -6,6 +6,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupNameEditHandlers();
 });
 
+// ======== Fetch user details ======== 
 function fetchUser() {
   fetch('/api/user/getUser')
     .then(res => res.json())
@@ -19,6 +20,7 @@ function fetchUser() {
     });
 }
 
+// ======== Fetch user reservations ======== 
 function fetchReservations() {
   fetch('/api/user/reservations')
     .then(res => res.json())
@@ -32,7 +34,13 @@ function fetchReservations() {
           <td>${reservation.reservationDate}</td>
           <td>${reservation.reservationTime}</td>
           <td>${reservation.noOfGuest}</td>
-          <td>${reservation.status}</td>
+          
+          <td>
+            ${reservation.status === 'Confirmed'
+            ? `<button class="btn btn-sm btn-warning" onclick="cancelUserReservation(${reservation.reservation_id})">Cancel</button>`
+            : reservation.status}
+          </td>
+
           <td>${reservation.specialRequest || ''}</td>
         `;
         tableBody.appendChild(row);
@@ -43,6 +51,21 @@ function fetchReservations() {
     });
 }
 
+// ========== CANCEL RESERVATION ==========
+function cancelUserReservation(reservationId) {
+  fetch(`/api/user/reservations/${reservationId}/cancel`, {
+    method: 'PUT'
+  })
+    .then(res => res.json())
+    .then(() => {
+      alert('You have cancelled your reservation!');
+      fetchReservations();
+    })
+    .catch(err => console.error('Error cancelling reservation:', err));
+}
+
+
+///  ======== Fetch reviews by the user ======== 
 function fetchReviews() {
   fetch('/api/user/reviews')
     .then(res => res.json())
@@ -64,6 +87,7 @@ function fetchReviews() {
     });
 }
 
+// ======== Reset password ======== 
 function setupResetPasswordHandler() {
   const resetForm = document.getElementById('resetPasswordForm');
 
@@ -109,6 +133,7 @@ function setupResetPasswordHandler() {
   }
 }
 
+// ======== Edit name function ======== 
 function setupNameEditHandlers() {
    const editBtn = document.getElementById('editNameBtn');
   const nameDisplay = document.getElementById('profileName');
@@ -162,3 +187,5 @@ function setupNameEditHandlers() {
     });
   }
 }
+
+

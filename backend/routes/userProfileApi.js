@@ -4,7 +4,7 @@ const pool = require('../../db');
 const argon2 = require('argon2');
 const authenticateToken = require('../../frontend/js/token');
 
-// Get user profile
+// ======== Get user profile ======== 
 router.get('/getUser',authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   if (!userId) {
@@ -30,7 +30,8 @@ router.get('/getUser',authenticateToken, async (req, res) => {
   }
 });
 
-// Get user reservations
+
+// ======== Get user reservations ======== 
 router.get('/reservations',authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   if (!userId) {
@@ -56,7 +57,8 @@ router.get('/reservations',authenticateToken, async (req, res) => {
   }
 });
 
-// Get user reviews
+
+// ======== Get user reviews======== 
 router.get('/reviews',authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   if (!userId) {
@@ -81,7 +83,8 @@ router.get('/reviews',authenticateToken, async (req, res) => {
   }
 });
 
-// Reset user password
+
+// ======== Reset user password ======== 
 router.post('/reset-password',authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { newPassword } = req.body;
@@ -109,7 +112,8 @@ router.post('/reset-password',authenticateToken, async (req, res) => {
   }
 });
 
-// Update user name
+
+// ======== Update user name ======== 
 router.put('/edit',authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { name } = req.body;
@@ -126,5 +130,63 @@ router.put('/edit',authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+
+// ======== Cancel reservation ======== 
+router.put('/reservations/:id/cancel', authenticateToken, async (req, res) => {
+    try {
+        const reservationId = req.params.id;
+        const userId = req.user.userId;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized: No user info found' });
+        }
+
+        // Fetch reservation info
+        const result = await pool.query(
+            `SELECT r.*, s."storeName"
+             FROM reservations r
+             JOIN stores s ON r."store_id" = s."store_id"
+             WHERE r."reservation_id" = $1 AND r."user_id" = $2`,
+            [reservationId, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Reservation not found or does not belong to you' });
+        }
+
+        const reservation = result.rows[0];
+
+        // Combine date and time into one Date object
+        const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+        const now = new Date();
+
+        if (now >= reservationDateTime) {
+            return res.status(400).json({ error: 'Cannot cancel a past or ongoing reservation' });
+        }
+
+        // Log reservation details
+        console.log('User Cancellation Attempt:');
+        console.log(`User ID: ${userId}`);
+        console.log(`Restaurant: ${reservation.storeName}`);
+        console.log(`Date: ${reservation.reservationDate}`);
+        console.log(`Time: ${reservation.reservationTime}`);
+
+        // Cancel reservation
+        await pool.query(
+            `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
+            [reservationId]
+        );
+
+        res.json({ message: 'Reservation cancelled successfully', reservation });
+
+    } catch (err) {
+        console.error('Error during user cancellation:', err);
+        res.status(500).json({ error: 'Failed to cancel reservation' });
+    }
+});
+
+
+
 
 module.exports = router;
