@@ -35,6 +35,12 @@ let adultCount = 0;
 let childCount = 0;
 let currentcapacity = 0;
 let stores;
+let pax;
+let availCapacity;
+let maxcapacity;
+
+// a boolean tracker to track whether the selected pax exceeds current capacity
+let isCapacityExceeded = false;
 
 // event listener for when user changes the dropdown
 document.getElementById("adultDropdown").addEventListener("change", function () {
@@ -42,13 +48,31 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
     // 'this' refers to the select tag
     adultCount = parseInt(this.value) || 0;
     changePax();
-    validateCapacity();
+    handleCapacityUpdate();
+    if (pax > availCapacity) {
+        paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+        paxError.style.color = "red";
+        paxError.style.display = "unset";
+        isCapacityExceeded = true;
+    } else {
+        paxError.style.display = "none";
+        isCapacityExceeded = false;
+    }
 });
 
 document.getElementById("childDropdown").addEventListener("change", function () {
     childCount = parseInt(this.value) || 0;
     changePax();
-    validateCapacity();
+    handleCapacityUpdate();
+    if (pax > availCapacity) {
+        paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+        paxError.style.color = "red";
+        paxError.style.display = "unset";
+        isCapacityExceeded = true;
+    } else {
+        paxError.style.display = "none";
+        isCapacityExceeded = false;
+    }
 });
 
 
@@ -63,7 +87,7 @@ async function changePax() {
     text.innerHTML = totalpax;
 }
 
-async function displayTimingOptions(stores) {
+async function displayTimingOptions() {
 
     const timing = document.getElementById('timing-options');
     timing.innerHTML = "";
@@ -109,7 +133,9 @@ async function displayTimingOptions(stores) {
 
     let selectedBtn = null;
 
-    function handleDisable() {
+    async function handleDisable() {
+        let paxPerHour = 0;
+
         // Clear existing buttons on each regeneration
         visiblePart.innerHTML = '';
         hiddenPart.innerHTML = '';
@@ -124,12 +150,32 @@ async function displayTimingOptions(stores) {
         let startMin = toMinutes(openTime);
         let closeMin = toMinutes(closeTime);
 
-        let count = 0;
         const selectedDate = date.value;
+        // const selectedDate = "2025-05-28";
 
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-        while (startMin <= (closeMin - 30)) {
+        // continue tmr: trying to get the timeslot in hours with pax
+        // query reservations at selected date
+        const response = await fetch(`/timeslots?date=${selectedDate}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        const result = await response.json();
+
+        const maxcapresponse = await fetch(`/maxcapacity?storeid=${stores[0].store_id}`);
+        if (!maxcapresponse.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        maxcapacity = await maxcapresponse.json();
+
+        let count = 0;
+
+        // create timer options
+        while (startMin < (closeMin - 30)) {
+            // reset to 0 for each time slot
+            paxPerHour = 0;
+
             const btn = document.createElement('button');
 
             btn.style.width = "70px";
@@ -152,6 +198,69 @@ async function displayTimingOptions(stores) {
                 btn.classList.add("timingButtons");
             }
 
+            // reservation timing
+            const slotTime = changeBack(startMin);
+            const slotEnd = new Date(`${selectedDate}T${slotTime}:00`);
+            // reservation time - 1 hour
+            const slotStart = new Date(slotEnd.getTime() - 60 * 60 * 1000);
+            // console.log("slot end: " + slotEnd);
+            // console.log("Slot start: " + slotStart);
+            const formattedSlotEnd = formatTime(slotEnd);
+            const formattedSlotStart = formatTime(slotStart);
+            console.log("/////////////////////////////////////");
+            console.log("end: " + formattedSlotEnd);
+            console.log("start: " + formattedSlotStart);
+            // to store number of guest per hour
+            let paxHour;
+
+            if (count > 0) {
+                for (const r of result) {
+                    if (r.reservationTime >= formattedSlotStart && r.reservationTime <= formattedSlotEnd) {
+                        console.log("========================");
+                        console.log("reservation timing: " + r.reservationTime);
+                        console.log("no of pax: " + r.noOfGuest);
+                        paxPerHour += r.noOfGuest;
+
+                        console.log("pax per hour: " + paxPerHour);
+                        // store the pax per hour value inside another var, since it will get reset
+
+                        console.log("========================");
+                    }
+                }
+                paxHour = paxPerHour;
+
+            }
+
+            // i need to get the max capacity of the store 
+
+            // pax per hour: amt of ppl during the time 
+            // total capacity : max
+            // if the selected total number of pax by user exceed available capacity -> disable?
+
+            // const pax = adultCount + childCount;
+            // availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
+            // console.log("avail capacity: " + availCapacity);
+            // console.log("pax: " + pax);
+
+            // const paxError = document.getElementById("paxError");
+
+            // if (pax > availCapacity) {
+            //     paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+            //     paxError.style.color = "red";
+            //     paxError.style.display = "unset";
+            // }
+
+
+
+            // if (pax > cap)
+
+            // if (paxPerHour > maxcapacity.totalCapacity) {
+            //     btn.disabled = true;
+            //     btn.classList.add('btn-outline-warning');
+            // }
+
+            console.log("/////////////////////////////////////");
+
             // event listener to track which btn is selected
             btn.addEventListener('click', function () {
                 if (selectedBtn) {
@@ -169,6 +278,27 @@ async function displayTimingOptions(stores) {
 
                 const selectedTime = btn.textContent;
                 document.getElementById('selectedTimeInput').value = selectedTime;
+
+                // when timing is selected, i check the pax 
+                // const pax = adultCount + childCount;
+                // const availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
+                // console.log("avail capacity: " + availCapacity);
+                // console.log("pax: " + pax);
+
+                console.log("pax per hour: " + paxHour);
+                availCapacity = maxcapacity[0].totalCapacity - paxHour;
+                const paxError = document.getElementById("paxError");
+                console.log("available capacity: " + availCapacity);
+                console.log("is pax > capacirty: " + pax > availCapacity);
+                if (pax > availCapacity) {
+                    paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+                    paxError.style.color = "red";
+                    paxError.style.display = "unset";
+                    isCapacityExceeded = true;
+                } else {
+                    paxError.style.display = "none";
+                    isCapacityExceeded = false;
+                }
             })
 
             if (count < 10) {
@@ -199,9 +329,35 @@ async function displayTimingOptions(stores) {
         }
     }
 
-    handleDisable();
+    handleDisable(stores);
 
-    date.addEventListener('change', handleDisable);
+    date.addEventListener('change', () => handleDisable(stores));
+
+}
+
+
+async function handleCapacityUpdate() {
+    pax = adultCount + childCount;
+    // availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
+
+    // console.log("=====================================");
+    // console.log("pax per hour: " + paxHour);
+    // availCapacity = maxcapacity[0].totalCapacity - paxHour;
+    // const paxError = document.getElementById("paxError");
+    // console.log("available capacity: " + availCapacity);
+    // console.log("is pax > capacirty: " + pax > availCapacity);
+
+    // if (pax > availCapacity) {
+    //     paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+    //     paxError.style.color = "red";
+    //     paxError.style.display = "unset";
+    //     isCapacityExceeded = true;
+    // } else {
+    //     paxError.style.display = "none";
+    //     isCapacityExceeded = false;
+    // }
+
+    console.log("selected pax: " + pax);
 
 }
 
@@ -217,7 +373,7 @@ async function displaySpecificStore() {
         }
 
         stores = await response.json();
-        displayTimingOptions(stores);
+        displayTimingOptions();
         navTabs(stores);
         reservationForm(stores);
 
@@ -273,10 +429,10 @@ async function navTabs(stores) {
     title.innerHTML = `About ${stores[0].storeName}`
 
     const address = document.getElementById("address");
-    address.innerHTML = `<i style="color:#FC6C3F" class="bi bi-geo-alt-fill mr-3"></i>${stores[0].address}, Singapore ${stores[0].postalCode}`
+    address.innerHTML = `<i style="color:#FC6C3F" class="bi bi-geo-alt-fill mr-3"></i> ${stores[0].address}, Singapore ${stores[0].postalCode}`
 
     const openinghours = document.getElementById("openinghours");
-    openinghours.innerHTML = `<i style="color:#FC6C3F" class="bi bi-clock mr-3"></i>${stores[0].opening.slice(0, 5)} - ${stores[0].closing.slice(0, 5)}`
+    openinghours.innerHTML = `<i style="color:#FC6C3F" class="bi bi-clock mr-3"></i> ${stores[0].opening.slice(0, 5)} - ${stores[0].closing.slice(0, 5)}`
 
     // review content
     const reviewContent = document.getElementById("reviewContent");
@@ -337,6 +493,8 @@ async function reservationForm(stores) {
             errorMsg.style.display = "unset";
 
         } else if (!validateCapacity()) {
+
+        } else if (isCapacityExceeded) {
 
         }
         else {
@@ -455,5 +613,12 @@ async function submitReview(userId, storeId) {
     }
 }
 
+// Convert to HH:mm format
+const formatTime = (date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
 
+    return `${hours}:${minutes}:${seconds}`;
+};
 

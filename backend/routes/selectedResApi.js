@@ -58,17 +58,17 @@ router.get('/reserve', async (req, res) => {
     const specialreq = req.query.specialrequest;
     const storename = req.query.storename;
 
-    // console.log("userid: " + userid);
-    // console.log("Pax: " + pax);
-    // console.log("time: " + time);
-    // console.log("date: " + date);
-    // console.log("storeid: " + storeid);
-    // console.log("firstname: " + firstname);
-    // console.log("lastname: " + lastname);
-    // console.log("specialreq: " + specialreq);
+    console.log("userid: " + userid);
+    console.log("Pax: " + pax);
+    console.log("time: " + time);
+    console.log("date: " + date);
+    console.log("storeid: " + storeid);
+    console.log("firstname: " + firstname);
+    console.log("lastname: " + lastname);
+    console.log("specialreq: " + specialreq);
 
     // check if reservation exist alr by same person, time and shop
-    const checkExistingReservation = await pool.query('SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3', [storeid, userid, time]);
+    const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3 AND "status" = 'Confirmed'`, [storeid, userid, time]);
     console.log(checkExistingReservation.rows);
 
     if (checkExistingReservation.rows.length > 0) {
@@ -153,6 +153,48 @@ router.get('/reserve', async (req, res) => {
 
 
 // })
+
+
+// query reservations between certain timing
+router.get('/timeslots', async (req, res) => {
+  try {
+    const date = req.query.date;
+
+    console.log(date);
+
+    const result = await pool.query(
+      `
+        SELECT * FROM reservations WHERE "reservationDate" = $1 AND "status" = 'Confirmed'
+      `,
+      [date]
+    );
+
+
+    res.json(result.rows); // send data back as json
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
+})
+
+// query to get max capacity of store 
+router.get('/maxcapacity', async (req, res) => {
+  try {
+    const storeid = req.query.storeid;
+    const result = await pool.query(
+      `
+        SELECT * FROM stores WHERE store_id = $1
+      `,
+      [storeid]
+    );
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
+})
+
 
 
 // Get user profile
