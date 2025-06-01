@@ -38,6 +38,7 @@ let stores;
 let pax;
 let availCapacity;
 let maxcapacity;
+let reserveBtn = document.getElementById('reserveBtn');
 
 // a boolean tracker to track whether the selected pax exceeds current capacity
 let isCapacityExceeded = false;
@@ -54,9 +55,15 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
         paxError.style.color = "red";
         paxError.style.display = "unset";
         isCapacityExceeded = true;
+        // to disable button
+        reserveBtn.disabled = true;
+        reserveBtn.style.cursor = "not-allowed";
     } else {
         paxError.style.display = "none";
         isCapacityExceeded = false;
+        reserveBtn.disabled = false;
+        reserveBtn.backgroundColor = "#fc6c3f";
+
     }
 });
 
@@ -69,9 +76,15 @@ document.getElementById("childDropdown").addEventListener("change", function () 
         paxError.style.color = "red";
         paxError.style.display = "unset";
         isCapacityExceeded = true;
+        // to disable button
+        reserveBtn.disabled = true;
+        reserveBtn.style.cursor = "not-allowed";
     } else {
         paxError.style.display = "none";
         isCapacityExceeded = false;
+        reserveBtn.disabled = false;
+        reserveBtn.backgroundColor = "#fc6c3f";
+
     }
 });
 
@@ -295,9 +308,14 @@ async function displayTimingOptions() {
                     paxError.style.color = "red";
                     paxError.style.display = "unset";
                     isCapacityExceeded = true;
+                    // to disable button
+                    reserveBtn.disabled = true;
+                    reserveBtn.style.cursor = "not-allowed";
                 } else {
                     paxError.style.display = "none";
                     isCapacityExceeded = false;
+                    reserveBtn.disabled = false;
+                    reserveBtn.backgroundColor = "#fc6c3f";
                 }
             })
 
@@ -486,16 +504,27 @@ async function reservationForm(stores) {
             paxError.innerHTML = "Pax cannot be 0!";
             paxError.style.color = "red";
             paxError.style.display = "unset";
+
+            // to disable button 
+            reserveBtn.disabled = true;
+            reserveBtn.style.opacity = "0.6";
+            reserveBtn.style.cursor = "not-allowed";
         }
         else if (!time) {
             errorMsg.innerHTML = "Please select a timing.";
             errorMsg.style.color = "red";
             errorMsg.style.display = "unset";
 
+            // to disable button 
+            reserveBtn.disabled = true;
+            reserveBtn.style.opacity = "0.6";
+            reserveBtn.style.cursor = "not-allowed";
         } else if (!validateCapacity()) {
-
+            // to disable button 
+            reserveBtn.disabled = true;
+            reserveBtn.style.opacity = "0.6";
+            reserveBtn.style.cursor = "not-allowed";
         } else if (isCapacityExceeded) {
-
         }
         else {
             const totalpeople = childCount + adultCount;
@@ -507,6 +536,7 @@ async function reservationForm(stores) {
             const storeid = stores[0].store_id;
 
             const storename = stores[0].storeName;
+
 
             // to store reservation data
             sessionStorage.setItem('reservationData', JSON.stringify({
