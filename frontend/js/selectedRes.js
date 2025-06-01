@@ -58,6 +58,7 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
         // to disable button
         reserveBtn.disabled = true;
         reserveBtn.style.cursor = "not-allowed";
+
     } else {
         paxError.style.display = "none";
         isCapacityExceeded = false;
@@ -79,7 +80,9 @@ document.getElementById("childDropdown").addEventListener("change", function () 
         // to disable button
         reserveBtn.disabled = true;
         reserveBtn.style.cursor = "not-allowed";
-    } else {
+
+    }
+    else {
         paxError.style.display = "none";
         isCapacityExceeded = false;
         reserveBtn.disabled = false;
@@ -317,6 +320,8 @@ async function displayTimingOptions() {
                     reserveBtn.disabled = false;
                     reserveBtn.backgroundColor = "#fc6c3f";
                 }
+
+
             })
 
             if (count < 10) {
@@ -505,26 +510,16 @@ async function reservationForm(stores) {
             paxError.style.color = "red";
             paxError.style.display = "unset";
 
-            // to disable button 
-            reserveBtn.disabled = true;
-            reserveBtn.style.opacity = "0.6";
-            reserveBtn.style.cursor = "not-allowed";
+            // } else if (!(await validateCapacity())) {
+
+            // }
+        } else if (isCapacityExceeded) {
         }
         else if (!time) {
             errorMsg.innerHTML = "Please select a timing.";
             errorMsg.style.color = "red";
             errorMsg.style.display = "unset";
 
-            // to disable button 
-            reserveBtn.disabled = true;
-            reserveBtn.style.opacity = "0.6";
-            reserveBtn.style.cursor = "not-allowed";
-        } else if (!validateCapacity()) {
-            // to disable button 
-            reserveBtn.disabled = true;
-            reserveBtn.style.opacity = "0.6";
-            reserveBtn.style.cursor = "not-allowed";
-        } else if (isCapacityExceeded) {
         }
         else {
             const totalpeople = childCount + adultCount;
@@ -553,13 +548,9 @@ async function reservationForm(stores) {
 }
 
 async function validateCapacity() {
-    console.log("current capacity: " + currentcapacity);
-
-    const totalpeople = adultCount + childCount;
-
     const paxError = document.getElementById("paxError");
 
-    if (totalpeople > currentcapacity) {
+    if (pax > currentcapacity) {
         paxError.innerHTML = "No seats available.";
         paxError.style.color = "red";
         paxError.style.display = "unset";
