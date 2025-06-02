@@ -162,7 +162,7 @@ async function displayStores() {
 
         // Restaurant Image
         const img = document.createElement('img');
-        img.src = store.image;
+        img.src = `data:image/jpeg;base64,${store.image}`;
         img.alt = store.storeName;
         card.appendChild(img);
 
@@ -234,7 +234,7 @@ async function displayReservationAvailability(people, date, time) {
 
           // Restaurant Image
           const img = document.createElement('img');
-          img.src = store.image;
+          img.src = `data:image/jpeg;base64,${store.image}`;
           img.alt = store.storeName;
           card.appendChild(img);
 
@@ -306,7 +306,7 @@ async function displayFiltered(queryParams) {
 
       // Restaurant Image
       const img = document.createElement('img');
-      img.src = store.image;
+      img.src = `data:image/jpeg;base64,${store.image}`;
       img.alt = store.storeName;
       card.appendChild(img);
 

@@ -159,7 +159,7 @@
       </div>
       <h5 class="mb-3" id="restaurantModalTitle">Add New Restaurant</h5>
 
-      <form onsubmit="event.preventDefault(); submitRestaurantForm();">
+      <form action="/api/restaurants" method="POST" id="restaurantForm" enctype="multipart/form-data" onsubmit="event.preventDefault(); submitRestaurantForm();" >
         <input type="hidden" id="restaurantId"> <!-- Hidden for edit mode -->
 
         <div class="mb-3">
@@ -209,6 +209,10 @@
           <label for="closing" class="form-label">Closing Hour</label>
           <input type="time" class="form-control" id="closing" name="closing" required>
         </div>
+        <div class="mb-3">
+          <label for="image" class="form-label">Upload Image</label>
+          <input type="file" class="form-control" id="image" name="image" accept="image/*">
+        </div>
 
         <div class="d-flex justify-content-end">
           <button type="submit" class="btn btn-success" id="restaurantModalBtn">Add Restaurant</button>
@@ -253,6 +257,7 @@
 
   <script src="/js/admin.js"></script>
   <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
+  
 </body>
 
 </html>
