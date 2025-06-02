@@ -1,4 +1,6 @@
 let userid;
+let calenderValue;
+let reservationid;
 
 window.onload = function () {
     // check session if logged in to determind button content
@@ -19,15 +21,20 @@ window.onload = function () {
             console.error('Error checking session:', error);
         });
 
-
-
-    flatpickr("#calender", {
+    calenderValue = flatpickr("#calender", {
         dateFormat: "Y-m-d",
         minDate: 'today',
         defaultDate: 'today',
     });
 
     displaySpecificStore();
+
+    // check whether the query param have reservationid -> if have means is to update reservation
+    const urlParams = new URLSearchParams(window.location.search);
+    reservationid = urlParams.get("reservationid");
+    if (reservationid) {
+        loadFields(reservationid);
+    }
 };
 
 // initialize 0 adults & 0 child
@@ -149,10 +156,12 @@ async function displayTimingOptions() {
 
     let selectedBtn = null;
 
+
     async function handleDisable() {
+        console.log("running disable"); // running twice WHY
         let paxPerHour = 0;
 
-        // Clear existing buttons on each regeneration
+        // // Clear existing buttons on each regeneration
         visiblePart.innerHTML = '';
         hiddenPart.innerHTML = '';
 
@@ -238,7 +247,6 @@ async function displayTimingOptions() {
                         paxPerHour += r.noOfGuest;
 
                         console.log("pax per hour: " + paxPerHour);
-                        console.log()
                         // store the pax per hour value inside another var, since it will get reset
 
                         console.log("========================");
@@ -260,9 +268,6 @@ async function displayTimingOptions() {
 
 
             }
-
-            // i need to get the max capacity of the store 
-
             // pax per hour: amt of ppl during the time 
             // total capacity : max
             // if the selected total number of pax by user exceed available capacity -> disable?
@@ -366,35 +371,31 @@ async function displayTimingOptions() {
         }
     }
 
-    handleDisable(stores);
+    if (reservationid == null) {
+        handleDisable(stores);
+    }
 
     date.addEventListener('change', () => handleDisable(stores));
-
 }
-
 
 async function handleCapacityUpdate() {
     pax = adultCount + childCount;
-    // availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
-
-    // console.log("=====================================");
-    // console.log("pax per hour: " + paxHour);
-    // availCapacity = maxcapacity[0].totalCapacity - paxHour;
-    // const paxError = document.getElementById("paxError");
-    // console.log("available capacity: " + availCapacity);
-    // console.log("is pax > capacirty: " + pax > availCapacity);
-
-    // if (pax > availCapacity) {
-    //     paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
-    //     paxError.style.color = "red";
-    //     paxError.style.display = "unset";
-    //     isCapacityExceeded = true;
-    // } else {
-    //     paxError.style.display = "none";
-    //     isCapacityExceeded = false;
-    // }
-
     console.log("selected pax: " + pax);
+}
+
+// edit reservation
+async function loadFields(reservationid) {
+    console.log("reservationid: " + reservationid);
+    const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch data');
+    }
+    const reservationDetails = await response.json();
+    // console.log(reservationDetails);
+    // document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
+    // document.getElementById("childDropdown").value = reservationDetails[0].childPax;
+
+    calenderValue.setDate(reservationDetails[0].reservationDate, true);
 
 }
 
