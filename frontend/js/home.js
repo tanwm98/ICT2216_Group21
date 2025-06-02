@@ -39,7 +39,7 @@ async function displayStores() {
             img.style.width = "350px";
             img.style.height = "230px";
             img.style.objectFit = "cover";
-            img.src = store.image;
+            img.src = `data:image/jpeg;base64,${store.image}`;
             img.alt = 'Post Image';
 
             // creating div tag for store name

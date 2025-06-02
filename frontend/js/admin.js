@@ -14,7 +14,10 @@ function showSection(id) {
     fetchReservations();
   }
 }
-// ==========  DASHBOARD ========== 
+
+
+// =================  DASHBOARD ==============
+// load dashboard
 function loadDashboardStats() {
   fetch('/api/dashboard-stats')
     .then(res => {
@@ -40,7 +43,9 @@ function loadDashboardStats() {
     });
 }
 
-// ========== RESTAURANTS ==========
+
+// =============== RESTAURANTS ==============
+// fetch restaurant info
 function fetchRestaurants() {
   fetch('/api/restaurants')
     .then(res => res.json())
@@ -70,6 +75,7 @@ function fetchRestaurants() {
     });
 }
 
+// submit restaurant form
 function submitRestaurantForm() {
   const restaurantId = document.getElementById("restaurantId").value;
   if (restaurantId) {
@@ -79,26 +85,35 @@ function submitRestaurantForm() {
   }
 }
 
+// add restaurant
 function addRestaurant() {
-  const data = getRestaurantFormData();
+  const form = document.getElementById('restaurantForm');
+  const formData = new FormData(form);
+
+  // Manually add owner_id from the <select>
+  const ownerId = document.getElementById('ownerSelect').value;
+  formData.set('owner_id', ownerId);
+
+  const file = formData.get('image');
+  console.log('Attached image:', file); // Should be a File object
 
   fetch('/api/restaurants', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: formData, // Don't set Content-Type!
   })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to add restaurant');
-      return res.json();
-    })
-    .then(() => {
-      closeModal();
-      fetchRestaurants();
-      clearRestaurantForm();
-    })
-    .catch(err => console.error('Error adding restaurant:', err));
+  .then(res => {
+    if (!res.ok) throw new Error('Failed to add restaurant');
+    return res.json();
+  })
+  .then(() => {
+    closeModal();
+    fetchRestaurants();
+    clearRestaurantForm();
+  })
+  .catch(err => console.error('Error adding restaurant:', err));
 }
 
+// update restaurant
 function updateRestaurant(id) {
   const data = getRestaurantFormData();
 
@@ -119,6 +134,7 @@ function updateRestaurant(id) {
     .catch(err => console.error('Error updating restaurant:', err));
 }
 
+/// edit restaurant
 function editRestaurant(id) {
   fetch(`/api/restaurants/${id}`)
     .then(res => res.json())
@@ -140,6 +156,7 @@ function editRestaurant(id) {
     .catch(err => console.error('Error loading restaurant:', err));
 }
 
+// clear restaurant form
 function clearRestaurantForm() {
   document.getElementById("restaurantId").value = '';
   document.getElementById("storeName").value = '';
@@ -155,6 +172,7 @@ function clearRestaurantForm() {
   document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
 }
 
+// get restaurant form
 function getRestaurantFormData() {
   return {
     storeName: document.getElementById("storeName").value,
@@ -169,7 +187,121 @@ function getRestaurantFormData() {
   };
 }
 
+
+
+// load owner dashboard
+function loadOwnersDropdown(selectedId = '') {
+  fetch('/api/owners')
+    .then(res => res.json())
+    .then(owners => {
+      const ownerSelect = document.getElementById('ownerSelect');
+      ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+      owners.forEach(owner => {
+        const option = document.createElement('option');
+        option.value = owner.user_id;
+        option.textContent = owner.name;
+        if (owner.user_id == selectedId) option.selected = true;
+        ownerSelect.appendChild(option);
+      });
+    })
+    .catch(err => {
+      console.error('Failed to load owners:', err);
+    });
+}
+
+/// get restaurant form
+function getRestaurantFormData() {
+  return {
+    storeName: document.getElementById("storeName").value,
+    address: document.getElementById("address").value,
+    postalCode: document.getElementById("postalCode").value,
+    location: document.getElementById("location").value,
+    cuisine: document.getElementById("cuisine").value,
+    priceRange: document.getElementById("priceRange").value,
+    totalCapacity: parseInt(document.getElementById("totalCapacity").value),
+    opening: document.getElementById("opening").value,
+    closing: document.getElementById("closing").value,
+    owner_id: document.getElementById("ownerSelect").value
+  };
+}
+
+// clear restaurant form
+function clearRestaurantForm() {
+  document.getElementById("restaurantId").value = '';
+  document.getElementById("storeName").value = '';
+  document.getElementById("address").value = '';
+  document.getElementById("postalCode").value = '';
+  document.getElementById("location").value = '';
+  document.getElementById("cuisine").value = '';
+  document.getElementById("priceRange").value = '';
+  document.getElementById("totalCapacity").value = '';
+  document.getElementById("opening").value = '';
+  document.getElementById("closing").value = '';
+  document.getElementById("ownerSelect").value = '';
+
+  document.getElementById("restaurantModalTitle").textContent = "Add New Restaurant";
+  document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
+}
+
+// submit restaurant form
+function submitRestaurantForm() {
+  const restaurantId = document.getElementById("restaurantId").value;
+  if (restaurantId) {
+    updateRestaurant(restaurantId);
+  } else {
+    addRestaurant();
+  }
+}
+
+// edit restaurant
+function editRestaurant(id) {
+  fetch(`/api/restaurants/${id}`)
+    .then(res => res.json())
+    .then(r => {
+      document.getElementById("restaurantId").value = r.store_id;
+      document.getElementById("storeName").value = r.storeName;
+      document.getElementById("address").value = r.address;
+      document.getElementById("postalCode").value = r.postalCode;
+      document.getElementById("location").value = r.location;
+      document.getElementById("cuisine").value = r.cuisine;
+      document.getElementById("priceRange").value = r.priceRange;
+      document.getElementById("totalCapacity").value = r.totalCapacity;
+      document.getElementById("opening").value = r.opening;
+      document.getElementById("closing").value = r.closing;
+
+      document.getElementById("restaurantModalTitle").textContent = "Edit Restaurant";
+      document.getElementById("restaurantModalBtn").textContent = "Update Restaurant";
+
+      loadOwnersDropdown(r.owner_id);
+      openModal(true);
+    })
+    .catch(err => console.error('Error loading restaurant:', err));
+}
+
+// delete restaurant
+function deleteRestaurant(storeId) {
+  if (!confirm("Are you sure you want to delete this restaurant?")) return;
+
+  fetch(`/api/restaurants/${storeId}`, {
+    method: 'DELETE'
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to delete restaurant');
+      return res.json();
+    })
+    .then(data => {
+      console.log(data.message || 'Deleted successfully');
+      fetchRestaurants(); // refresh list
+    })
+    .catch(err => {
+      console.error('Error deleting restaurant:', err);
+    });
+}
+
+
+
 // ========== USERS ==========
+// fetch user info
 function fetchUsers() {
   fetch('/api/users')
     .then(res => res.json())
@@ -202,6 +334,7 @@ function fetchUsers() {
     });
 }
 
+// submit user form
 function submitUserForm() {
   const userId = document.getElementById("userId").value;
   if (userId) {
@@ -211,6 +344,7 @@ function submitUserForm() {
   }
 }
 
+// add user
 function addUser() {
   const nameInput = document.getElementById("name");
   const emailInput = document.getElementById("email");
@@ -247,6 +381,7 @@ function addUser() {
     });
 }
 
+// update user details
 function updateUser(userId) {
   const name = document.getElementById("name").value;
   const email = document.getElementById("email").value;
@@ -266,6 +401,7 @@ function updateUser(userId) {
     .catch(err => console.error('Error updating user:', err));
 }
 
+// clear user form
 function clearUserForm() {
   document.getElementById("userId").value = '';
   document.getElementById("name").value = '';
@@ -276,6 +412,7 @@ function clearUserForm() {
   document.getElementById("userModalBtn").textContent = "Add User";
 }
 
+// edit user 
 function editUser(userId) {
   fetch(`/api/users/${userId}`)
     .then(res => res.json())
@@ -293,6 +430,7 @@ function editUser(userId) {
     .catch(err => console.error('Error loading user:', err));
 }
 
+// delete user
 function deleteUser(userId) {
   if (!confirm("Are you sure you want to delete this user?")) return;
 
@@ -312,6 +450,7 @@ function deleteUser(userId) {
     });
 }
 
+// reset user password
 function resetUserPassword(userId) {
   if (!confirm('Reset this user\'s password?')) return;
 
@@ -327,178 +466,7 @@ function resetUserPassword(userId) {
     });
 }
 
-// ========== RESTAURANTS ==========
-function fetchRestaurants() {
-  fetch('/api/restaurants')
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.querySelector('#restaurantList tbody');
-      tbody.innerHTML = '';
-      data.forEach(r => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${r.storeName}</td>
-          <td>${r.location}</td>
-          <td>${r.ownerName}</td>
-          <td>
-            <button class="btn btn-sm btn-warning" onclick="editRestaurant(${r.store_id})">
-              <i class="bi bi-pencil"></i> Edit
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteRestaurant(${r.store_id})">
-              <i class="bi bi-trash"></i> Delete
-            </button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to fetch restaurants:', err);
-    });
-}
 
-function loadOwnersDropdown(selectedId = '') {
-  fetch('/api/owners')
-    .then(res => res.json())
-    .then(owners => {
-      const ownerSelect = document.getElementById('ownerSelect');
-      ownerSelect.innerHTML = '<option value="">Select Owner</option>';
-      owners.forEach(owner => {
-        const option = document.createElement('option');
-        option.value = owner.user_id;
-        option.textContent = owner.name;
-        if (owner.user_id == selectedId) option.selected = true;
-        ownerSelect.appendChild(option);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to load owners:', err);
-    });
-}
-
-function getRestaurantFormData() {
-  return {
-    storeName: document.getElementById("storeName").value,
-    address: document.getElementById("address").value,
-    postalCode: document.getElementById("postalCode").value,
-    location: document.getElementById("location").value,
-    cuisine: document.getElementById("cuisine").value,
-    priceRange: document.getElementById("priceRange").value,
-    totalCapacity: parseInt(document.getElementById("totalCapacity").value),
-    opening: document.getElementById("opening").value,
-    closing: document.getElementById("closing").value,
-    owner_id: document.getElementById("ownerSelect").value
-  };
-}
-
-function clearRestaurantForm() {
-  document.getElementById("restaurantId").value = '';
-  document.getElementById("storeName").value = '';
-  document.getElementById("address").value = '';
-  document.getElementById("postalCode").value = '';
-  document.getElementById("location").value = '';
-  document.getElementById("cuisine").value = '';
-  document.getElementById("priceRange").value = '';
-  document.getElementById("totalCapacity").value = '';
-  document.getElementById("opening").value = '';
-  document.getElementById("closing").value = '';
-  document.getElementById("ownerSelect").value = '';
-
-  document.getElementById("restaurantModalTitle").textContent = "Add New Restaurant";
-  document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
-}
-
-function submitRestaurantForm() {
-  const restaurantId = document.getElementById("restaurantId").value;
-  if (restaurantId) {
-    updateRestaurant(restaurantId);
-  } else {
-    addRestaurant();
-  }
-}
-
-function addRestaurant() {
-  const data = getRestaurantFormData();
-
-  fetch('/api/restaurants', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to add restaurant');
-      return res.json();
-    })
-    .then(() => {
-      closeModal();
-      fetchRestaurants();
-      clearRestaurantForm();
-    })
-    .catch(err => console.error('Error adding restaurant:', err));
-}
-
-function updateRestaurant(id) {
-  const data = getRestaurantFormData();
-
-  fetch(`/api/restaurants/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to update restaurant');
-      return res.json();
-    })
-    .then(() => {
-      closeModal();
-      fetchRestaurants();
-      clearRestaurantForm();
-    })
-    .catch(err => console.error('Error updating restaurant:', err));
-}
-
-function editRestaurant(id) {
-  fetch(`/api/restaurants/${id}`)
-    .then(res => res.json())
-    .then(r => {
-      document.getElementById("restaurantId").value = r.store_id;
-      document.getElementById("storeName").value = r.storeName;
-      document.getElementById("address").value = r.address;
-      document.getElementById("postalCode").value = r.postalCode;
-      document.getElementById("location").value = r.location;
-      document.getElementById("cuisine").value = r.cuisine;
-      document.getElementById("priceRange").value = r.priceRange;
-      document.getElementById("totalCapacity").value = r.totalCapacity;
-      document.getElementById("opening").value = r.opening;
-      document.getElementById("closing").value = r.closing;
-
-      document.getElementById("restaurantModalTitle").textContent = "Edit Restaurant";
-      document.getElementById("restaurantModalBtn").textContent = "Update Restaurant";
-
-      loadOwnersDropdown(r.owner_id);
-      openModal(true);
-    })
-    .catch(err => console.error('Error loading restaurant:', err));
-}
-
-function deleteRestaurant(storeId) {
-  if (!confirm("Are you sure you want to delete this restaurant?")) return;
-
-  fetch(`/api/restaurants/${storeId}`, {
-    method: 'DELETE'
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to delete restaurant');
-      return res.json();
-    })
-    .then(data => {
-      console.log(data.message || 'Deleted successfully');
-      fetchRestaurants(); // refresh list
-    })
-    .catch(err => {
-      console.error('Error deleting restaurant:', err);
-    });
-}
 
 // ========== RESERVATIONS ==========
 function fetchReservations() {
