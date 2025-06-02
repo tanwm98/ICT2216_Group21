@@ -23,7 +23,6 @@ services:
     expose:
       - "3000"
     volumes:
-      - ..:/app
       - /app/node_modules
     networks:
       - app-network
