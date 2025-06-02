@@ -1,25 +1,25 @@
 let userid;
 let calenderValue;
 let reservationid;
+let reserveBtn;
 
-window.onload = function () {
-    // check session if logged in to determind button content
-    fetch('/api/session')
-        .then(response => response.json())
-        .then(data => {
-            const reserveBtn = document.getElementById('reserveBtn');
-            if (!data.loggedIn) {
-                reserveBtn.disabled = true;
-                reserveBtn.textContent = "Login to Reserve";
-                reserveBtn.style.opacity = "0.6";
-                reserveBtn.style.cursor = "not-allowed";
-            } else {
-                userid = data.userId;
-            }
-        })
-        .catch(error => {
-            console.error('Error checking session:', error);
-        });
+window.onload = async function () {
+    // check session if logged in to determine button content
+    try {
+        const response = await fetch('/api/session');
+        const data = await response.json();
+        reserveBtn = document.getElementById('reserveBtn');
+        if (!data.loggedIn) {
+            reserveBtn.disabled = true;
+            reserveBtn.textContent = "Login to Reserve";
+            reserveBtn.style.opacity = "0.6";
+            reserveBtn.style.cursor = "not-allowed";
+        } else {
+            userid = data.userId;
+        }
+    } catch (error) {
+        console.error('Error checking session:', error);
+    }
 
     calenderValue = flatpickr("#calender", {
         dateFormat: "Y-m-d",
@@ -27,15 +27,12 @@ window.onload = function () {
         defaultDate: 'today',
     });
 
-    displaySpecificStore();
 
-    // check whether the query param have reservationid -> if have means is to update reservation
-    const urlParams = new URLSearchParams(window.location.search);
-    reservationid = urlParams.get("reservationid");
-    if (reservationid) {
-        loadFields(reservationid);
-    }
+    // wait until store and timing buttons are loaded
+    await displaySpecificStore();
+
 };
+
 
 // initialize 0 adults & 0 child
 let adultCount = 0;
@@ -45,7 +42,6 @@ let stores;
 let pax;
 let availCapacity;
 let maxcapacity;
-let reserveBtn = document.getElementById('reserveBtn');
 
 // a boolean tracker to track whether the selected pax exceeds current capacity
 let isCapacityExceeded = false;
@@ -70,7 +66,7 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
         paxError.style.display = "none";
         isCapacityExceeded = false;
         reserveBtn.disabled = false;
-        reserveBtn.backgroundColor = "#fc6c3f";
+        reserveBtn.style.backgroundColor = "#fc6c3f";
 
     }
 });
@@ -124,28 +120,14 @@ async function displayTimingOptions() {
     label.className = "d-block mb-2";
     timing.appendChild(label);
 
-    // convert hours to minutes for calculation
-    function toMinutes(time) {
-        const [hours, minutes] = time.split(':').map(Number);
-        return hours * 60 + minutes;
-    }
-
-    // convert startMin (mins) to HH:MM format ( for display time )
-    function changeBack(mins) {
-        const hours = Math.floor(mins / 60);
-        const minutes = mins % 60;
-        // formatting hours & mins into HH:MM 
-        // converts hours n mins to string 
-        // .padStart(2, '0') -> if only 1 digit like 8, then will put 0 in front to become 08
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    }
-
     // visible container to show a few timing options initially
     const visiblePart = document.createElement("div");
+    visiblePart.id = "visiblePart";
     timing.appendChild(visiblePart);
 
     // hidden part 
     const hiddenPart = document.createElement('div');
+    hiddenPart.id = "hiddenPart";
     hiddenPart.style.display = 'none';
     timing.appendChild(hiddenPart);
 
@@ -208,6 +190,7 @@ async function displayTimingOptions() {
             btn.textContent = changeBack(startMin);
             btn.className = 'btn m-1';
             btn.type = 'button';
+            btn.classList.add("timingButtons");
 
             // disable button if date is today & time already passed
             if (btn.textContent <= currentTime && selectedDate === currentdate) {
@@ -220,7 +203,6 @@ async function displayTimingOptions() {
             } else {
                 btn.style.border = '1px solid #fc6c3f';
                 btn.style.color = '#fc6c3f';
-                btn.classList.add("timingButtons");
             }
 
             // reservation timing
@@ -232,24 +214,24 @@ async function displayTimingOptions() {
             // console.log("Slot start: " + slotStart);
             const formattedSlotEnd = formatTime(slotEnd);
             const formattedSlotStart = formatTime(slotStart);
-            console.log("/////////////////////////////////////");
-            console.log("end: " + formattedSlotEnd);
-            console.log("start: " + formattedSlotStart);
+            // console.log("/////////////////////////////////////");
+            // console.log("end: " + formattedSlotEnd);
+            // console.log("start: " + formattedSlotStart);
             // to store number of guest per hour
             let paxHour;
 
             if (count > 0) {
                 for (const r of result) {
                     if (r.reservationTime >= formattedSlotStart && r.reservationTime <= formattedSlotEnd) {
-                        console.log("========================");
-                        console.log("reservation timing: " + r.reservationTime);
-                        console.log("no of pax: " + r.noOfGuest);
+                        // console.log("========================");
+                        // console.log("reservation timing: " + r.reservationTime);
+                        // console.log("no of pax: " + r.noOfGuest);
                         paxPerHour += r.noOfGuest;
 
-                        console.log("pax per hour: " + paxPerHour);
+                        // console.log("pax per hour: " + paxPerHour);
                         // store the pax per hour value inside another var, since it will get reset
 
-                        console.log("========================");
+                        // console.log("========================");
                     }
                 }
                 paxHour = paxPerHour;
@@ -264,7 +246,7 @@ async function displayTimingOptions() {
                     btn.classList.add("btn-outline-secondary");
                 }
 
-                console.log("available capacity: " + availCapacity);
+                // console.log("available capacity: " + availCapacity);
 
 
             }
@@ -272,29 +254,7 @@ async function displayTimingOptions() {
             // total capacity : max
             // if the selected total number of pax by user exceed available capacity -> disable?
 
-            // const pax = adultCount + childCount;
-            // availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
-            // console.log("avail capacity: " + availCapacity);
-            // console.log("pax: " + pax);
-
-            // const paxError = document.getElementById("paxError");
-
-            // if (pax > availCapacity) {
-            //     paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
-            //     paxError.style.color = "red";
-            //     paxError.style.display = "unset";
-            // }
-
-
-
-            // if (pax > cap)
-
-            // if (paxPerHour > maxcapacity.totalCapacity) {
-            //     btn.disabled = true;
-            //     btn.classList.add('btn-outline-warning');
-            // }
-
-            console.log("/////////////////////////////////////");
+            // console.log("/////////////////////////////////////");
 
             // event listener to track which btn is selected
             btn.addEventListener('click', function () {
@@ -349,6 +309,7 @@ async function displayTimingOptions() {
                 hiddenPart.appendChild(btn);
             }
 
+
             startMin += 30;
             count++;
         }
@@ -371,11 +332,18 @@ async function displayTimingOptions() {
         }
     }
 
-    if (reservationid == null) {
-        handleDisable(stores);
+    // if want to update reservation, page will be loaded with reservation details
+    // so dont need to run handleDisable() again -> will have another set of timing option if run this func
+    await handleDisable();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    reservationid = urlParams.get("reservationid");
+    if (reservationid) {
+        const timingButton = document.querySelectorAll('button.timingButtons');
+        await loadFields(reservationid, timingButton);
     }
 
-    date.addEventListener('change', () => handleDisable(stores));
+    date.addEventListener('change', () => handleDisable());
 }
 
 async function handleCapacityUpdate() {
@@ -384,18 +352,31 @@ async function handleCapacityUpdate() {
 }
 
 // edit reservation
-async function loadFields(reservationid) {
+async function loadFields(reservationid, timingButton) {
     console.log("reservationid: " + reservationid);
     const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
     if (!response.ok) {
         throw new Error('Failed to fetch data');
     }
     const reservationDetails = await response.json();
-    // console.log(reservationDetails);
-    // document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
-    // document.getElementById("childDropdown").value = reservationDetails[0].childPax;
+    console.log(reservationDetails);
+    document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
+    document.getElementById("childDropdown").value = reservationDetails[0].childPax;
 
     calenderValue.setDate(reservationDetails[0].reservationDate, true);
+
+    const reservationTime = reservationDetails[0].reservationTime.slice(0, 5); // "09:00"
+    console.log(reservationTime);
+    timingButton.forEach((btn) => {
+        if (btn.textContent == reservationTime) {
+            console.log("In DOM?", document.body.contains(btn)); // Should be true
+            console.log("Parent element:", btn.parentElement);    // Should NOT be null
+            btn.id = "reservationTime";
+            // btn.style.border = '1px solid #fc6c3f';
+            btn.style.backgroundColor = '#fc6c3f';
+            btn.style.color = 'white';
+        }
+    });
 
 }
 
@@ -411,7 +392,15 @@ async function displaySpecificStore() {
         }
 
         stores = await response.json();
-        displayTimingOptions();
+        await displayTimingOptions();
+
+        // reservationid = urlParams.get("reservationid");
+        // // after buttons loaded, then run the inputting values in input fields
+        // // if (reservationid) {
+        // //     const timingButton = document.querySelectorAll('button.timingButtons');
+        // //     loadFields(reservationid, timingButton);
+        // // }
+
         navTabs(stores);
         reservationForm(stores);
 
@@ -439,7 +428,7 @@ async function displaySpecificStore() {
         img.src = `data:image/jpeg;base64,${stores[0].image}`;
         img.alt = 'Post Image';
 
-        
+
 
         link.appendChild(img);
         left.append(link);
@@ -649,6 +638,22 @@ async function submitReview(userId, storeId) {
         console.error("Error submitting review:", err);
         errorMsg.textContent = "Server error while submitting review.";
     }
+}
+
+// convert hours to minutes for calculation
+function toMinutes(time) {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
+// convert startMin (mins) to HH:MM format ( for display time )
+function changeBack(mins) {
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    // formatting hours & mins into HH:MM 
+    // converts hours n mins to string 
+    // .padStart(2, '0') -> if only 1 digit like 8, then will put 0 in front to become 08
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 // Convert to HH:mm format
