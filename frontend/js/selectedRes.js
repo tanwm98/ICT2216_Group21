@@ -238,12 +238,26 @@ async function displayTimingOptions() {
                         paxPerHour += r.noOfGuest;
 
                         console.log("pax per hour: " + paxPerHour);
+                        console.log()
                         // store the pax per hour value inside another var, since it will get reset
 
                         console.log("========================");
                     }
                 }
                 paxHour = paxPerHour;
+
+                availCapacity = maxcapacity[0].totalCapacity - paxHour;
+
+                if (availCapacity == 0) {
+                    btn.disabled = true;
+                    btn.style.border = "";
+                    btn.style.color = "";
+
+                    btn.classList.add("btn-outline-secondary");
+                }
+
+                console.log("available capacity: " + availCapacity);
+
 
             }
 
