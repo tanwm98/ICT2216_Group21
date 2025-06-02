@@ -113,7 +113,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res) => {
     } = req.body;
 
     const imageFile = req.file;
-    console.log('📷 Uploaded File:', req.file);
+    //console.log('📷 Uploaded File:', req.file);
 
     const message = `
 New Restaurant Owner Signup:
@@ -137,13 +137,13 @@ New Restaurant Owner Signup:
             content: imageFile.buffer,
             contentType: imageFile.mimetype
         }]: [];
-        console.log('📎 Prepared Email Attachments:', attachments);
+        //console.log('📎 Prepared Email Attachments:', attachments);
 
 
     try {
         await transporter.sendMail({
             from: `"Restaurant Form" <${process.env.EMAIL_USER}>`,
-            to: 'dx8153@gmail.com',
+            to: 'ict2216kirby@gmail.com',
             subject: 'New Restaurant Signup',
             text: message,
             attachments: attachments

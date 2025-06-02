@@ -262,37 +262,42 @@ router.get('/restaurants/:id', async (req, res) => {
 });
 
 // Update restaurant by id
-router.put('/restaurants/:id', async (req, res) => {
-    const { id } = req.params;
-    const {
-        owner_id, storeName, address, postalCode, location,
-        cuisine, priceRange, totalCapacity, opening, closing
-    } = req.body;
+router.put('/restaurants/:id', upload.single('image'), async (req, res) => {
+  const id = req.params.id;
+  const {
+    storeName, address, postalCode, cuisine, location,
+    priceRange, totalCapacity, opening, closing, owner_id
+  } = req.body;
 
-    try {
-        await pool.query(`
-            UPDATE stores SET
-                owner_id = $1,
-                "storeName" = $2,
-                address = $3,
-                "postalCode" = $4,
-                location = $5,
-                cuisine = $6,
-                "priceRange" = $7,
-                "totalCapacity" = $8,
-                opening = $9,
-                closing = $10
-            WHERE store_id = $11
-        `, [
-            owner_id, storeName, address, postalCode, location,
-            cuisine, priceRange, totalCapacity, opening, closing, id
-        ]);
+  const imageBase64 = req.file ? req.file.buffer.toString('base64') : null;
 
-        res.json({ message: 'Restaurant updated successfully' });
-    } catch (err) {
-        console.error('Error updating restaurant:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const result = await pool.query(`
+      UPDATE stores SET
+        "storeName" = $1,
+        address = $2,
+        "postalCode" = $3,
+        cuisine = $4,
+        location = $5,
+        "priceRange" = $6,
+        "totalCapacity" = $7,
+        "currentCapacity" = $7,
+        opening = $8,
+        closing = $9,
+        owner_id = $10,
+        image = COALESCE($11, image)
+      WHERE store_id = $12
+    `, [
+      storeName, address, postalCode, cuisine, location,
+      priceRange, totalCapacity, opening, closing,
+      owner_id, imageBase64, id
+    ]);
+
+    res.json({ message: 'Restaurant updated successfully' });
+  } catch (err) {
+    console.error('Error updating restaurant:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Delete restaurant by id

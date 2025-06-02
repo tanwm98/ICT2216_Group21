@@ -115,12 +115,15 @@ function addRestaurant() {
 
 // update restaurant
 function updateRestaurant(id) {
-  const data = getRestaurantFormData();
+  const form = document.getElementById('restaurantForm');
+  const formData = new FormData(form);
+
+  const ownerId = document.getElementById('ownerSelect').value;
+  formData.set('owner_id', ownerId);
 
   fetch(`/api/restaurants/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: formData
   })
     .then(res => {
       if (!res.ok) throw new Error('Failed to update restaurant');
@@ -133,6 +136,7 @@ function updateRestaurant(id) {
     })
     .catch(err => console.error('Error updating restaurant:', err));
 }
+
 
 /// edit restaurant
 function editRestaurant(id) {
@@ -156,6 +160,7 @@ function editRestaurant(id) {
     .catch(err => console.error('Error loading restaurant:', err));
 }
 
+
 // clear restaurant form
 function clearRestaurantForm() {
   document.getElementById("restaurantId").value = '';
@@ -168,9 +173,11 @@ function clearRestaurantForm() {
   document.getElementById("totalCapacity").value = '';
   document.getElementById("opening").value = '';
   document.getElementById("closing").value = '';
+  document.getElementById("previewImage").src = ''; 
 
   document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
 }
+
 
 // get restaurant form
 function getRestaurantFormData() {
@@ -186,7 +193,6 @@ function getRestaurantFormData() {
     closing: document.getElementById("closing").value
   };
 }
-
 
 
 // load owner dashboard
@@ -209,6 +215,7 @@ function loadOwnersDropdown(selectedId = '') {
     });
 }
 
+
 /// get restaurant form
 function getRestaurantFormData() {
   return {
@@ -222,8 +229,10 @@ function getRestaurantFormData() {
     opening: document.getElementById("opening").value,
     closing: document.getElementById("closing").value,
     owner_id: document.getElementById("ownerSelect").value
+
   };
 }
+
 
 // clear restaurant form
 function clearRestaurantForm() {
@@ -243,6 +252,7 @@ function clearRestaurantForm() {
   document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
 }
 
+
 // submit restaurant form
 function submitRestaurantForm() {
   const restaurantId = document.getElementById("restaurantId").value;
@@ -252,6 +262,7 @@ function submitRestaurantForm() {
     addRestaurant();
   }
 }
+
 
 // edit restaurant
 function editRestaurant(id) {
@@ -269,6 +280,7 @@ function editRestaurant(id) {
       document.getElementById("opening").value = r.opening;
       document.getElementById("closing").value = r.closing;
 
+
       document.getElementById("restaurantModalTitle").textContent = "Edit Restaurant";
       document.getElementById("restaurantModalBtn").textContent = "Update Restaurant";
 
@@ -277,6 +289,7 @@ function editRestaurant(id) {
     })
     .catch(err => console.error('Error loading restaurant:', err));
 }
+
 
 // delete restaurant
 function deleteRestaurant(storeId) {
@@ -300,7 +313,8 @@ function deleteRestaurant(storeId) {
 
 
 
-// ========== USERS ==========
+
+// ============== USERS ==================
 // fetch user info
 function fetchUsers() {
   fetch('/api/users')
@@ -468,7 +482,7 @@ function resetUserPassword(userId) {
 
 
 
-// ========== RESERVATIONS ==========
+// ================= RESERVATIONS ==================
 function fetchReservations() {
   fetch('/api/reservations')
     .then(res => res.json())
@@ -528,7 +542,7 @@ function cancelReservation(id) {
 }
 
 
-// ========== MODALS ==========
+// ====================== MODALS ======================
 // Restaurant Modal
 var restaurantModal = document.getElementById("myModal");
 
