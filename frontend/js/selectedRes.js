@@ -435,8 +435,10 @@ async function displaySpecificStore() {
         img.style.width = "650px";
         img.style.height = "450px";
         img.style.objectFit = "cover";
-        img.src = stores[0].image;
+        img.src = `data:image/jpeg;base64,${stores[0].image}`;
         img.alt = 'Post Image';
+
+        
 
         link.appendChild(img);
         left.append(link);

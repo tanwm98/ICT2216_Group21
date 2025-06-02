@@ -3,6 +3,9 @@ const pool = require('../../db');
 const router = express.Router();
 const authenticateToken = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const argon2 = require('argon2');
+const upload = multer();
 
 // Set up your transporter (configure with real credentials)
 const transporter = nodemailer.createTransport({
@@ -140,6 +143,7 @@ router.post('/users/:id/reset-password', async (req, res) => {
     }
 });
 
+
 // ======== RESTAURANTS ========
 // Get all restaurants
 router.get('/restaurants', async (req, res) => {
@@ -172,32 +176,66 @@ router.get('/owners', async (req, res) => {
 });
 
 // Add new restaurant
-router.post('/restaurants', async (req, res) => {
-    const {
-        owner_id, storeName, address, postalCode, location,
-        cuisine, priceRange, totalCapacity,
-        opening, closing
-    } = req.body;
+// router.post('/restaurants', async (req, res) => {
+//     const {
+//         owner_id, storeName, address, postalCode, location,
+//         cuisine, priceRange, totalCapacity,
+//         opening, closing
+//     } = req.body;
 
-    try {
-        await pool.query(`
-            INSERT INTO stores (
-                owner_id, "storeName", address, "postalCode", location,
-                cuisine, "priceRange", "totalCapacity", "currentCapacity",
-                opening, closing
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        `, [
-            owner_id, storeName, address, postalCode, location,
-            cuisine, priceRange, totalCapacity, totalCapacity,
-            opening, closing
-        ]);
-        res.json({ message: 'Restaurant added successfully' });
-    } catch (err) {
-        console.error('Error adding restaurant:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+//     try {
+//         await pool.query(`
+//             INSERT INTO stores (
+//                 owner_id, "storeName", address, "postalCode", location,
+//                 cuisine, "priceRange", "totalCapacity", "currentCapacity",
+//                 opening, closing
+//             )
+//             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+//         `, [
+//             owner_id, storeName, address, postalCode, location,
+//             cuisine, priceRange, totalCapacity, totalCapacity,
+//             opening, closing
+//         ]);
+//         res.json({ message: 'Restaurant added successfully' });
+//     } catch (err) {
+//         console.error('Error adding restaurant:', err);
+//         res.status(500).json({ error: 'Internal server error' });
+//     }
+// });
+
+router.post('/restaurants', upload.single('image'), async (req, res) => {
+  const {
+    owner_id, storeName, address, postalCode, location,
+    cuisine, priceRange, totalCapacity,
+    opening, closing
+  } = req.body;
+
+  console.log('FILE:', req.file); // ✅ Add this for debugging
+  console.log('BODY:', req.body);
+
+  const base64Image = req.file ? req.file.buffer.toString('base64') : null;
+
+  try {
+    await pool.query(`
+      INSERT INTO stores (
+        owner_id, "storeName", address, "postalCode", location,
+        cuisine, "priceRange", "totalCapacity", "currentCapacity",
+        opening, closing, image
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `, [
+      owner_id, storeName, address, postalCode, location,
+      cuisine, priceRange, totalCapacity, totalCapacity,
+      opening, closing, base64Image
+    ]);
+
+    res.json({ message: 'Restaurant added successfully' });
+  } catch (err) {
+    console.error('Error adding restaurant:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
+
 
 // Get restaurant by id
 router.get('/restaurants/:id', async (req, res) => {

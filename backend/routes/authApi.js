@@ -7,6 +7,14 @@ const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const router = express.Router();
 
+const multer = require('multer');
+const path = require('path');
+
+// Store in memory for email attachment (not saving to disk)
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
@@ -89,7 +97,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-router.post('/signup-owner', async (req, res) => {
+router.post('/signup-owner', upload.single('image'), async (req, res) => {
     const {
         ownerName,
         email,
@@ -103,6 +111,9 @@ router.post('/signup-owner', async (req, res) => {
         opening,
         closing,
     } = req.body;
+
+    const imageFile = req.file;
+    console.log('📷 Uploaded File:', req.file);
 
     const message = `
 New Restaurant Owner Signup:
@@ -121,12 +132,21 @@ New Restaurant Owner Signup:
 🕒 Closing Hour: ${closing}
     `;
 
+    const attachments = imageFile ? [{
+            filename: imageFile.originalname,
+            content: imageFile.buffer,
+            contentType: imageFile.mimetype
+        }]: [];
+        console.log('📎 Prepared Email Attachments:', attachments);
+
+
     try {
         await transporter.sendMail({
             from: `"Restaurant Form" <${process.env.EMAIL_USER}>`,
-            to: 'ict2216kirby@gmail.com',
+            to: 'dx8153@gmail.com',
             subject: 'New Restaurant Signup',
             text: message,
+            attachments: attachments
         });
 
         res.redirect('/rOwnerReg?success=1');

@@ -88,7 +88,7 @@
   <div class="container">
     <h2>Restaurant Owner Signup</h2>
 
-    <form method="POST" action="/signup-owner">
+    <form method="POST" action="/signup-owner" enctype="multipart/form-data">
 
       <h3>Owner Information</h3>
       <!-- Owner Info -->
@@ -151,6 +151,10 @@
         <div class="mb-3">
           <label for="closing" class="form-label">Closing Hour</label>
           <input type="time" class="form-control" id="closing" name="closing" required>
+        </div>
+        <div class="mb-3">
+          <label for="image" class="form-label">Upload Image</label>
+          <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
         </div>
 
         <button type="submit">Submit</button>
