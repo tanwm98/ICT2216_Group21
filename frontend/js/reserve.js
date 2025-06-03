@@ -106,7 +106,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                     });
 
                 } else {
-                    response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}&storename=${storename}`);
+                    response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}&storename=${storename}&adultpax=${adultpax}&childpax=${childpax}`);
                 }
 
                 const result = await response.json();
