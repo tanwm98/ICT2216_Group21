@@ -138,6 +138,26 @@ async function displayTimingOptions() {
 
     let selectedBtn = null;
 
+    const urlParams = new URLSearchParams(window.location.search);
+    reservationid = urlParams.get("reservationid");
+
+
+    let dateChanged = false;
+    let selectedDate;
+
+    if (reservationid) {
+        const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        const details = await response.json();
+        console.log(details[0]);
+        const reservationdate = details[0].reservationDate;
+        selectedDate = reservationdate;
+
+    } else {
+        selectedDate = date.value;
+    }
 
     async function handleDisable() {
         console.log("running disable"); // running twice WHY
@@ -157,7 +177,9 @@ async function displayTimingOptions() {
         let startMin = toMinutes(openTime);
         let closeMin = toMinutes(closeTime);
 
-        const selectedDate = date.value;
+
+
+
         // const selectedDate = "2025-05-28";
 
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -214,24 +236,25 @@ async function displayTimingOptions() {
             // console.log("Slot start: " + slotStart);
             const formattedSlotEnd = formatTime(slotEnd);
             const formattedSlotStart = formatTime(slotStart);
-            // console.log("/////////////////////////////////////");
-            // console.log("end: " + formattedSlotEnd);
-            // console.log("start: " + formattedSlotStart);
+            console.log("selectedDate: " + selectedDate);
+            console.log("/////////////////////////////////////");
+            console.log("end: " + formattedSlotEnd);
+            console.log("start: " + formattedSlotStart);
             // to store number of guest per hour
             let paxHour;
 
             if (count > 0) {
                 for (const r of result) {
                     if (r.reservationTime >= formattedSlotStart && r.reservationTime <= formattedSlotEnd) {
-                        // console.log("========================");
-                        // console.log("reservation timing: " + r.reservationTime);
-                        // console.log("no of pax: " + r.noOfGuest);
+                        console.log("========================");
+                        console.log("reservation timing: " + r.reservationTime);
+                        console.log("no of pax: " + r.noOfGuest);
                         paxPerHour += r.noOfGuest;
 
-                        // console.log("pax per hour: " + paxPerHour);
+                        console.log("pax per hour: " + paxPerHour);
                         // store the pax per hour value inside another var, since it will get reset
 
-                        // console.log("========================");
+                        console.log("========================");
                     }
                 }
                 paxHour = paxPerHour;
@@ -246,7 +269,7 @@ async function displayTimingOptions() {
                     btn.classList.add("btn-outline-secondary");
                 }
 
-                // console.log("available capacity: " + availCapacity);
+                console.log("available capacity: " + availCapacity);
 
 
             }
@@ -254,7 +277,7 @@ async function displayTimingOptions() {
             // total capacity : max
             // if the selected total number of pax by user exceed available capacity -> disable?
 
-            // console.log("/////////////////////////////////////");
+            console.log("/////////////////////////////////////");
 
             // event listener to track which btn is selected
             btn.addEventListener('click', function () {
@@ -336,20 +359,24 @@ async function displayTimingOptions() {
     // so dont need to run handleDisable() again -> will have another set of timing option if run this func
     await handleDisable();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    reservationid = urlParams.get("reservationid");
+
     if (reservationid) {
         const timingButton = document.querySelectorAll('button.timingButtons');
         await loadFields(reservationid, timingButton);
     }
 
-    date.addEventListener('change', () => handleDisable());
+    date.addEventListener("change", () => {
+        dateChanged = true;
+        selectedDate = date.value;
+        handleDisable();
+    });
 }
 
 async function handleCapacityUpdate() {
     pax = adultCount + childCount;
     console.log("selected pax: " + pax);
 }
+
 
 // edit reservation
 async function loadFields(reservationid, timingButton) {
@@ -364,7 +391,6 @@ async function loadFields(reservationid, timingButton) {
     document.getElementById("childDropdown").value = reservationDetails[0].childPax;
 
     calenderValue.setDate(reservationDetails[0].reservationDate, true);
-
     const reservationTime = reservationDetails[0].reservationTime.slice(0, 5); // "09:00"
     console.log(reservationTime);
     timingButton.forEach((btn) => {
