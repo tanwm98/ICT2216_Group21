@@ -525,7 +525,7 @@ async function navTabs(stores) {
 
 async function reservationForm(stores) {
     const reservationForm = document.getElementById("makeReservationForm");
-    
+
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
 
@@ -577,9 +577,17 @@ async function reservationForm(stores) {
                 time,
                 storeid,
                 storename,
+                adultCount,
+                childCount
             }));
 
-            window.location.href = '/reserveform';
+            if (reservationid) {
+                window.location.href = `/reserveform?rid=${reservationid}`;
+
+            } else {
+                window.location.href = `/reserveform`;
+
+            }
         }
     })
 }

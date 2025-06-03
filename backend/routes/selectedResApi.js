@@ -59,7 +59,6 @@ router.get('/display_reviews', async (req, res) => {
 // add reservation into reserve table
 router.get('/reserve', async (req, res) => {
   try {
-    // get store name from the request
     const pax = req.query.pax;
     const time = req.query.time;
     const date = req.query.date;
@@ -125,6 +124,55 @@ router.get('/reserve', async (req, res) => {
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to insert data' });
+  }
+})
+
+router.post('/update_reservation', async (req, res) => {
+  try {
+    const pax = req.body.pax;
+    const time = req.body.time;
+    const date = req.body.date;
+    const firstname = req.body.firstname;
+    const lastname = req.body.lastname;
+    const specialreq = req.body.specialrequest;
+    const reservationid = req.body.reservationid;
+    const adultpax = req.body.adultpax;
+    const childpax = req.body.childpax;
+
+    // details for email
+    const storename = req.body.storename;
+    const userid = req.body.userid;
+
+    console.log("storename: " + storename);
+    console.log("userid: " + userid);
+    console.log("Pax: " + pax);
+    console.log("time: " + time);
+    console.log("date: " + date);
+    console.log("firstname: " + firstname);
+    console.log("lastname: " + lastname);
+    console.log("specialreq: " + specialreq);
+    console.log("Rid: " + reservationid);
+    console.log("adult pax: " + adultpax);
+    console.log("childpax: " + childpax);
+
+    await pool.query(`
+      UPDATE reservations 
+      SET "noOfGuest" = $1, 
+          "reservationDate" = $2, 
+          "reservationTime" = $3, 
+          "specialRequest" = $4, 
+          first_name = $5, 
+          last_name = $6,
+          "adultPax" = $7,
+          "childPax" = $8
+      WHERE reservation_id = $9
+    `, [pax, date, time, specialreq, firstname, lastname, adultpax, childpax, reservationid]);
+
+    res.status(200).json({ message: 'Reservation updated successfully.' });
+
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to update data' });
   }
 })
 
@@ -199,7 +247,7 @@ router.get('/get_reservation_by_id', async (req, res) => {
     const result = await pool.query(
       `
         SELECT r.reservation_id, r.store_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
-        r."specialRequest", r.status, r."adultPax", r."childPax"
+        r."specialRequest", r.status, r."adultPax", r."childPax", r.first_name, r.last_name
         FROM reservations r WHERE reservation_id = $1
       `,
       [reservationid]
