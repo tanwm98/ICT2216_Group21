@@ -2,6 +2,7 @@ let userid;
 let calenderValue;
 let reservationid;
 let reserveBtn;
+let reservationDetails; 
 
 window.onload = async function () {
     // check session if logged in to determine button content
@@ -150,9 +151,9 @@ async function displayTimingOptions() {
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
-        const details = await response.json();
-        console.log(details[0]);
-        const reservationdate = details[0].reservationDate;
+        reservationDetails = await response.json();
+        console.log(reservationDetails[0]);
+        const reservationdate = reservationDetails[0].reservationDate;
         selectedDate = reservationdate;
 
     } else {
@@ -380,12 +381,12 @@ async function handleCapacityUpdate() {
 
 // edit reservation
 async function loadFields(reservationid, timingButton) {
-    console.log("reservationid: " + reservationid);
-    const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch data');
-    }
-    const reservationDetails = await response.json();
+    // console.log("reservationid: " + reservationid);
+    // const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
+    // if (!response.ok) {
+    //     throw new Error('Failed to fetch data');
+    // }
+    // const reservationDetails = await response.json();
     console.log(reservationDetails);
     document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
     document.getElementById("childDropdown").value = reservationDetails[0].childPax;
