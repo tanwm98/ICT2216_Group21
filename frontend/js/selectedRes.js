@@ -2,7 +2,7 @@ let userid;
 let calenderValue;
 let reservationid;
 let reserveBtn;
-let reservationDetails; 
+let reservationDetails;
 
 window.onload = async function () {
     // check session if logged in to determine button content
@@ -390,14 +390,15 @@ async function loadFields(reservationid, timingButton) {
     console.log(reservationDetails);
     document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
     document.getElementById("childDropdown").value = reservationDetails[0].childPax;
-
+    adultCount = reservationDetails[0].adultPax;
+    childCount = reservationDetails[0].childPax;
+    changePax();
     calenderValue.setDate(reservationDetails[0].reservationDate, true);
     const reservationTime = reservationDetails[0].reservationTime.slice(0, 5); // "09:00"
     console.log(reservationTime);
     timingButton.forEach((btn) => {
         if (btn.textContent == reservationTime) {
-            console.log("In DOM?", document.body.contains(btn)); // Should be true
-            console.log("Parent element:", btn.parentElement);    // Should NOT be null
+            document.getElementById('selectedTimeInput').value = btn.textContent;
             btn.id = "reservationTime";
             btn.style.border = '1px solid #fc3f3f';
             btn.style.backgroundColor = '#fc3f3f';
@@ -431,7 +432,7 @@ async function displaySpecificStore() {
         // // }
 
         navTabs(stores);
-        reservationForm(stores);
+        await reservationForm(stores);
 
         currentcapacity = stores[0].currentCapacity;
 
@@ -524,6 +525,7 @@ async function navTabs(stores) {
 
 async function reservationForm(stores) {
     const reservationForm = document.getElementById("makeReservationForm");
+    
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
 
