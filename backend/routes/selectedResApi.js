@@ -68,15 +68,17 @@ router.get('/reserve', async (req, res) => {
     const lastname = req.query.lastname;
     const specialreq = req.query.specialrequest;
     const storename = req.query.storename;
+    const adultpax = req.query.adultpax;
+    const childpax = req.query.childpax;
 
-    console.log("userid: " + userid);
-    console.log("Pax: " + pax);
-    console.log("time: " + time);
-    console.log("date: " + date);
-    console.log("storeid: " + storeid);
-    console.log("firstname: " + firstname);
-    console.log("lastname: " + lastname);
-    console.log("specialreq: " + specialreq);
+    // console.log("userid: " + userid);
+    // console.log("Pax: " + pax);
+    // console.log("time: " + time);
+    // console.log("date: " + date);
+    // console.log("storeid: " + storeid);
+    // console.log("firstname: " + firstname);
+    // console.log("lastname: " + lastname);
+    // console.log("specialreq: " + specialreq);
 
     // check if reservation exist alr by same person, time and shop
     const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3 AND "status" = 'Confirmed'`, [storeid, userid, time]);
@@ -87,7 +89,7 @@ router.get('/reserve', async (req, res) => {
     } else {
 
       // insert into reservation
-      const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [userid, storeid, pax, time, date, specialreq, firstname, lastname]);
+      const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name", "childPax", "adultPax") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)', [userid, storeid, pax, time, date, specialreq, firstname, lastname, childpax, adultpax]);
 
       // // update current capacity of stores table
       await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2', [pax, storeid]);
@@ -107,10 +109,17 @@ router.get('/reserve', async (req, res) => {
               <p>Your reservation with ${storename} is <strong>confirmed</strong>. See below for more details.</p>
               <h4>Reservation Details:</h4>
               <ul>
+                  <li><strong>👤 First Name:</strong> ${firstname}</li>
+                  <li><strong>👤 Last Name:</strong> ${lastname}</li>
                   <li><strong>🏪 Restaurant:</strong> ${storename}</li>
                   <li><strong>📅 Date:</strong> ${date}</li>
                   <li><strong>🕒 Time:</strong> ${time}</li>
-                  <li><strong>👥 Number of Guests:</strong> ${pax}</li>
+                  <li><strong>👥 Number of Guests:</strong> ${pax}
+                    <ul>
+                      <li><strong>Number of Adults:</strong> ${adultpax}</li>
+                      <li><strong>Number of Child:</strong> ${childpax}</li>
+                    </ul>
+                  </li>
                   ${specialreq ? `<li><strong>📢 Special Request:</strong> ${specialreq}</li>` : ''}
               </ul>
               <p>Thank you!</p>
@@ -167,6 +176,40 @@ router.post('/update_reservation', async (req, res) => {
           "childPax" = $8
       WHERE reservation_id = $9
     `, [pax, date, time, specialreq, firstname, lastname, adultpax, childpax, reservationid]);
+
+
+    // get current username 
+    const usernameResult = await pool.query("SELECT name FROM users WHERE user_id = $1", [userid]);
+
+    const username = usernameResult.rows[0]?.name;
+
+    // upon successful update, send email to user
+    await transporter.sendMail({
+      from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+      to: 'chuaxinjing03@gmail.com',
+      subject: `Modification of Reservation at ${storename} `,
+      html: `
+              <p>Hello ${username},</p>
+              <p>Your reservation with ${storename} has been successfully <strong>updated</strong>. See below for updated details.</p>
+              <h4>Updated Reservation Details:</h4>
+              <ul>
+                  <li><strong>👤 First Name:</strong> ${firstname}</li>
+                  <li><strong>👤 Last Name:</strong> ${lastname}</li>
+                  <li><strong>🏪 Restaurant:</strong> ${storename}</li>
+                  <li><strong>📅 Date:</strong> ${date}</li>
+                  <li><strong>🕒 Time:</strong> ${time}</li>
+                  <li><strong>👥 Number of Guests:</strong> ${pax}
+                    <ul>
+                      <li><strong>Number of Adults:</strong> ${adultpax}</li>
+                      <li><strong>Number of Child:</strong> ${childpax}</li>
+                    </ul>
+                  </li>
+                  ${specialreq ? `<li><strong>📢 Special Request:</strong> ${specialreq}</li>` : ''}
+              </ul>
+              <p>Thank you!</p>
+              <p>Kirby Chope</p>
+            `
+    })
 
     res.status(200).json({ message: 'Reservation updated successfully.' });
 
