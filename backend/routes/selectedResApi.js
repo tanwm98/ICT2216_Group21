@@ -136,6 +136,8 @@ router.get('/reserve', async (req, res) => {
   }
 })
 
+
+// Update reservation
 router.post('/update_reservation', async (req, res) => {
   try {
     const pax = req.body.pax;
@@ -186,7 +188,7 @@ router.post('/update_reservation', async (req, res) => {
     // upon successful update, send email to user
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      to: 'chuaxinjing03@gmail.com',
+      to: 'dx8153@gmail.com', // can be changed to ict2216kirby@gmail.com or own email for testing
       subject: `Modification of Reservation at ${storename} `,
       html: `
               <p>Hello ${username},</p>
@@ -351,6 +353,7 @@ router.get('/getUser', async (req, res) => {
 });
 
 
+// Check reservation
 router.get('/check-reservation', async (req, res) => {
   const { userid, storeid } = req.query;
 
@@ -375,7 +378,7 @@ router.get('/check-reservation', async (req, res) => {
 });
 
 
-
+// add review
 router.post('/add-review', async (req, res) => {
   const { userid, storeid, rating, review } = req.body;
 
