@@ -21,6 +21,6 @@
 }
 
 .timingButtons:hover {
-    background-color: #fc6c3f;
+    background-color: #fc6c3f !important;
     color: white !important;
 }

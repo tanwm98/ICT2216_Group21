@@ -1,34 +1,39 @@
 let userid;
+let calenderValue;
+let reservationid;
+let reserveBtn;
+let reservationDetails;
 
-window.onload = function () {
-    // check session if logged in to determind button content
-    fetch('/api/session')
-        .then(response => response.json())
-        .then(data => {
-            const reserveBtn = document.getElementById('reserveBtn');
-            if (!data.loggedIn) {
-                reserveBtn.disabled = true;
-                reserveBtn.textContent = "Login to Reserve";
-                reserveBtn.style.opacity = "0.6";
-                reserveBtn.style.cursor = "not-allowed";
-            } else {
-                userid = data.userId;
-            }
-        })
-        .catch(error => {
-            console.error('Error checking session:', error);
-        });
+window.onload = async function () {
+    // check session if logged in to determine button content
+    try {
+        const response = await fetch('/api/session');
+        const data = await response.json();
+        reserveBtn = document.getElementById('reserveBtn');
+        if (!data.loggedIn) {
+            reserveBtn.disabled = true;
+            reserveBtn.textContent = "Login to Reserve";
+            reserveBtn.style.opacity = "0.6";
+            reserveBtn.style.cursor = "not-allowed";
+        } else {
+            userid = data.userId;
+        }
+    } catch (error) {
+        console.error('Error checking session:', error);
+    }
 
-
-
-    flatpickr("#calender", {
+    calenderValue = flatpickr("#calender", {
         dateFormat: "Y-m-d",
         minDate: 'today',
         defaultDate: 'today',
     });
 
-    displaySpecificStore();
+
+    // wait until store and timing buttons are loaded
+    await displaySpecificStore();
+
 };
+
 
 // initialize 0 adults & 0 child
 let adultCount = 0;
@@ -38,7 +43,6 @@ let stores;
 let pax;
 let availCapacity;
 let maxcapacity;
-let reserveBtn = document.getElementById('reserveBtn');
 
 // a boolean tracker to track whether the selected pax exceeds current capacity
 let isCapacityExceeded = false;
@@ -63,7 +67,7 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
         paxError.style.display = "none";
         isCapacityExceeded = false;
         reserveBtn.disabled = false;
-        reserveBtn.backgroundColor = "#fc6c3f";
+        reserveBtn.style.backgroundColor = "#fc6c3f";
 
     }
 });
@@ -117,28 +121,14 @@ async function displayTimingOptions() {
     label.className = "d-block mb-2";
     timing.appendChild(label);
 
-    // convert hours to minutes for calculation
-    function toMinutes(time) {
-        const [hours, minutes] = time.split(':').map(Number);
-        return hours * 60 + minutes;
-    }
-
-    // convert startMin (mins) to HH:MM format ( for display time )
-    function changeBack(mins) {
-        const hours = Math.floor(mins / 60);
-        const minutes = mins % 60;
-        // formatting hours & mins into HH:MM 
-        // converts hours n mins to string 
-        // .padStart(2, '0') -> if only 1 digit like 8, then will put 0 in front to become 08
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    }
-
     // visible container to show a few timing options initially
     const visiblePart = document.createElement("div");
+    visiblePart.id = "visiblePart";
     timing.appendChild(visiblePart);
 
     // hidden part 
     const hiddenPart = document.createElement('div');
+    hiddenPart.id = "hiddenPart";
     hiddenPart.style.display = 'none';
     timing.appendChild(hiddenPart);
 
@@ -149,10 +139,32 @@ async function displayTimingOptions() {
 
     let selectedBtn = null;
 
+    const urlParams = new URLSearchParams(window.location.search);
+    reservationid = urlParams.get("reservationid");
+
+
+    let dateChanged = false;
+    let selectedDate;
+
+    if (reservationid) {
+        const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        reservationDetails = await response.json();
+        console.log(reservationDetails[0]);
+        const reservationdate = reservationDetails[0].reservationDate;
+        selectedDate = reservationdate;
+
+    } else {
+        selectedDate = date.value;
+    }
+
     async function handleDisable() {
+        console.log("running disable"); // running twice WHY
         let paxPerHour = 0;
 
-        // Clear existing buttons on each regeneration
+        // // Clear existing buttons on each regeneration
         visiblePart.innerHTML = '';
         hiddenPart.innerHTML = '';
 
@@ -166,7 +178,9 @@ async function displayTimingOptions() {
         let startMin = toMinutes(openTime);
         let closeMin = toMinutes(closeTime);
 
-        const selectedDate = date.value;
+
+
+
         // const selectedDate = "2025-05-28";
 
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -199,6 +213,7 @@ async function displayTimingOptions() {
             btn.textContent = changeBack(startMin);
             btn.className = 'btn m-1';
             btn.type = 'button';
+            btn.classList.add("timingButtons");
 
             // disable button if date is today & time already passed
             if (btn.textContent <= currentTime && selectedDate === currentdate) {
@@ -211,7 +226,6 @@ async function displayTimingOptions() {
             } else {
                 btn.style.border = '1px solid #fc6c3f';
                 btn.style.color = '#fc6c3f';
-                btn.classList.add("timingButtons");
             }
 
             // reservation timing
@@ -223,6 +237,7 @@ async function displayTimingOptions() {
             // console.log("Slot start: " + slotStart);
             const formattedSlotEnd = formatTime(slotEnd);
             const formattedSlotStart = formatTime(slotStart);
+            console.log("selectedDate: " + selectedDate);
             console.log("/////////////////////////////////////");
             console.log("end: " + formattedSlotEnd);
             console.log("start: " + formattedSlotStart);
@@ -238,7 +253,6 @@ async function displayTimingOptions() {
                         paxPerHour += r.noOfGuest;
 
                         console.log("pax per hour: " + paxPerHour);
-                        console.log()
                         // store the pax per hour value inside another var, since it will get reset
 
                         console.log("========================");
@@ -260,34 +274,9 @@ async function displayTimingOptions() {
 
 
             }
-
-            // i need to get the max capacity of the store 
-
             // pax per hour: amt of ppl during the time 
             // total capacity : max
             // if the selected total number of pax by user exceed available capacity -> disable?
-
-            // const pax = adultCount + childCount;
-            // availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
-            // console.log("avail capacity: " + availCapacity);
-            // console.log("pax: " + pax);
-
-            // const paxError = document.getElementById("paxError");
-
-            // if (pax > availCapacity) {
-            //     paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
-            //     paxError.style.color = "red";
-            //     paxError.style.display = "unset";
-            // }
-
-
-
-            // if (pax > cap)
-
-            // if (paxPerHour > maxcapacity.totalCapacity) {
-            //     btn.disabled = true;
-            //     btn.classList.add('btn-outline-warning');
-            // }
 
             console.log("/////////////////////////////////////");
 
@@ -344,6 +333,7 @@ async function displayTimingOptions() {
                 hiddenPart.appendChild(btn);
             }
 
+
             startMin += 30;
             count++;
         }
@@ -366,35 +356,57 @@ async function displayTimingOptions() {
         }
     }
 
-    handleDisable(stores);
+    // if want to update reservation, page will be loaded with reservation details
+    // so dont need to run handleDisable() again -> will have another set of timing option if run this func
+    await handleDisable();
 
-    date.addEventListener('change', () => handleDisable(stores));
 
+    if (reservationid) {
+        const timingButton = document.querySelectorAll('button.timingButtons');
+        await loadFields(reservationid, timingButton);
+    }
+
+    date.addEventListener("change", () => {
+        dateChanged = true;
+        selectedDate = date.value;
+        handleDisable();
+    });
 }
-
 
 async function handleCapacityUpdate() {
     pax = adultCount + childCount;
-    // availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
-
-    // console.log("=====================================");
-    // console.log("pax per hour: " + paxHour);
-    // availCapacity = maxcapacity[0].totalCapacity - paxHour;
-    // const paxError = document.getElementById("paxError");
-    // console.log("available capacity: " + availCapacity);
-    // console.log("is pax > capacirty: " + pax > availCapacity);
-
-    // if (pax > availCapacity) {
-    //     paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
-    //     paxError.style.color = "red";
-    //     paxError.style.display = "unset";
-    //     isCapacityExceeded = true;
-    // } else {
-    //     paxError.style.display = "none";
-    //     isCapacityExceeded = false;
-    // }
-
     console.log("selected pax: " + pax);
+}
+
+
+// edit reservation
+async function loadFields(reservationid, timingButton) {
+    // console.log("reservationid: " + reservationid);
+    // const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
+    // if (!response.ok) {
+    //     throw new Error('Failed to fetch data');
+    // }
+    // const reservationDetails = await response.json();
+    console.log(reservationDetails);
+    document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
+    document.getElementById("childDropdown").value = reservationDetails[0].childPax;
+    adultCount = reservationDetails[0].adultPax;
+    childCount = reservationDetails[0].childPax;
+    changePax();
+    calenderValue.setDate(reservationDetails[0].reservationDate, true);
+    const reservationTime = reservationDetails[0].reservationTime.slice(0, 5); // "09:00"
+    console.log(reservationTime);
+    timingButton.forEach((btn) => {
+        if (btn.textContent == reservationTime) {
+            document.getElementById('selectedTimeInput').value = btn.textContent;
+            btn.id = "reservationTime";
+            btn.style.border = '1px solid #fc3f3f';
+            btn.style.backgroundColor = '#fc3f3f';
+            btn.style.color = 'white';
+        }
+    });
+
+    document.getElementById("reserveBtn").innerHTML = "Update Reservation";
 
 }
 
@@ -410,9 +422,17 @@ async function displaySpecificStore() {
         }
 
         stores = await response.json();
-        displayTimingOptions();
+        await displayTimingOptions();
+
+        // reservationid = urlParams.get("reservationid");
+        // // after buttons loaded, then run the inputting values in input fields
+        // // if (reservationid) {
+        // //     const timingButton = document.querySelectorAll('button.timingButtons');
+        // //     loadFields(reservationid, timingButton);
+        // // }
+
         navTabs(stores);
-        reservationForm(stores);
+        await reservationForm(stores);
 
         currentcapacity = stores[0].currentCapacity;
 
@@ -438,7 +458,7 @@ async function displaySpecificStore() {
         img.src = `data:image/jpeg;base64,${stores[0].image}`;
         img.alt = 'Post Image';
 
-        
+
 
         link.appendChild(img);
         left.append(link);
@@ -505,6 +525,7 @@ async function navTabs(stores) {
 
 async function reservationForm(stores) {
     const reservationForm = document.getElementById("makeReservationForm");
+
     reservationForm.addEventListener('submit', async function (e) {
         e.preventDefault();
 
@@ -556,9 +577,17 @@ async function reservationForm(stores) {
                 time,
                 storeid,
                 storename,
+                adultCount,
+                childCount
             }));
 
-            window.location.href = '/reserveform';
+            if (reservationid) {
+                window.location.href = `/reserveform?rid=${reservationid}`;
+
+            } else {
+                window.location.href = `/reserveform`;
+
+            }
         }
     })
 }
@@ -648,6 +677,22 @@ async function submitReview(userId, storeId) {
         console.error("Error submitting review:", err);
         errorMsg.textContent = "Server error while submitting review.";
     }
+}
+
+// convert hours to minutes for calculation
+function toMinutes(time) {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
+// convert startMin (mins) to HH:MM format ( for display time )
+function changeBack(mins) {
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    // formatting hours & mins into HH:MM 
+    // converts hours n mins to string 
+    // .padStart(2, '0') -> if only 1 digit like 8, then will put 0 in front to become 08
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 // Convert to HH:mm format

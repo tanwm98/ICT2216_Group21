@@ -42,6 +42,12 @@ function fetchReservations() {
           </td>
 
           <td>${reservation.specialRequest || ''}</td>
+
+          <td>
+            ${reservation.status === 'Confirmed'
+            ? `<button class="btn btn-sm" style="background-color: #fc6c3f; color: white;" onclick="editReservation(${reservation.store_id}, ${reservation.reservation_id})">Edit Reservation</button>`
+            : "-"}
+          </td>
         `;
         tableBody.appendChild(row);
       });
@@ -117,11 +123,11 @@ function setupResetPasswordHandler() {
 
         const result = await response.json();
 
-         if (response.ok) {
+        if (response.ok) {
           alert('Password has been reset successfully! You will be logged out.');
           await fetch('/api/auth/logout', { method: 'POST' });
           window.location.href = '/login';
-          
+
         } else {
           alert(result.error || 'Failed to reset password.');
         }
@@ -135,7 +141,7 @@ function setupResetPasswordHandler() {
 
 // ======== Edit name function ======== 
 function setupNameEditHandlers() {
-   const editBtn = document.getElementById('editNameBtn');
+  const editBtn = document.getElementById('editNameBtn');
   const nameDisplay = document.getElementById('profileName');
   const inputGroup = document.getElementById('editNameContainer');
   const inputField = document.getElementById('editNameInput');
@@ -185,6 +191,26 @@ function setupNameEditHandlers() {
         alert('An error occurred while updating name.');
       }
     });
+  }
+}
+
+// ======== edit reservation ==========
+async function editReservation(storeid, reservationid) {
+
+  try {
+    const response = await fetch(`/maxcapacity?storeid=${storeid}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch data');
+    }
+
+    const store = await response.json();
+    console.log("store: ", store[0]);
+
+
+    window.location.href = `/selectedRes?name=${encodeURIComponent(store[0].storeName)}&location=${encodeURIComponent(store[0].location)}&reservationid=${reservationid}`;
+
+  } catch (error) {
+    console.error('Error editing reservation:', error);
   }
 }
 

@@ -23,7 +23,19 @@ router.get('/display_specific_store', async (req, res) => {
     const storeName = req.query.name;
     const location = req.query.location;
 
-    const result = await pool.query('SELECT * FROM stores WHERE "storeName" = $1 AND location = $2', [storeName, location]);
+    const reservationid = req.query.reservationid;
+
+    let result;
+
+    if (reservationid && userid) {
+      result = await pool.query(`
+      SELECT * FROM stores s WHERE "storeName" = $1 AND location = $2 AND reservation_id = $3
+      INNER JOIN reservations r ON r.store_id = s.store_id
+      `
+        , [storeName, location, reservationid]);
+    } else {
+      result = await pool.query('SELECT * FROM stores WHERE "storeName" = $1 AND location = $2', [storeName, location]);
+    }
     res.json(result.rows); // send data back as json
   } catch (err) {
     console.error('Error querying database:', err);
@@ -47,7 +59,6 @@ router.get('/display_reviews', async (req, res) => {
 // add reservation into reserve table
 router.get('/reserve', async (req, res) => {
   try {
-    // get store name from the request
     const pax = req.query.pax;
     const time = req.query.time;
     const date = req.query.date;
@@ -116,6 +127,55 @@ router.get('/reserve', async (req, res) => {
   }
 })
 
+router.post('/update_reservation', async (req, res) => {
+  try {
+    const pax = req.body.pax;
+    const time = req.body.time;
+    const date = req.body.date;
+    const firstname = req.body.firstname;
+    const lastname = req.body.lastname;
+    const specialreq = req.body.specialrequest;
+    const reservationid = req.body.reservationid;
+    const adultpax = req.body.adultpax;
+    const childpax = req.body.childpax;
+
+    // details for email
+    const storename = req.body.storename;
+    const userid = req.body.userid;
+
+    console.log("storename: " + storename);
+    console.log("userid: " + userid);
+    console.log("Pax: " + pax);
+    console.log("time: " + time);
+    console.log("date: " + date);
+    console.log("firstname: " + firstname);
+    console.log("lastname: " + lastname);
+    console.log("specialreq: " + specialreq);
+    console.log("Rid: " + reservationid);
+    console.log("adult pax: " + adultpax);
+    console.log("childpax: " + childpax);
+
+    await pool.query(`
+      UPDATE reservations 
+      SET "noOfGuest" = $1, 
+          "reservationDate" = $2, 
+          "reservationTime" = $3, 
+          "specialRequest" = $4, 
+          first_name = $5, 
+          last_name = $6,
+          "adultPax" = $7,
+          "childPax" = $8
+      WHERE reservation_id = $9
+    `, [pax, date, time, specialreq, firstname, lastname, adultpax, childpax, reservationid]);
+
+    res.status(200).json({ message: 'Reservation updated successfully.' });
+
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to update data' });
+  }
+})
+
 // node-cron for real-time reservation updates
 // will run every minute
 // * in order means -> minute, hour, day of month, month, day of wk
@@ -167,6 +227,30 @@ router.get('/timeslots', async (req, res) => {
         SELECT * FROM reservations WHERE "reservationDate" = $1 AND "status" = 'Confirmed'
       `,
       [date]
+    );
+
+
+    res.json(result.rows); // send data back as json
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
+})
+
+// getting specific reservation by id for editing reservation details
+router.get('/get_reservation_by_id', async (req, res) => {
+  try {
+    const reservationid = req.query.reservationid;
+
+    console.log(reservationid);
+
+    const result = await pool.query(
+      `
+        SELECT r.reservation_id, r.store_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
+        r."specialRequest", r.status, r."adultPax", r."childPax", r.first_name, r.last_name
+        FROM reservations r WHERE reservation_id = $1
+      `,
+      [reservationid]
     );
 
 
