@@ -42,7 +42,7 @@ function fetchReservations() {
           </td>
 
           <td>${reservation.specialRequest || ''}</td>
-          <td>${reservation.store_id}
+
           <td>
             ${reservation.status === 'Confirmed'
             ? `<button class="btn btn-sm" style="background-color: #fc6c3f; color: white;" onclick="editReservation(${reservation.store_id}, ${reservation.reservation_id})">Edit Reservation</button>`

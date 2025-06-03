@@ -399,11 +399,13 @@ async function loadFields(reservationid, timingButton) {
             console.log("In DOM?", document.body.contains(btn)); // Should be true
             console.log("Parent element:", btn.parentElement);    // Should NOT be null
             btn.id = "reservationTime";
-            // btn.style.border = '1px solid #fc6c3f';
-            btn.style.backgroundColor = '#fc6c3f';
+            btn.style.border = '1px solid #fc3f3f';
+            btn.style.backgroundColor = '#fc3f3f';
             btn.style.color = 'white';
         }
     });
+
+    document.getElementById("reserveBtn").innerHTML = "Update Reservation";
 
 }
 
