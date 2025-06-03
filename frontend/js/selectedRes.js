@@ -396,6 +396,7 @@ async function loadFields(reservationid, timingButton) {
     calenderValue.setDate(reservationDetails[0].reservationDate, true);
     const reservationTime = reservationDetails[0].reservationTime.slice(0, 5); // "09:00"
     console.log(reservationTime);
+
     timingButton.forEach((btn) => {
         if (btn.textContent == reservationTime) {
             document.getElementById('selectedTimeInput').value = btn.textContent;
@@ -403,6 +404,7 @@ async function loadFields(reservationid, timingButton) {
             btn.style.border = '1px solid #fc3f3f';
             btn.style.backgroundColor = '#fc3f3f';
             btn.style.color = 'white';
+            btn.disabled = true;
         }
     });
 
