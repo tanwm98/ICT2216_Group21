@@ -101,6 +101,8 @@ router.post('/register', async (req, res) => {
 router.post('/signup-owner', upload.single('image'), async (req, res) => {
     const {
         ownerName,
+        firstname,
+        lastname,
         email,
         storeName,
         address,
@@ -120,6 +122,8 @@ router.post('/signup-owner', upload.single('image'), async (req, res) => {
 New Restaurant Owner Signup:
 
 👤 Owner Name: ${ownerName}
+👤 First Name: ${firstname}
+👤 Last Name: ${lastname}
 📧 Email: ${email}
 
 🏪 Store Name: ${storeName}

@@ -51,7 +51,7 @@ router.get('/dashboard-stats', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT user_id, name, email, role FROM users WHERE role != $1',
+            'SELECT user_id, name, email, role, firstname, lastname FROM users WHERE role != $1',
             ['admin']
         );
         res.json(result.rows);
@@ -63,14 +63,17 @@ router.get('/users', async (req, res) => {
 
 // Add a new user (default password Pass123)
 router.post('/users', async (req, res) => {
-    const { name, email, role } = req.body;
+    const { name, email, role, fname, lname } = req.body;
+
+    console.log(fname)
+
     try {
         const password = 'Pass123';
         const hashedPassword = await argon2.hash(password);
 
         await pool.query(
-            'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)',
-            [name, email, hashedPassword, role]
+            'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
+            [name, email, hashedPassword, role, fname, lname]
         );
 
         res.status(201).json({ message: 'User added successfully' });
@@ -95,12 +98,12 @@ router.delete('/users/:id', async (req, res) => {
 // Update user by id
 router.put('/users/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, email, role } = req.body;
+    const { name, email, role, firstName, lastName } = req.body;
 
     try {
         await pool.query(
-            'UPDATE users SET name = $1, email = $2, role = $3 WHERE user_id = $4',
-            [name, email, role, id]
+            'UPDATE users SET name = $1, email = $2, role = $3, firstname = $4, lastname = $5 WHERE user_id = $6',
+            [name, email, role, firstName, lastName, id]
         );
         res.json({ message: 'User updated' });
     } catch (err) {
@@ -114,7 +117,7 @@ router.get('/users/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
-        const result = await pool.query('SELECT user_id, name, email, role FROM users WHERE user_id = $1', [id]);
+        const result = await pool.query('SELECT user_id, name, email, role, firstname, lastname FROM users WHERE user_id = $1', [id]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
         res.json(result.rows[0]);
     } catch (err) {

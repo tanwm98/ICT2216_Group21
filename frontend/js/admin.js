@@ -326,6 +326,8 @@ function fetchUsers() {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${user.name}</td>
+          <td>${user.firstname}</td>
+          <td>${user.lastname}</td>
           <td>${user.email}</td>
           <td>${user.role}</td>
           <td>
@@ -361,10 +363,14 @@ function submitUserForm() {
 // add user
 function addUser() {
   const nameInput = document.getElementById("name");
+  const firstname = document.getElementById("firstname");
+  const lastname = document.getElementById("lastname");
   const emailInput = document.getElementById("email");
   const roleSelect = document.getElementById("role");
 
   const name = nameInput.value;
+  const fname = firstname.value;
+  const lname = lastname.value;
   const email = emailInput.value;
   const role = roleSelect.value;
 
@@ -373,7 +379,7 @@ function addUser() {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ name, email, role })
+    body: JSON.stringify({ name, email, role, fname, lname })
   })
     .then(res => {
       if (!res.ok) throw new Error('Failed to add user');
@@ -384,6 +390,8 @@ function addUser() {
 
       // Clear the input fields
       nameInput.value = '';
+      firstname.value = '';
+      lastname.value = '';
       emailInput.value = '';
       roleSelect.value = '';
 
@@ -398,13 +406,15 @@ function addUser() {
 // update user details
 function updateUser(userId) {
   const name = document.getElementById("name").value;
+  const firstName = document.getElementById("firstname").value;
+  const lastName = document.getElementById("lastname").value;
   const email = document.getElementById("email").value;
   const role = document.getElementById("role").value;
 
   fetch(`/api/users/${userId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, role })
+    body: JSON.stringify({ name, email, role, firstName, lastName })
   })
     .then(res => res.json())
     .then(() => {
@@ -419,6 +429,8 @@ function updateUser(userId) {
 function clearUserForm() {
   document.getElementById("userId").value = '';
   document.getElementById("name").value = '';
+  document.getElementById("firstname").value = '';
+  document.getElementById("lastname").value = '';
   document.getElementById("email").value = '';
   document.getElementById("role").value = '';
 
@@ -433,6 +445,8 @@ function editUser(userId) {
     .then(user => {
       document.getElementById("userId").value = user.user_id;
       document.getElementById("name").value = user.name;
+      document.getElementById("firstname").value = user.firstname;
+      document.getElementById("lastname").value = user.lastname;
       document.getElementById("email").value = user.email;
       document.getElementById("role").value = user.role;
 
