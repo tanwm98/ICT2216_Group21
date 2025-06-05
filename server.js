@@ -138,7 +138,9 @@ app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
 });
 
-// ===========
+
+
+// =========== Route request
 app.post('/request-reset', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: 'Email is required' });
@@ -184,6 +186,7 @@ app.post('/request-reset', async (req, res) => {
 });
 
 
+// Reset password 
 app.put('/reset-password', async (req, res) => {
   const { token, newPassword } = req.body;
 

@@ -53,7 +53,7 @@ async function populateFields() {
     document.getElementById('specialrequest').value = details.specialRequest;
 }
 
-async function makeReservation(totalpeople, date, time, userid, storeid, storename, adultpax, childpax, resrvationid) {
+async function makeReservation(totalpeople, date, time, userid, storeid, storename, adultpax, childpax, reservationid) {
     try {
         // console.log("userid: " + userid);
         // console.log("Pax: " + totalpeople);
@@ -121,7 +121,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
 
                 const result = await response.json();
 
-                // need tot throw error, then the catch work
+                // need to throw error, then the catch work
                 if (!response.ok) {
                     throw new Error(result.message || 'Reservation failed');
                 } else {

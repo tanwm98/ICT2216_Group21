@@ -13,7 +13,7 @@ router.get('/getUser', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT name, email FROM users WHERE user_id = $1',
+      'SELECT name, email, firstname, lastname FROM users WHERE user_id = $1',
       [userId]
     );
 
@@ -21,8 +21,9 @@ router.get('/getUser', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const { name, email } = result.rows[0];
-    res.json({ name, email });
+    const { name, email, firstname, lastname } = result.rows[0];
+    res.json({ name, email, firstname, lastname });
+    console.log(result)
 
   } catch (err) {
     console.error('Error fetching user info:', err);
@@ -114,22 +115,86 @@ router.post('/reset-password', authenticateToken, async (req, res) => {
 
 
 // ======== Update user name ======== 
-router.put('/edit', authenticateToken, async (req, res) => {
+// router.put('/edit', authenticateToken, async (req, res) => {
+//   const userId = req.user.userId;
+//   const { name } = req.body;
+
+//   if (!name || name.trim() === '') {
+//     return res.status(400).json({ message: 'Name cannot be empty.' });
+//   }
+
+//   try {
+//     await pool.query('UPDATE users SET name = $1 WHERE user_id = $2', [name.trim(), userId]);
+//     res.json({ message: 'Name updated successfully.' });
+//   } catch (err) {
+//     console.error('Error updating name:', err);
+//     res.status(500).json({ message: 'Internal server error.' });
+//   }
+// });
+// ======== Update user profile fields ======== 
+// ======== Update Username ========
+router.put('/edit/username', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { name } = req.body;
 
-  if (!name || name.trim() === '') {
-    return res.status(400).json({ message: 'Name cannot be empty.' });
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Username cannot be empty.' });
   }
 
   try {
     await pool.query('UPDATE users SET name = $1 WHERE user_id = $2', [name.trim(), userId]);
-    res.json({ message: 'Name updated successfully.' });
+    res.json({ message: 'Username updated successfully.' });
   } catch (err) {
-    console.error('Error updating name:', err);
+    console.error('Error updating username:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+// ======== Update First Name ========
+router.put('/edit/firstname', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const { firstname } = req.body;
+
+  if (!firstname || !firstname.trim()) {
+    return res.status(400).json({ message: 'First name cannot be empty.' });
+  }
+
+  if (/\d/.test(firstname)) {
+    return res.status(400).json({ message: 'First name cannot contain numbers.' });
+  }
+
+  try {
+    await pool.query('UPDATE users SET firstname = $1 WHERE user_id = $2', [firstname.trim(), userId]);
+    res.json({ message: 'First name updated successfully.' });
+  } catch (err) {
+    console.error('Error updating first name:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// ======== Update Last Name ========
+router.put('/edit/lastname', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const { lastname } = req.body;
+
+  if (!lastname || !lastname.trim()) {
+    return res.status(400).json({ message: 'Last name cannot be empty.' });
+  }
+
+  if (/\d/.test(lastname)) {
+    return res.status(400).json({ message: 'Last name cannot contain numbers.' });
+  }
+
+  try {
+    await pool.query('UPDATE users SET lastname = $1 WHERE user_id = $2', [lastname.trim(), userId]);
+    res.json({ message: 'Last name updated successfully.' });
+  } catch (err) {
+    console.error('Error updating last name:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
 
 
 // ======== Cancel reservation ======== 

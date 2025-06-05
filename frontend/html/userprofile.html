@@ -34,7 +34,7 @@
         </div>
         <div class="card-body">
           <p>
-            <strong>Name:</strong>
+            <strong>Username:</strong>
             <span id="profileName">Loading...</span>
             <button id="editNameBtn" class="btn btn-sm btn-link text-warning p-0 ms-2" title="Edit Name">
               <i class="bi bi-pencil"></i>
@@ -48,8 +48,62 @@
               <button class="btn btn-secondary" id="cancelNameBtn">Cancel</button>
             </div>
           </div>
+
+          <!-- First name-->
+          <p>
+            <strong>First Name:</strong>
+            <span id="firstName">Loading...</span>
+            <button id="editFirstNameBtn" class="btn btn-sm btn-link text-warning p-0 ms-2" title="Edit First name">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </p>
+          <div id="editFirstNameContainer" class="d-none mt-2">
+            <div class="d-flex align-items-center">
+              <input type="text" id="editFirstNameInput" class="form-control w-auto ms-2" style="max-width: 250px;"
+                placeholder="Enter new first name" />
+              <button class="btn btn-success ms-2" id="saveFirstNameBtn">Save</button>
+              <button class="btn btn-secondary" id="cancelFirstNameBtn">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Last name-->
+          <p>
+            <strong>Last Name:</strong>
+            <span id="lastName">Loading...</span>
+            <button id="editLastNameBtn" class="btn btn-sm btn-link text-warning p-0 ms-2" title="Edit Last name">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </p>
+          <div id="editLastNameContainer" class="d-none mt-2">
+            <div class="d-flex align-items-center">
+              <input type="text" id="editLastNameInput" class="form-control w-auto ms-2" style="max-width: 250px;"
+                placeholder="Enter new name" />
+              <button class="btn btn-success ms-2" id="saveLastNameBtn">Save</button>
+              <button class="btn btn-secondary" id="cancelLastNameBtn">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Error Modal -->
+          <div class="modal fade" id="nameErrorModal" tabindex="-1" aria-labelledby="nameErrorModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="nameErrorModalLabel">Error</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="nameErrorModalBody"></div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
+                </div>
+              </div>
+            </div>
+        </div>
+
+
+          <!-- Display Emaill-->
           <p><strong>Email:</strong> <span id="profileEmail">Loading...</span></p>
-          <!-- Trigger Button -->
+
+          <!-- Trigger Button for password reset-->
           <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal"
             data-bs-target="#resetPasswordModal">
             Reset Password

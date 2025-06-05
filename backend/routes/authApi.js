@@ -72,15 +72,15 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// POST /register
+// POST /register for user
 router.post('/register', async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, firstname, lastname } = req.body;
 
     try {
         const hashedPassword = await argon2.hash(password);
         await pool.query(
-            'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)',
-            [name, email, hashedPassword, 'user']
+            'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
+            [name, email, hashedPassword, 'user', firstname, lastname]
         );
 
         // await transporter.sendMail({
@@ -97,6 +97,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
+// Owner isngup
 router.post('/signup-owner', upload.single('image'), async (req, res) => {
     const {
         ownerName,

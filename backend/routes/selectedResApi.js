@@ -29,8 +29,8 @@ router.get('/display_specific_store', async (req, res) => {
 
     if (reservationid && userid) {
       result = await pool.query(`
-      SELECT * FROM stores s WHERE "storeName" = $1 AND location = $2 AND reservation_id = $3
-      INNER JOIN reservations r ON r.store_id = s.store_id
+      SELECT * FROM stores s WHERE "storeName" = $1 AND location = $2 AND "reservation_id" = $3
+      INNER JOIN reservations r ON r."store_id" = s."store_id"
       `
         , [storeName, location, reservationid]);
     } else {
@@ -81,7 +81,7 @@ router.get('/reserve', async (req, res) => {
     // console.log("specialreq: " + specialreq);
 
     // check if reservation exist alr by same person, time and shop
-    const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`, [storeid, userid, time, date]);
+    const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`, [storeid, userid, time, date]);
     console.log(checkExistingReservation.rows);
 
     if (checkExistingReservation.rows.length > 0) {
@@ -92,17 +92,17 @@ router.get('/reserve', async (req, res) => {
       const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name", "childPax", "adultPax") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)', [userid, storeid, pax, time, date, specialreq, firstname, lastname, childpax, adultpax]);
 
       // // update current capacity of stores table
-      await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2', [pax, storeid]);
+      await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE "store_id" = $2', [pax, storeid]);
 
       // get current username 
-      const usernameResult = await pool.query("SELECT name FROM users WHERE user_id = $1", [userid]);
+      const usernameResult = await pool.query('SELECT name FROM users WHERE "user_id" = $1', [userid]);
 
       const username = usernameResult.rows[0]?.name;
-
+      
       // upon successful reservation, send email to user
       await transporter.sendMail({
         from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-        to: 'chuaxinjing03@gmail.com',
+        to: 'dx8153@gmail.com',
         subject: `Reservation Confirmed at ${storename} `,
         html: `
               <p>Hello ${username},</p>
@@ -290,8 +290,8 @@ router.get('/get_reservation_by_id', async (req, res) => {
     const result = await pool.query(
       `
         SELECT r.reservation_id, r.store_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
-        r."specialRequest", r.status, r."adultPax", r."childPax", r.first_name, r.last_name
-        FROM reservations r WHERE reservation_id = $1
+        r."specialRequest", r.status, r."adultPax", r."childPax", r."first_name", r."last_name"
+        FROM reservations r WHERE "reservation_id" = $1
       `,
       [reservationid]
     );
@@ -310,7 +310,7 @@ router.get('/maxcapacity', async (req, res) => {
     const storeid = req.query.storeid;
     const result = await pool.query(
       `
-        SELECT * FROM stores WHERE store_id = $1
+        SELECT * FROM stores WHERE "store_id" = $1
       `,
       [storeid]
     );
@@ -328,7 +328,7 @@ router.get('/get_name', async (req, res) => {
     const userid = req.query.userid;
     console.log(userid);
     const result = await pool.query(
-      `SELECT * FROM users WHERE user_id = $1`, [userid]
+      `SELECT * FROM users WHERE "user_id" = $1`, [userid]
     )
     res.json(result.rows);
   } catch (err) {
@@ -375,7 +375,7 @@ router.get('/check-reservation', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM reservations
-      WHERE user_id = $1 AND store_id = $2
+      WHERE "user_id" = $1 AND "store_id" = $2
       LIMIT 1
     `, [userid, storeid]);
 

@@ -12,6 +12,8 @@ function fetchUser() {
     .then(res => res.json())
     .then(data => {
       document.getElementById('profileName').textContent = data.name;
+      document.getElementById('firstName').textContent = data.firstname;
+      document.getElementById('lastName').textContent = data.lastname;
       document.getElementById('profileEmail').textContent = data.email;
       document.getElementById('userName').textContent = data.name;
     })
@@ -139,6 +141,8 @@ function setupResetPasswordHandler() {
   }
 }
 
+
+
 // ======== Edit name function ======== 
 function setupNameEditHandlers() {
   const editBtn = document.getElementById('editNameBtn');
@@ -147,6 +151,7 @@ function setupNameEditHandlers() {
   const inputField = document.getElementById('editNameInput');
   const saveBtn = document.getElementById('saveNameBtn');
   const cancelBtn = document.getElementById('cancelNameBtn');
+
 
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
@@ -168,7 +173,7 @@ function setupNameEditHandlers() {
       }
 
       try {
-        const response = await fetch('/api/user/edit', {
+        const response = await fetch('/api/user/edit/username', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -193,6 +198,138 @@ function setupNameEditHandlers() {
     });
   }
 }
+
+
+
+// Validation function for names (no digits allowed)
+function validateNameNoNumbers(name) {
+  return /^[A-Za-z\s'-]+$/.test(name);
+}
+
+// Show error modal for name validation errors
+function showNameErrorModal(message) {
+  const modalBody = document.getElementById('nameErrorModalBody');
+  modalBody.textContent = message;
+  const modal = new bootstrap.Modal(document.getElementById('nameErrorModal'));
+  modal.show();
+}
+
+// First Name Edit Handler
+function setupFirstNameEditHandler() {
+  const editBtn = document.getElementById('editFirstNameBtn');
+  const nameDisplay = document.getElementById('firstName');
+  const inputGroup = document.getElementById('editFirstNameContainer');
+  const inputField = document.getElementById('editFirstNameInput');
+  const saveBtn = document.getElementById('saveFirstNameBtn');
+  const cancelBtn = document.getElementById('cancelFirstNameBtn');
+
+  if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
+    editBtn.addEventListener('click', () => {
+      inputGroup.classList.remove('d-none');
+      inputField.value = nameDisplay.textContent;
+      inputField.focus();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      inputGroup.classList.add('d-none');
+      inputField.value = '';
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const newFirstName = inputField.value.trim();
+      if (!newFirstName) {
+        showNameErrorModal('First name cannot be empty.');
+        return;
+      }
+      if (!validateNameNoNumbers(newFirstName)) {
+        showNameErrorModal('First name cannot contain numbers.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/edit/firstname', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firstname: newFirstName })
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+          alert('First name updated successfully.');
+          nameDisplay.textContent = newFirstName;
+          inputGroup.classList.add('d-none');
+        } else {
+          showNameErrorModal(result.message || 'Failed to update first name.');
+        }
+      } catch (err) {
+        console.error('Error updating first name:', err);
+        showNameErrorModal('An error occurred while updating first name.');
+      }
+    });
+  }
+}
+
+// Last Name Edit Handler
+function setupLastNameEditHandler() {
+  const editBtn = document.getElementById('editLastNameBtn');
+  const nameDisplay = document.getElementById('lastName');
+  const inputGroup = document.getElementById('editLastNameContainer');
+  const inputField = document.getElementById('editLastNameInput');
+  const saveBtn = document.getElementById('saveLastNameBtn');
+  const cancelBtn = document.getElementById('cancelLastNameBtn');
+
+  if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
+    editBtn.addEventListener('click', () => {
+      inputGroup.classList.remove('d-none');
+      inputField.value = nameDisplay.textContent;
+      inputField.focus();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      inputGroup.classList.add('d-none');
+      inputField.value = '';
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const newLastName = inputField.value.trim();
+      if (!newLastName) {
+        showNameErrorModal('Last name cannot be empty.');
+        return;
+      }
+      if (!validateNameNoNumbers(newLastName)) {
+        showNameErrorModal('Last name cannot contain numbers.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/edit/lastname', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lastname: newLastName })
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+          alert('Last name updated successfully.');
+          nameDisplay.textContent = newLastName;
+          inputGroup.classList.add('d-none');
+        } else {
+          showNameErrorModal(result.message || 'Failed to update last name.');
+        }
+      } catch (err) {
+        console.error('Error updating last name:', err);
+        showNameErrorModal('An error occurred while updating last name.');
+      }
+    });
+  }
+}
+
+// Call these when page loads
+setupFirstNameEditHandler();
+setupLastNameEditHandler();
+
+
+
 
 // ======== edit reservation ==========
 async function editReservation(storeid, reservationid) {
