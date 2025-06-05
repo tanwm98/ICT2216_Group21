@@ -67,6 +67,16 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
         document.getElementById("date").innerHTML = `📅 ${date}`;
         document.getElementById("time").innerHTML = `🕑 ${time}`;
 
+        // load first name and last name with db values
+        const response = await fetch(`/get_name?userid=${userid}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        };
+        const name = await response.json();
+        console.log(name);
+        document.getElementById('firstname').value = name[0].firstname;
+        document.getElementById('lastname').value = name[0].lastname;
+
         const form = document.getElementById("completeReservation");
         form.addEventListener('submit', async function (e) {
             e.preventDefault();

@@ -81,7 +81,7 @@ router.get('/reserve', async (req, res) => {
     // console.log("specialreq: " + specialreq);
 
     // check if reservation exist alr by same person, time and shop
-    const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3 AND "status" = 'Confirmed'`, [storeid, userid, time]);
+    const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE store_id = $1 AND user_id = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`, [storeid, userid, time, date]);
     console.log(checkExistingReservation.rows);
 
     if (checkExistingReservation.rows.length > 0) {
@@ -172,12 +172,10 @@ router.post('/update_reservation', async (req, res) => {
           "reservationDate" = $2, 
           "reservationTime" = $3, 
           "specialRequest" = $4, 
-          first_name = $5, 
-          last_name = $6,
-          "adultPax" = $7,
-          "childPax" = $8
-      WHERE reservation_id = $9
-    `, [pax, date, time, specialreq, firstname, lastname, adultpax, childpax, reservationid]);
+          "adultPax" = $5,
+          "childPax" = $6
+      WHERE reservation_id = $7
+    `, [pax, date, time, specialreq, adultpax, childpax, reservationid]);
 
 
     // get current username 
@@ -318,6 +316,21 @@ router.get('/maxcapacity', async (req, res) => {
     );
     res.json(result.rows);
 
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
+})
+
+// get first and last name of user
+router.get('/get_name', async (req, res) => {
+  try {
+    const userid = req.query.userid;
+    console.log(userid);
+    const result = await pool.query(
+      `SELECT * FROM users WHERE user_id = $1`, [userid]
+    )
+    res.json(result.rows);
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to fetch data' });
