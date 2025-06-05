@@ -17,6 +17,6 @@ jobs:
         script: |
           cd ~/ICT2216_Group21
           git pull origin main
-          docker-compose -f docker/docker-compose.yml down
-          docker-compose -f docker/docker-compose.yml up -d --build
+          docker compose -f docker/docker-compose.yml down
+          docker compose -f docker/docker-compose.yml up -d --build
           docker image prune -f
