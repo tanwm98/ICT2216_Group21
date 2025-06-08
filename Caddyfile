@@ -7,12 +7,16 @@ localhost {
         basicauth {
             admin $2a$14$5/0R/YHmIpHLfXHbJr6Feun/VAwVIcjEyfkk76aFH70gKs14MfbsK
         }
+<<<<<<<< HEAD:docker/Caddyfile
         reverse_proxy kirby-splunk:8000 {  # FIXED: Use external container name
             header_up Host {http.request.host}
             header_up X-Real-IP {http.request.remote}
             header_up X-Forwarded-For {http.request.remote}
             header_up X-Forwarded-Proto {http.request.scheme}
         }
+========
+        reverse_proxy splunk:8000
+>>>>>>>> dc40d0ed58d48b958a19beb8e469f25f35755b86:Caddyfile
     }
 
     # Static assets
