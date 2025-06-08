@@ -73,6 +73,15 @@ app.get('/', (req, res) => {
   res.redirect('/public/home.html');
 });
 
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        service: 'Kirby Chope Backend'
+    });
+});
+
 app.get('/search', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/search.html'));
 });

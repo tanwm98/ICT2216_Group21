@@ -1,0 +1,77 @@
+localhost {
+
+    # Splunk access with basic auth
+    @splunk path /splunk*
+    handle @splunk {
+        uri strip_prefix /splunk
+        basicauth {
+            admin $2a$14$5/0R/YHmIpHLfXHbJr6Feun/VAwVIcjEyfkk76aFH70gKs14MfbsK
+        }
+        reverse_proxy kirby-splunk:8000 {  # FIXED: Use external container name
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+
+    # Static assets
+    @static path /static/* /js/* /css/* /images/*
+    handle @static {
+        root * /usr/share/caddy
+        file_server
+    }
+
+    # API routes
+    @api path /api/*
+    handle @api {
+        reverse_proxy backend:3000 {
+            health_uri /api/health
+            health_interval 30s
+        }
+    }
+
+    # Root redirect
+    @root path /
+    handle @root {
+        root * /usr/share/caddy/public
+        rewrite * /home.html
+        file_server
+    }
+
+    # Try HTML files from multiple locations
+    handle {
+        # First try public folder (login, register, search, etc.)
+        root * /usr/share/caddy/public
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Then try html folder (admin, profile, dashboards)
+        root * /usr/share/caddy/html
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Then try common folder (header, footer components)
+        root * /usr/share/caddy/common
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Finally fallback to backend
+        reverse_proxy backend:3000
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
