@@ -1,4 +1,4 @@
-localhost {
+kirbychope.xyz {
     # Static assets
     @static path /static/* /js/*
     handle @static {
@@ -52,4 +52,9 @@ localhost {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
     }
+}
+
+
+www.kirbychope.xyz {
+    redir https://kirbychope.xyz{uri} permanent
 }
