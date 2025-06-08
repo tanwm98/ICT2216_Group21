@@ -1,4 +1,15 @@
 localhost {
+
+    # Splunk access with basic auth
+    @splunk path /splunk*
+    handle @splunk {
+        uri strip_prefix /splunk
+        basicauth {
+            admin $2a$14$5/0R/YHmIpHLfXHbJr6Feun/VAwVIcjEyfkk76aFH70gKs14MfbsK
+        }
+        reverse_proxy splunk:8000
+    }
+
     # Static assets
     @static path /static/* /js/*
     handle @static {
