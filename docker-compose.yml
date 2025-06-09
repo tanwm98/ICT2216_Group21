@@ -29,13 +29,14 @@ services:
     logging:
       driver: splunk
       options:
-        splunk-url: "http://kirby-splunk:8088"  # Use external container name
+        splunk-url: "https://kirby-splunk:8088"  # Use external container name
         splunk-token: "${SPLUNK_HEC_TOKEN}"
         splunk-format: json
-        splunk-insecureskipverify: "true"
-        splunk-verify-connection: "false"
+        splunk-insecureskipverify: "false"
         splunk-source: "kirby-chope-backend"
         splunk-sourcetype: "docker:container"
+        splunk-index: "kirby_chope"
+        splunk-verify-connection: "true"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s

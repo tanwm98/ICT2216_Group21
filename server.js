@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
+
 function verifyToken(req, res, next) {
     const token = req.cookies.token;
 
