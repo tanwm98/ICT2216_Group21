@@ -1,27 +1,33 @@
 kirbysplunk.kirbychope.xyz {
-    # Let Caddy auto-renew a real LE cert
+    # public LE cert for both UI + HEC
     tls you@yourdomain.com
 
-    # 1) HEC ingestion (no client auth here; Splunk still uses its token)
-    @hec path /services/collector*
+    # ——— HEC ingestion ———
+    @hec path /services/collector/event/*
     handle @hec {
         reverse_proxy https://kirby-splunk:8088 {
-            # tell Caddy to verify Splunk’s cert as splunk-internal.kirbychope.xyz
             transport http {
                 tls
+                # verify Splunk’s LE cert for the internal name
                 tls_server_name splunk-internal.kirbychope.xyz
-		tls_trusted_ca_certs /etc/ssl/certs/splunk.crt
             }
         }
     }
 
-    # 2) Splunk Web UI (everything else), protected by basic auth
+    # ——— Splunk Web UI ———
+    # basic-auth all UI traffic
     basicauth /* {
         admin $2a$14$f5v1c3eZMjd6/pLS55ymkuKdGM2ZcTx10F2ptet1Pryrj.I.1g47y
     }
-    reverse_proxy http://kirby-splunk:8000
+    handle {
+        reverse_proxy https://kirby-splunk:8000 {
+            transport http {
+                tls
+                tls_server_name splunk-internal.kirbychope.xyz
+            }
+        }
+    }
 }
-
 
 kirbychope.xyz {    
     @api path /api/*

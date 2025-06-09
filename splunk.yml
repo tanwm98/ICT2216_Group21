@@ -1,42 +1,30 @@
 services:
   splunk:
     image: splunk/splunk:latest
-    container_name: kirby-splunk
-    # NO external port exposure - everything goes through Caddy proxy
+    container_name: kirby-splunk  # Fixed container name
     expose:
-      - "8000"  # Internal only - for Caddy proxy
-      - "8088"  # Internal only - for HEC logging
+      - "8000"  # Splunk Web UI
+      - "8088"  # HTTP Event Collector (HEC)
     volumes:
       - splunk_data:/opt/splunk/var
       - splunk_etc:/opt/splunk/etc
-      - ./ssl/splunk.crt:/opt/splunk/etc/auth/server.pem:ro
-      - ./ssl/splunk.key:/opt/splunk/etc/auth/server.key:ro
-      - ./inputs.conf:/opt/splunk/etc/apps/splunk_httpinput/local/inputs.conf:ro
     environment:
       SPLUNK_START_ARGS: --accept-license
       SPLUNK_PASSWORD: "${SPLUNK_ADMIN_PASSWORD}"
       SPLUNK_ENABLE_HEC: "true"
       SPLUNK_HEC_TOKEN: "${SPLUNK_HEC_TOKEN}"
       SPLUNK_HEC_PORT: 8088
-    env_file:
-      - .env
+      SPLUNK_HEC_SSL: "false"
     networks:
       - infrastructure
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-k", "-f", "https://localhost:8000/en-US/account/login"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 120s
-
+    restart: unless-stopped  # Keep running across reboots
 volumes:
   splunk_data:
-    name: kirby_splunk_data
+    name: kirby_splunk_data  # Named volume persists across deployments
   splunk_etc:
     name: kirby_splunk_etc
 
 networks:
   infrastructure:
-    name: kirby_infrastructure
+    name: kirby_infrastructure  # External network name
     driver: bridge
