@@ -270,8 +270,6 @@ router.post('/update_reservation', async (req, res) => {
 
 // another cron for reservation reminder email
 cron.schedule('* * * * *', async () => {
-  console.log('checking for reservations...');
-
   // need to convert now() to singapore timezone to compare the timing 
   const result = await pool.query(
     `
@@ -288,32 +286,33 @@ cron.schedule('* * * * *', async () => {
   )
 
   const results = result.rows;
-  console.log("=========================================================");
-  console.log(results);
 
-  for (const r of results) {
-    // get user details of each of the reservation 
-    const user_details = await pool.query(
-      `
+  if (results.length == 0) {
+    console.log("No reservations a day from now");
+  } else {
+    for (const r of results) {
+      // get user details of each of the reservation 
+      const user_details = await pool.query(
+        `
         SELECT * FROM users WHERE user_id = $1
       `, [r.user_id]
-    )
+      )
 
-    const store_details = await pool.query(
-      `
+      const store_details = await pool.query(
+        `
         SELECT * FROM stores WHERE store_id = $1
       `, [r.store_id]
-    )
-    const user = user_details.rows;
-    const store = store_details.rows;
-    console.log(user[0]);
-    console.log(store[0]);
-    await transporter.sendMail({
-      from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      // to: `${user[0].email}`, // this should be the legitimate flow, but will jus use our own email
-      to: 'chuaxinjing03@gmail.com',
-      subject: `Reservation Reminder at ${store[0].storeName}`,
-      html: `
+      )
+      const user = user_details.rows;
+      const store = store_details.rows;
+
+      if (r.is_reminded == false) {
+        await transporter.sendMail({
+          from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+          // to: `${user[0].email}`, // this should be the legitimate flow, but will jus use our own email
+          to: 'chuaxinjing03@gmail.com',
+          subject: `Reservation Reminder at ${store[0].storeName}`,
+          html: `
               <p>Hello ${user[0].name},</p>
               <p>You have an upcoming reservation at ${store[0].storeName}. See below for more details.</p>
               <h4>Reservation Details:</h4>
@@ -335,14 +334,13 @@ cron.schedule('* * * * *', async () => {
               <p>Thank you!</p>
               <p>Kirby Chope</p>
             `
-    })
+        })
+        await pool.query('UPDATE reservations SET is_reminded = true WHERE reservation_id = $1', [r.reservation_id]);
 
-
-
+      }
+    }
 
   }
-
-
 })
 
 // query reservations between certain timing
