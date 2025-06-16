@@ -84,6 +84,10 @@ router.get('/reserve', async (req, res) => {
     const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`, [storeid, userid, time, date]);
     console.log(checkExistingReservation.rows);
 
+    // get store details
+    const store_details = await pool.query(`SELECT * FROM stores WHERE store_id = $1`, [storeid]);
+    const store = store_details.rows;
+
     if (checkExistingReservation.rows.length > 0) {
       return res.status(400).json({ message: "You already have a reservation for that time." });
     } else {
@@ -112,6 +116,7 @@ router.get('/reserve', async (req, res) => {
                   <li><strong>👤 First Name:</strong> ${firstname}</li>
                   <li><strong>👤 Last Name:</strong> ${lastname}</li>
                   <li><strong>🏪 Restaurant:</strong> ${storename}</li>
+                  <li><strong>📍 Location:</strong> ${store[0].address}</li>
                   <li><strong>📅 Date:</strong> ${date}</li>
                   <li><strong>🕒 Time:</strong> ${time}</li>
                   <li><strong>👥 Number of Guests:</strong> ${pax}
@@ -183,10 +188,14 @@ router.post('/update_reservation', async (req, res) => {
 
     const username = usernameResult.rows[0]?.name;
 
+    // get store thats affected
+    const which_store = await pool.query(`SELECT * FROM reservations WHERE reservation_id = $1`, [reservationid]);
+    const store_details = await pool.query(`SELECT * FROM stores WHERE store_id = $1`, [(which_store.rows)[0].store_id]);
+
     // upon successful update, send email to user
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      to: 'dx8153@gmail.com', // can be changed to ict2216kirby@gmail.com or own email for testing
+      to: 'chuaxinjing03@gmail.com', // can be changed to ict2216kirby@gmail.com or own email for testing
       subject: `Modification of Reservation at ${storename} `,
       html: `
               <p>Hello ${username},</p>
@@ -196,6 +205,7 @@ router.post('/update_reservation', async (req, res) => {
                   <li><strong>👤 First Name:</strong> ${firstname}</li>
                   <li><strong>👤 Last Name:</strong> ${lastname}</li>
                   <li><strong>🏪 Restaurant:</strong> ${storename}</li>
+                  <li><strong>📍 Location:</strong> ${(store_details.rows)[0].address}</li>
                   <li><strong>📅 Date:</strong> ${date}</li>
                   <li><strong>🕒 Time:</strong> ${time}</li>
                   <li><strong>👥 Number of Guests:</strong> ${pax}
@@ -257,6 +267,81 @@ router.post('/update_reservation', async (req, res) => {
 
 // })
 
+
+// another cron for reservation reminder email
+cron.schedule('* * * * *', async () => {
+  // need to convert now() to singapore timezone to compare the timing 
+  const result = await pool.query(
+    `
+      SELECT *, "reservationDate"::TEXT AS date
+      FROM reservations
+      WHERE 
+        ("reservationDate"::timestamp + "reservationTime"::interval)
+        BETWEEN 
+          ((NOW() + INTERVAL '24 hour') AT TIME ZONE 'Asia/Singapore') AND
+          ((NOW() + INTERVAL '25 hour') AT TIME ZONE 'Asia/Singapore') AND
+        status = 'Confirmed' AND is_reminded = FALSE
+
+      `
+  )
+
+  const results = result.rows;
+
+  if (results.length == 0) {
+    console.log("No reservations a day from now");
+  } else {
+    for (const r of results) {
+      // get user details of each of the reservation 
+      const user_details = await pool.query(
+        `
+        SELECT * FROM users WHERE user_id = $1
+      `, [r.user_id]
+      )
+
+      const store_details = await pool.query(
+        `
+        SELECT * FROM stores WHERE store_id = $1
+      `, [r.store_id]
+      )
+      const user = user_details.rows;
+      const store = store_details.rows;
+
+      if (r.is_reminded == false) {
+        await transporter.sendMail({
+          from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+          // to: `${user[0].email}`, // this should be the legitimate flow, but will jus use our own email
+          to: 'chuaxinjing03@gmail.com',
+          subject: `Reservation Reminder at ${store[0].storeName}`,
+          html: `
+              <p>Hello ${user[0].name},</p>
+              <p>You have an upcoming reservation at ${store[0].storeName}. See below for more details.</p>
+              <h4>Reservation Details:</h4>
+              <ul>
+                  <li><strong>👤 First Name:</strong> ${user[0].firstname}</li>
+                  <li><strong>👤 Last Name:</strong> ${user[0].lastname}</li>
+                  <li><strong>🏪 Restaurant:</strong> ${store[0].storeName}</li>
+                  <li><strong>📍 Location:</strong> ${store[0].address}</li>
+                  <li><strong>📅 Date:</strong> ${r.date}</li>
+                  <li><strong>🕒 Time:</strong> ${r.reservationTime}</li>
+                  <li><strong>👥 Number of Guests:</strong> ${r.noOfGuest}
+                    <ul>
+                      <li><strong>Number of Adults:</strong> ${r.adultPax}</li>
+                      <li><strong>Number of Child:</strong> ${r.childPax}</li>
+                    </ul>
+                  </li>
+                  ${r.specialreq ? `<li><strong>📢 Special Request:</strong> ${r.specialreq}</li>` : ''}
+              </ul>
+              <p>Thank you!</p>
+              <p>Kirby Chope</p>
+            `
+        })
+        await pool.query('UPDATE reservations SET is_reminded = true WHERE reservation_id = $1', [r.reservation_id]);
+
+      }
+    }
+
+  }
+})
 
 // query reservations between certain timing
 router.get('/timeslots', async (req, res) => {
@@ -426,11 +511,6 @@ router.post('/add-review', async (req, res) => {
     res.status(500).json({ error: 'Failed to submit review.' });
   }
 });
-
-
-
-
-
 
 module.exports = router;
 
