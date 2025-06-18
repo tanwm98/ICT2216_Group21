@@ -25,7 +25,9 @@ jobs:
           echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> .env
+          echo "SPLUNK_ADMIN_PASSWORD=${{ secrets.SPLUNK_ADMIN_PASSWORD }}" >> .env
+          echo "SPLUNK_HEC_TOKEN=${{ secrets.SPLUNK_HEC_TOKEN }}" >> .env
           git pull origin main
-          docker compose -f docker/docker-compose.yml down
-          docker compose -f docker/docker-compose.yml up -d --build
+          docker compose down
+          docker compose up -d --build
           docker image prune -f
