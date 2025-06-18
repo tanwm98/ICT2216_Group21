@@ -18,5 +18,11 @@
     "docker:build": "docker build -f docker/Dockerfile -t kirby-chope .",
     "docker:run": "docker run -p 3000:3000 kirby-chope",
     "docker:dev": "docker-compose -f docker/docker-compose.yml up --build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "@microsoft/eslint-formatter-sarif": "^3.1.0",
+    "eslint": "^9.29.0",
+    "globals": "^16.2.0"
   }
 }
