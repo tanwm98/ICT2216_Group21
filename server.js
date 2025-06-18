@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
+
 function verifyToken(req, res, next) {
     const token = req.cookies.token;
 
@@ -71,6 +72,15 @@ app.use('/api/user', loggedUser);
 // ======== PUBLIC ROUTES ========
 app.get('/', (req, res) => {
   res.redirect('/public/home.html');
+});
+
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        service: 'Kirby Chope Backend'
+    });
 });
 
 app.get('/search', (req, res) => {

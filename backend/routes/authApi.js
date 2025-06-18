@@ -14,6 +14,8 @@ const path = require('path');
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
+
 
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
@@ -55,6 +57,13 @@ router.post('/login', async (req, res) => {
                 secure: process.env.NODE_ENV === 'production',
                 maxAge: 3600000 // 1 hour
             });
+            
+            logAuth('login', true, {
+            user_id: user.user_id,
+            email: email,
+            role: user.role,
+            redirect_to: user.role === 'admin' ? '/admin' : user.role === 'owner' ? '/resOwner' : '/'
+            }, req);
 
             if (user.role === 'admin') {
                 return res.redirect('/admin');
@@ -64,9 +73,27 @@ router.post('/login', async (req, res) => {
                 return res.redirect('/resOwner');
             }
         } else {
+            // ?? LOG FAILED PASSWORD
+            logAuth('login', false, {
+                email: email,
+                user_id: user.user_id,
+                reason: 'invalid_password'
+            }, req);
+            
+            // Also log as security event for multiple failed attempts tracking
+            logSecurity('failed_login', 'medium', {
+                email: email,
+                user_id: user.user_id
+            }, req);
+            
             return res.redirect('/login?error=1');
         }
     } catch (err) {
+        logSystem('error', 'Login process error', {
+            email: email,
+            error: err.message
+        });
+        
         console.error('Login error:', err);
         return res.redirect('/login?error=1');
     }
@@ -77,27 +104,50 @@ router.post('/register', async (req, res) => {
     const { name, email, password, firstname, lastname } = req.body;
 
     try {
+        const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
+        
+        if (existingUser.rows.length > 0) {
+            logAuth('registration', false, {
+                email: email,
+                reason: 'email_already_exists'
+            }, req);
+            
+            return res.status(400).send('Email already registered');
+        }
+
         const hashedPassword = await argon2.hash(password);
-        await pool.query(
-            'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
+        const result = await pool.query(
+            'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id',
             [name, email, hashedPassword, 'user', firstname, lastname]
         );
 
-        // await transporter.sendMail({
-        //     from: `"Your App" <${process.env.EMAIL_USER}>`,
-        //     to: "shira.yuki51@gmail.com",
-        //     subject: 'Welcome!',
-        //     text: `Hello ${name}, welcome to our app!`,
-        // });
+        // ?? LOG SUCCESSFUL REGISTRATION
+        logAuth('registration', true, {
+            user_id: result.rows[0].user_id,
+            email: email,
+            name: name,
+            role: 'user'
+        }, req);
+
+        // Also log as business event
+        logBusiness('user_created', 'user', {
+            user_id: result.rows[0].user_id,
+            user_type: 'customer'
+        }, req);
 
         res.redirect('/login');
     } catch (err) {
+        logSystem('error', 'User registration failed', {
+            email: email,
+            error: err.message
+        });
+        
         console.error('Registration error:', err);
         res.status(500).send('Server error');
     }
 });
 
-// Owner isngup
+// Owner signu
 router.post('/signup-owner', upload.single('image'), async (req, res) => {
     const {
         ownerName,
@@ -117,7 +167,15 @@ router.post('/signup-owner', upload.single('image'), async (req, res) => {
 
     const imageFile = req.file;
     //console.log('📷 Uploaded File:', req.file);
-
+    logBusiness('owner_application_submitted', 'restaurant_owner', {
+        owner_name: ownerName,
+        email: email,
+        store_name: storeName,
+        cuisine: cuisine,
+        location: location,
+        capacity: totalCapacity,
+        has_image: !!imageFile
+    }, req);
     const message = `
 New Restaurant Owner Signup:
 
@@ -153,9 +211,19 @@ New Restaurant Owner Signup:
             text: message,
             attachments: attachments
         });
+        logSystem('info', 'Owner application email sent successfully', {
+            owner_name: ownerName,
+            email: email
+        });
 
         res.redirect('/rOwnerReg?success=1');
     } catch (err) {
+        logSystem('error', 'Failed to send owner application email', {
+            owner_name: ownerName,
+            email: email,
+            error: err.message
+        });
+        
         console.error('Error sending email:', err);
         res.redirect('/rOwnerReg?error=1');
     }

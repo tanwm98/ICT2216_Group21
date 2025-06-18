@@ -5,37 +5,45 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ../frontend:/usr/share/caddy:ro
+      - ./frontend:/usr/share/caddy:ro
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - backend
+      - backend      
     networks:
       - app-network
       - infrastructure  # Connect to external infrastructure network
 
   backend:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
     env_file:
-      - ../.env
+      - ./.env
     expose:
       - "3000"
     networks:
       - app-network
       - infrastructure  # Connect to external infrastructure network
+      
+    extra_hosts:
+      - splunk-internal.kirbychope.xyz:127.0.0.1  
+    volumes:
+      # <-- bind-mount your CA into the service
+      - ./ssl/splunk.crt:/etc/docker/certs.d/splunk-internal.kirbychope.xyz/ca.crt:ro
+  
     logging:
       driver: splunk
       options:
-        splunk-url: "http://kirby-splunk:8088"  # Use external container name
+        splunk-url: "https://splunk-internal.kirbychope.xyz:8088"  # Use external container name
         splunk-token: "${SPLUNK_HEC_TOKEN}"
         splunk-format: json
-        splunk-insecureskipverify: "true"
-        splunk-verify-connection: "false"
         splunk-source: "kirby-chope-backend"
         splunk-sourcetype: "docker:container"
+        splunk-index: "kirby_chope"
+        
+        
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -45,6 +53,7 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+
 
 networks:
   app-network:

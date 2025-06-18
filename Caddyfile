@@ -1,0 +1,86 @@
+{
+	# Global defaults for every site
+	email ict2216@gmail.com
+	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+kirbysplunk.kirbychope.xyz {
+	# HEC ingestion
+	@hec path /services/collector*
+	handle @hec {
+		reverse_proxy https://kirby-splunk:8088 {
+			transport http {
+				tls
+				tls_server_name splunk-internal.kirbychope.xyz
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
+	# Splunk Web UI (fallback)
+	handle {
+		reverse_proxy https://kirby-splunk:8000 {
+			transport http {
+				tls
+				tls_server_name splunk-internal.kirbychope.xyz
+				tls_insecure_skip_verify
+			}
+		}
+	}
+}
+
+kirbychope.xyz {
+	# API proxy
+	@api path /api/*
+	handle @api {
+		reverse_proxy backend:3000
+	}
+
+	# Static assets
+	@static path /static/* /js/* /css/* /images/*
+	handle @static {
+		root * /usr/share/caddy
+		file_server
+	}
+
+	# Root redirect to home.html
+	@root path /
+	handle @root {
+		root * /usr/share/caddy/public
+		rewrite * /home.html
+		file_server
+	}
+
+	# Try HTML files from multiple locations, then fallback to backend
+	handle {
+		# First try public folder
+		root * /usr/share/caddy/public
+		try_files {path}.html {path}
+		file_server {
+			pass_thru
+		}
+
+		# Then try html folder
+		root * /usr/share/caddy/html
+		try_files {path}.html {path}
+		file_server {
+			pass_thru
+		}
+
+		# Then try common folder
+		root * /usr/share/caddy/common
+		try_files {path}.html {path}
+		file_server {
+			pass_thru
+		}
+
+		# Finally fallback to backend
+		reverse_proxy backend:3000
+	}
+
+	# Security headers
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+	}
+}
