@@ -5,7 +5,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ../frontend:/usr/share/caddy:ro
+      - ../frontend:/usr/share/caddy:ro 
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -13,34 +13,19 @@ services:
       - backend
     networks:
       - app-network
-      - infrastructure  # Connect to external infrastructure network
 
   backend:
     build:
       context: ..
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
     env_file:
       - ../.env
     expose:
       - "3000"
+    volumes:
+      - /app/node_modules
     networks:
       - app-network
-      - infrastructure  # Connect to external infrastructure network
-    logging:
-      driver: splunk
-      options:
-        splunk-url: "http://kirby-splunk:8088"  # Use external container name
-        splunk-token: "${SPLUNK_HEC_TOKEN}"
-        splunk-format: json
-        splunk-insecureskipverify: "true"
-        splunk-verify-connection: "false"
-        splunk-source: "kirby-chope-backend"
-        splunk-sourcetype: "docker:container"
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   caddy_data:
@@ -49,6 +34,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-  infrastructure:
-    external: true
-    name: kirby_infrastructure  # Connect to external infrastructure network

@@ -13,7 +13,7 @@ services:
       - backend      
     networks:
       - app-network
-      - infrastructure  # Connect to external infrastructure network
+      - infrastructure 
 
   backend:
     build:
@@ -25,18 +25,17 @@ services:
       - "3000"
     networks:
       - app-network
-      - infrastructure  # Connect to external infrastructure network
+      - infrastructure 
       
     extra_hosts:
       - splunk-internal.kirbychope.xyz:127.0.0.1  
     volumes:
-      # <-- bind-mount your CA into the service
       - ./ssl/splunk.crt:/etc/docker/certs.d/splunk-internal.kirbychope.xyz/ca.crt:ro
   
     logging:
       driver: splunk
       options:
-        splunk-url: "https://splunk-internal.kirbychope.xyz:8088"  # Use external container name
+        splunk-url: "https://splunk-internal.kirbychope.xyz:8088" 
         splunk-token: "${SPLUNK_HEC_TOKEN}"
         splunk-format: json
         splunk-source: "kirby-chope-backend"
@@ -60,4 +59,4 @@ networks:
     driver: bridge
   infrastructure:
     external: true
-    name: kirby_infrastructure  # Connect to external infrastructure network
+    name: kirby_infrastructure 
