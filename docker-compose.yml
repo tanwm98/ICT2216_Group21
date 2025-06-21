@@ -1,6 +1,8 @@
 services:
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: Caddy_Dockerfile
     ports:
       - "80:80"
       - "443:443"

@@ -3,7 +3,9 @@
 	email ict2216@gmail.com
 	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
-
+www.kirbysplunk.kirbychope.xyz {
+  redir https://kirbysplunk.kirbychope.xyz{uri}
+}
 kirbysplunk.kirbychope.xyz {
 	# HEC ingestion
 	@hec path /services/collector*
@@ -28,8 +30,22 @@ kirbysplunk.kirbychope.xyz {
 		}
 	}
 }
-
+www.kirbychope.xyz {
+  redir https://kirbychope.xyz{uri}
+}
 kirbychope.xyz {
+	# WAF Protection
+	coraza_waf {
+		load_owasp_crs
+		directives `
+			Include @coraza.conf-recommended
+			Include @crs-setup.conf.example
+			Include @owasp_crs/*.conf
+			SecRuleEngine On
+			SecAuditEngine On
+			SecAuditLogFormat JSON
+		`
+	}
 	# API proxy
 	@api path /api/*
 	handle @api {
