@@ -13,7 +13,6 @@ const logger = require('./backend/logger');
 if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
   console.info = () => {};
-  // Keep console.error and console.warn for debugging production issues
 }
 
 function verifyToken(req, res, next) {
@@ -153,7 +152,6 @@ app.get('/api/session', (req, res) => {
     }
 });
 
-
 app.use((req, res, next) => {
     const isApi = req.originalUrl.startsWith('/api/');
     const acceptsJson = req.get('Accept')?.includes('application/json');
@@ -181,6 +179,29 @@ app.use((req, res, next) => {
     res.sendFile(path.join(__dirname, 'frontend/errors/404.html'));
 });
 
+
+app.use('/images', (req, res, next) => {
+    // Security headers for images
+    res.set({
+        'Cache-Control': 'public, max-age=31536000', // 1 year cache
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'"
+    });
+    next();
+}, express.static(path.join(__dirname, 'uploads')));
+
+// Image validation middleware
+app.use('/static/img/restaurants/:filename', (req, res, next) => {
+    const filename = req.params.filename;
+    const imagePath = path.join(__dirname, '/static/img/restaurants', filename);
+    if (fs.existsSync(imagePath)) {
+        res.sendFile(imagePath);
+    } else {
+        console.log('❌ File not found, serving fallback');
+        // Serve fallback image
+        res.sendFile(path.join(__dirname, '/static/img/restaurants/no-image.png'));
+    }
+});
 
 // Enhanced 404 handler
 app.use((req, res, next) => {

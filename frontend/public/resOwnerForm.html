@@ -3,221 +3,707 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Restaurant Owner Signup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Restaurant Owner Signup - Kirby Chope</title>
+
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+
+  <!-- Bootstrap CSS -->
+  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
+
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      padding: 2em;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2em 0;
+      min-height: 100vh;
     }
 
     .container {
-      max-width: 650px;
+      max-width: 700px;
       margin: auto;
       background: white;
-      padding: 2em;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 2.5em;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     }
 
-    h2 {
+    .header-section {
       text-align: center;
-      margin-bottom: 1.5em;
+      margin-bottom: 2em;
+      padding-bottom: 1em;
+      border-bottom: 2px solid #f8f9fa;
+    }
+
+    .header-section h2 {
+      color: #2c3e50;
+      font-weight: 600;
+      margin-bottom: 0.5em;
+    }
+
+    .header-section p {
+      color: #6c757d;
+      font-size: 1.1em;
     }
 
     .section {
-      border: 1px solid #ddd;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
       border-radius: 8px;
       padding: 1.5em;
       margin-bottom: 2em;
-      background: #fcfcfc;
     }
 
     .section h3 {
       margin-top: 0;
-      margin-bottom: 1em;
-      font-size: 1.2em;
-      color: #333;
-      border-bottom: 1px solid #eee;
+      margin-bottom: 1.2em;
+      font-size: 1.3em;
+      color: #495057;
+      font-weight: 600;
       padding-bottom: 0.5em;
+      border-bottom: 2px solid #dee2e6;
     }
 
-    label {
-      display: block;
-      margin-top: 1em;
-      font-weight: bold;
+    .form-label {
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 0.5em;
     }
 
-    input,
-    select,
-    textarea {
-      width: 100%;
-      padding: 0.6em;
-      margin-top: 0.3em;
-      border: 1px solid #ccc;
+    .form-control, .form-select {
+      border: 2px solid #e9ecef;
       border-radius: 6px;
-      box-sizing: border-box;
+      padding: 0.75em;
+      transition: border-color 0.3s ease;
     }
 
-    input[type="file"] {
-      padding: 0;
+    .form-control:focus, .form-select:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
     }
 
-    button {
-      display: block;
-      margin: 2em auto 0 auto;
-      padding: 0.9em 2em;
-      background: #fdb913;
-      color: white;
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       border: none;
-      font-weight: bold;
-      font-size: 1em;
-      border-radius: 6px;
-      cursor: pointer;
+      padding: 1em 2.5em;
+      font-size: 1.1em;
+      font-weight: 600;
+      border-radius: 8px;
+      transition: all 0.3s ease;
     }
 
-    button:hover {
-      background: #e0a900;
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .password-requirements {
+      background: #e3f2fd;
+      border: 1px solid #bbdefb;
+      border-radius: 6px;
+      padding: 1em;
+      margin-top: 0.5em;
+    }
+
+    .password-requirements ul {
+      margin: 0.5em 0 0 0;
+      padding-left: 1.2em;
+    }
+
+    .password-requirements li {
+      color: #1976d2;
+      font-size: 0.9em;
+      margin-bottom: 0.2em;
+    }
+
+    .alert {
+      border-radius: 8px;
+      border: none;
+      font-weight: 500;
+    }
+
+    .alert-danger {
+      background: #ffebee;
+      color: #c62828;
+      border-left: 4px solid #f44336;
+    }
+
+    .alert-success {
+      background: #e8f5e8;
+      color: #2e7d32;
+      border-left: 4px solid #4caf50;
+    }
+
+    .form-check-input:checked {
+      background-color: #667eea;
+      border-color: #667eea;
+    }
+
+    .spinner-border-sm {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    .file-upload-info {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 6px;
+      padding: 0.75em;
+      margin-top: 0.5em;
+      font-size: 0.9em;
+      color: #856404;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        margin: 1em;
+        padding: 1.5em;
+      }
+
+      .row .col-md-6 {
+        margin-bottom: 1em;
+      }
     }
   </style>
-  <!-- Bootstrap CSS via CDN -->
-  <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body>
-  <div class="container">
-    <h2>Restaurant Owner Signup</h2>
+<div class="container">
+  <div class="header-section">
+    <h2>🍽️ Restaurant Owner Registration</h2>
+    <p>Join Kirby Chope and start accepting reservations today!</p>
+  </div>
 
-    <form method="POST" action="/signup-owner" enctype="multipart/form-data">
+  <!-- Enhanced Error Display Section -->
+  <div id="errorAlert" class="alert alert-danger alert-dismissible fade" role="alert" style="display: none;">
+    <strong>❌ Registration Failed!</strong>
+    <span id="errorMessage"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 
-      <h3>Owner Information</h3>
-      <!-- Owner Info -->
-      <div class="section">
+  <!-- Success Alert -->
+  <div id="successAlert" class="alert alert-success alert-dismissible fade" role="alert" style="display: none;">
+    <strong>✅ Success!</strong> Your restaurant registration has been submitted successfully!
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 
-        <label for="ownerName">Owner Username</label>
-        <input type="text" id="ownerName" name="ownerName" required />
+  <form method="POST" action="/signup-owner" enctype="multipart/form-data" id="ownerSignupForm" novalidate>
 
-        <label for="firstname">First name</label>
-        <input type="text" id="firstname" name="firstname" required />
+    <!-- Owner Information Section -->
+    <div class="section">
+      <h3>👤 Owner Information</h3>
 
-        <label for="lastname">Last name</label>
-        <input type="text" id="ownerName" name="ownerName" required />
-
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required />
+      <div class="mb-3">
+        <label for="ownerName" class="form-label">Owner Username</label>
+        <input type="text" class="form-control" id="ownerName" name="ownerName" required
+               pattern="^[a-zA-Z0-9_]{3,20}$" title="3-20 characters, letters, numbers, and underscores only">
+        <div class="invalid-feedback">
+          Username must be 3-20 characters (letters, numbers, underscores only)
+        </div>
       </div>
 
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="firstname" class="form-label">First Name</label>
+            <input type="text" class="form-control" id="firstname" name="firstname" required
+                   pattern="^[a-zA-Z\s]{2,30}$" title="2-30 characters, letters only">
+            <div class="invalid-feedback">
+              First name must be 2-30 characters (letters only)
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="lastname" class="form-label">Last Name</label>
+            <input type="text" class="form-control" id="lastname" name="lastname" required
+                   pattern="^[a-zA-Z\s]{2,30}$" title="2-30 characters, letters only">
+            <div class="invalid-feedback">
+              Last name must be 2-30 characters (letters only)
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <h3>Restaurant Information</h3>
-      <!-- Restaurant Info -->
-      <div class="section">
-        <div class="mb-3">
-          <label for="storeName" class="form-label">Store Name</label>
-          <input class="form-control" id="storeName" name="storeName" required>
+      <div class="mb-3">
+        <label for="email" class="form-label">Email Address</label>
+        <input type="email" class="form-control" id="email" name="email" required>
+        <div class="invalid-feedback">
+          Please provide a valid email address
         </div>
-        <div class="mb-3">
-          <label for="address" class="form-label">Address</label>
-          <input class="form-control" id="address" name="address" required>
+      </div>
+
+      <!-- Enhanced Password Fields -->
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" required
+               minlength="8" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$">
+        <div class="password-requirements">
+          <strong>Password Requirements:</strong>
+          <ul>
+            <li>At least 8 characters long</li>
+            <li>At least one lowercase letter (a-z)</li>
+            <li>At least one uppercase letter (A-Z)</li>
+            <li>At least one number (0-9)</li>
+            <li>At least one special character (@$!%*?&)</li>
+          </ul>
         </div>
-        <div class="mb-3">
-          <label for="postalCode" class="form-label">Postal Code</label>
-          <input class="form-control" id="postalCode" name="postalCode" required>
+        <div class="invalid-feedback">
+          Password must meet all security requirements above
         </div>
-        <div class="mb-3">
-          <label for="cuisine" class="form-label">Cuisine</label>
-          <input class="form-control" id="cuisine" name="cuisine" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="confirmPassword" class="form-label">Confirm Password</label>
+        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+        <div id="passwordError" class="text-danger small" style="display: none;">
+          Passwords do not match
         </div>
-        <div class="mb-3">
-          <label for="location" class="form-label">Location</label>
-          <input class="form-control" id="location" name="location" required>
+        <div class="invalid-feedback">
+          Please confirm your password
         </div>
-        <div class="mb-3">
-          <label for="priceRange" class="form-label">Price Range</label>
-          <select class="form-select" id="priceRange" name="priceRange" required>
-            <option value="">Select...</option>
-            <option value="$">$</option>
-            <option value="$$">$$</option>
-            <option value="$$$">$$$</option>
-            <option value="$$$$">$$$$</option>
-            <option value="$$$$$">$$$$$</option>
+      </div>
+    </div>
+
+    <!-- Restaurant Information Section -->
+    <div class="section">
+      <h3>🏪 Restaurant Information</h3>
+
+      <div class="mb-3">
+        <label for="storeName" class="form-label">Restaurant Name</label>
+        <input type="text" class="form-control" id="storeName" name="storeName" required
+               pattern="^[a-zA-Z0-9\s&'-]{2,50}$" title="2-50 characters, letters, numbers, spaces, &, ', -">
+        <div class="invalid-feedback">
+          Restaurant name must be 2-50 characters
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="address" class="form-label">Address</label>
+        <input type="text" class="form-control" id="address" name="address" required
+               pattern="^[a-zA-Z0-9\s,.-#]{10,100}$" title="10-100 characters">
+        <div class="invalid-feedback">
+          Please provide a valid address (10-100 characters)
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="postalCode" class="form-label">Postal Code</label>
+        <input type="text" class="form-control" id="postalCode" name="postalCode"
+               pattern="[0-9]{6}" title="Please enter a valid 6-digit postal code" required>
+        <div class="invalid-feedback">
+          Postal code must be exactly 6 digits
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="cuisine" class="form-label">Cuisine Type</label>
+            <select class="form-select" id="cuisine" name="cuisine" required>
+              <option value="">Select cuisine type...</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Italian">Italian</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Thai">Thai</option>
+              <option value="Indian">Indian</option>
+              <option value="Mexican">Mexican</option>
+              <option value="French">French</option>
+              <option value="Greek">Greek</option>
+              <option value="Korean">Korean</option>
+              <option value="Vietnamese">Vietnamese</option>
+              <option value="Western">Western</option>
+              <option value="Local">Local</option>
+              <option value="Other">Other</option>
             </select>
-
-            <label for="capacity">Seating Capacity (For Reservation)</label>
-            <input type="number" id="capacity" name="capacity" min="1" required />
-          </select>
+            <div class="invalid-feedback">
+              Please select a cuisine type
+            </div>
+          </div>
         </div>
-        <div class="mb-3">
-          <label for="totalCapacity" class="form-label">Total Capacity</label>
-          <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
-        </div>
-        <div class="mb-3">
-          <label for="opening" class="form-label">Opening Hour</label>
-          <input type="time" class="form-control" id="opening" name="opening" required>
-        </div>
-        <div class="mb-3">
-          <label for="closing" class="form-label">Closing Hour</label>
-          <input type="time" class="form-control" id="closing" name="closing" required>
-        </div>
-        <div class="mb-3">
-          <label for="image" class="form-label">Upload Image</label>
-          <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
-        </div>
-
-        <button type="submit">Submit</button>
-    </form>
-  </div>
-  <!-- Success Modal -->
-  <div class="modal fade" id="signupSuccessModal" tabindex="-1" aria-labelledby="signupSuccessLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="signupSuccessLabel">Signup Successful</h5>
-        </div>
-        <div class="modal-body">
-          Thanks for signing up! Your request has been sent.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="location" class="form-label">Location</label>
+            <select class="form-select" id="location" name="location" required>
+              <option value="">Select location...</option>
+              <option value="Orchard">Orchard</option>
+              <option value="Marina Bay">Marina Bay</option>
+              <option value="Chinatown">Chinatown</option>
+              <option value="Clarke Quay">Clarke Quay</option>
+              <option value="Bugis">Bugis</option>
+              <option value="Tanjong Pagar">Tanjong Pagar</option>
+              <option value="Raffles Place">Raffles Place</option>
+              <option value="Sentosa">Sentosa</option>
+              <option value="Dhoby Ghaut">Dhoby Ghaut</option>
+              <option value="Somerset">Somerset</option>
+              <option value="Bukit Timah">Bukit Timah</option>
+              <option value="Holland Village">Holland Village</option>
+              <option value="Tiong Bahru">Tiong Bahru</option>
+              <option value="East Coast">East Coast</option>
+              <option value="Katong">Katong</option>
+              <option value="Other">Other</option>
+            </select>
+            <div class="invalid-feedback">
+              Please select a location
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-  <!-- Error Modal -->
-  <div class="modal fade" id="signupErrorModal" tabindex="-1" aria-labelledby="signupErrorLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title text-danger" id="signupErrorLabel">Signup Failed</h5>
-        </div>
-        <div class="modal-body">
-          Sorry, we couldn't send your signup email. Please try again later.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+
+      <div class="mb-3">
+        <label for="priceRange" class="form-label">Price Range</label>
+        <select class="form-select" id="priceRange" name="priceRange" required>
+          <option value="">Select price range...</option>
+          <option value="$">$ (Under $20 per person)</option>
+          <option value="$$">$$ ($20-40 per person)</option>
+          <option value="$$$">$$$ ($40-60 per person)</option>
+          <option value="$$$$">$$$$ ($60-100 per person)</option>
+          <option value="$$$$$">$$$$$ (Over $100 per person)</option>
+        </select>
+        <div class="invalid-feedback">
+          Please select a price range
         </div>
       </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="capacity" class="form-label">Seating Capacity (For Reservations)</label>
+            <input type="number" class="form-control" id="capacity" name="capacity" min="10" max="500" required>
+            <div class="form-text">Number of seats available for online reservations (10-500)</div>
+            <div class="invalid-feedback">
+              Seating capacity must be between 10 and 500
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="totalCapacity" class="form-label">Total Capacity</label>
+            <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="10" max="1000" required>
+            <div class="form-text">Total restaurant capacity (must be ≥ seating capacity)</div>
+            <div class="invalid-feedback">
+              Total capacity must be between 10 and 1000
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="opening" class="form-label">Opening Hour</label>
+            <input type="time" class="form-control" id="opening" name="opening" required>
+            <div class="invalid-feedback">
+              Please select opening hour
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="closing" class="form-label">Closing Hour</label>
+            <input type="time" class="form-control" id="closing" name="closing" required>
+            <div class="invalid-feedback">
+              Please select closing hour
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="image" class="form-label">Upload Restaurant Image *</label>
+        <input type="file" class="form-control" id="image" name="image"
+               accept="image/jpeg,image/jpg,image/png" required>
+        <div class="file-upload-info">
+          📷 <strong>Image Requirements:</strong><br>
+          • Format: JPG, JPEG, or PNG only<br>
+          • Maximum size: 5MB<br>
+          • Recommended: High-quality photos showcase your restaurant best<br>
+          • This image will be displayed on your restaurant listing
+        </div>
+        <div class="invalid-feedback">
+          Please upload a restaurant image (JPG, JPEG, or PNG, max 5MB)
+        </div>
+      </div>
+
+      <div class="mb-4 form-check">
+        <input type="checkbox" class="form-check-input" id="terms" required>
+        <label class="form-check-label" for="terms">
+          I agree to the <a href="#" target="_blank">Terms and Conditions</a> and confirm that all information provided is accurate and I have the legal right to operate this restaurant.
+        </label>
+        <div class="invalid-feedback">
+          You must agree to the terms and conditions
+        </div>
+      </div>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary btn-lg">
+          🚀 Submit Application
+        </button>
+      </div>
     </div>
-  </div>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
+  </form>
+</div>
+
+<!-- Enhanced JavaScript with Security Features -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('ownerSignupForm');
+      const password = document.getElementById('password');
+      const confirmPassword = document.getElementById('confirmPassword');
+      const passwordError = document.getElementById('passwordError');
+      const capacity = document.getElementById('capacity');
+      const totalCapacity = document.getElementById('totalCapacity');
+
+      // ENHANCED: Security-focused error handling from URL parameters
       const urlParams = new URLSearchParams(window.location.search);
+      const errorAlert = document.getElementById('errorAlert');
+      const errorMessage = document.getElementById('errorMessage');
+      const successAlert = document.getElementById('successAlert');
 
-      if (urlParams.has('success')) {
-        const successModal = new bootstrap.Modal(document.getElementById('signupSuccessModal'));
-        const modalElement = document.getElementById('signupSuccessModal');
-        modalElement.addEventListener('hidden.bs.modal', () => {
-          window.location.href = '/';
-        });
-        successModal.show();
-      }
+      // Handle error parameter with XSS protection
       if (urlParams.has('error')) {
-        const errorModal = new bootstrap.Modal(document.getElementById('signupErrorModal'));
-        errorModal.show();
+          const errorText = urlParams.get('error');
+          if (errorText && errorText !== '1') {
+              // XSS protection: escape HTML characters
+              const escapeHtml = (unsafe) => {
+                  return unsafe
+                      .replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+              };
+              errorMessage.innerHTML = ` ${escapeHtml(errorText)}`;
+          } else {
+              errorMessage.textContent = ' Please check your information and try again.';
+          }
+          errorAlert.style.display = 'block';
+          errorAlert.classList.add('show');
+
+          // Scroll to top to show error
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+
+          // Remove error parameter from URL to prevent refresh issues
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
       }
-    });
-  </script>
-  <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
 
+      // Handle success parameter
+      if (urlParams.has('success')) {
+          successAlert.style.display = 'block';
+          successAlert.classList.add('show');
+
+          // Redirect to login after 3 seconds
+          setTimeout(() => {
+              window.location.href = '/login';
+          }, 3000);
+
+          // Remove success parameter from URL
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+      }
+
+      // Enhanced password validation with security requirements
+      function validatePasswords() {
+          if (password.value && confirmPassword.value) {
+              if (password.value !== confirmPassword.value) {
+                  passwordError.style.display = 'block';
+                  confirmPassword.setCustomValidity('Passwords do not match');
+                  confirmPassword.classList.add('is-invalid');
+                  return false;
+              } else {
+                  passwordError.style.display = 'none';
+                  confirmPassword.setCustomValidity('');
+                  confirmPassword.classList.remove('is-invalid');
+                  confirmPassword.classList.add('is-valid');
+                  return true;
+              }
+          }
+          return true;
+      }
+
+      // Enhanced capacity validation
+      function validateCapacity() {
+          const cap = parseInt(capacity.value);
+          const totalCap = parseInt(totalCapacity.value);
+
+          if (cap && totalCap && cap > totalCap) {
+              totalCapacity.setCustomValidity('Total capacity must be greater than or equal to seating capacity');
+              totalCapacity.classList.add('is-invalid');
+              return false;
+          } else {
+              totalCapacity.setCustomValidity('');
+              totalCapacity.classList.remove('is-invalid');
+              if (totalCap >= 10) {
+                  totalCapacity.classList.add('is-valid');
+              }
+              return true;
+          }
+      }
+
+      // Enhanced file validation with security checks
+      function validateFile() {
+          const fileInput = document.getElementById('image');
+          const file = fileInput.files[0];
+
+          if (!file) {
+              fileInput.classList.add('is-invalid');
+              return false;
+          }
+
+          // Security: Check file size (5MB limit)
+          if (file.size > 5 * 1024 * 1024) {
+              showError('File size must be less than 5MB.');
+              fileInput.classList.add('is-invalid');
+              return false;
+          }
+
+          // Security: Strict file type validation
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+          if (!allowedTypes.includes(file.type)) {
+              showError('Please upload a valid image file (JPG, JPEG or PNG only).');
+              fileInput.classList.add('is-invalid');
+              return false;
+          }
+
+          // Security: Check file extension
+          const fileName = file.name.toLowerCase();
+          const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+          const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+          if (!hasValidExtension) {
+              showError('Invalid file extension. Only .jpg, .jpeg, .png files are allowed.');
+              fileInput.classList.add('is-invalid');
+              return false;
+          }
+
+          fileInput.classList.remove('is-invalid');
+          fileInput.classList.add('is-valid');
+          return true;
+      }
+
+      // Real-time validation with enhanced feedback
+      confirmPassword.addEventListener('input', validatePasswords);
+      password.addEventListener('input', () => {
+          validatePasswords();
+          // Clear invalid state when user starts typing
+          if (password.classList.contains('is-invalid')) {
+              password.classList.remove('is-invalid');
+          }
+      });
+
+      capacity.addEventListener('input', validateCapacity);
+      totalCapacity.addEventListener('input', validateCapacity);
+
+      // File input validation
+      document.getElementById('image').addEventListener('change', validateFile);
+
+      // Enhanced form submission with comprehensive validation
+      form.addEventListener('submit', function(e) {
+          e.preventDefault(); // Always prevent default, then validate
+
+          // Clear any existing errors
+          errorAlert.style.display = 'none';
+          errorAlert.classList.remove('show');
+
+          let isValid = true;
+
+          // Validate all required fields
+          const requiredFields = form.querySelectorAll('[required]');
+          requiredFields.forEach(field => {
+              if (!field.checkValidity()) {
+                  field.classList.add('is-invalid');
+                  isValid = false;
+              } else {
+                  field.classList.remove('is-invalid');
+                  field.classList.add('is-valid');
+              }
+          });
+
+          // Validate passwords
+          if (!validatePasswords()) {
+              isValid = false;
+          }
+
+          // Validate capacity
+          if (!validateCapacity()) {
+              isValid = false;
+          }
+
+          // Validate file
+          if (!validateFile()) {
+              isValid = false;
+          }
+
+          // Security: Additional time validation
+          const opening = document.getElementById('opening').value;
+          const closing = document.getElementById('closing').value;
+
+          if (opening && closing && opening >= closing) {
+              showError('Closing time must be after opening time.');
+              isValid = false;
+          }
+
+          if (!isValid) {
+              // Focus on first invalid field
+              const firstInvalid = form.querySelector('.is-invalid');
+              if (firstInvalid) {
+                  firstInvalid.focus();
+                  firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+              return false;
+          }
+
+          // Show loading state
+          const submitBtn = form.querySelector('button[type="submit"]');
+          const originalText = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
+
+          // Re-enable button after timeout in case of slow response
+          setTimeout(() => {
+              if (submitBtn.disabled) {
+                  submitBtn.disabled = false;
+                  submitBtn.innerHTML = originalText;
+              }
+          }, 30000); // 30 second timeout
+
+          // Submit the form
+          form.submit();
+      });
+
+      // Helper function to show errors with XSS protection
+      function showError(message) {
+          const escapeHtml = (unsafe) => {
+              return unsafe
+                  .replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;")
+                  .replace(/'/g, "&#039;");
+          };
+
+          errorMessage.innerHTML = ` ${escapeHtml(message)}`;
+          errorAlert.style.display = 'block';
+          errorAlert.classList.add('show');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // Enhanced Bootstrap validation styling
+      form.addEventListener('input', (e) => {
+          if (e.target.checkValidity()) {
+              e.target.classList.remove('is-invalid');
+              e.target.classList.add('is-valid');
+          }
+      });
+  });
+</script>
+
+<!-- Bootstrap JS -->
+<script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>

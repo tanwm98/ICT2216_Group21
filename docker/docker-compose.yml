@@ -5,7 +5,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ../frontend:/usr/share/caddy:ro 
+      - ../frontend:/usr/share/caddy
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -23,6 +23,7 @@ services:
     expose:
       - "3000"
     volumes:
+      - ../frontend:/app/frontend
       - /app/node_modules
     networks:
       - app-network

@@ -1,98 +1,305 @@
-
-//// Display stores ////
 async function displayStores() {
+    // Cache DOM elements
+    const foodList = document.getElementById('post-content');
+    if (!foodList) {
+        console.error('Element with ID "post-content" not found');
+        return;
+    }
+
+    // Add loading state
+    foodList.innerHTML = '<div class="loading-spinner text-center p-4"><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div></div>';
+
     try {
-        const response = await fetch('/displayStores'); // Fetch data from Express API
-        if (!response.ok) {
-            throw new Error('Failed to fetch data');
-        }
-
-        const stores = await response.json();  // Parse the JSON response
-
-        const foodList = document.getElementById('post-content');
-        foodList.innerHTML = "";
-
-        stores.forEach(store => {
-
-            // div for col layout
-            const colDiv = document.createElement('div');
-            colDiv.classList.add('col-12', 'col-md-6', 'col-lg-4', 'mb-4'); // mb-4 for spacing between rows
-
-            // inner wrapper div to hold store info
-            const singlePost = document.createElement('div');
-            singlePost.classList.add('single-post', 'wow', 'fadeInUp');
-            singlePost.setAttribute('data-wow-delay', '0.1s');
-
-            // image div 
-            const imgDiv = document.createElement('div');
-            imgDiv.classList.add('post-image');
-
-            // creating <a> tag for image
-            const link = document.createElement('a');
-
-            // set store name as parameter for page to show store details [selectedRes.html]
-            link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
-
-
-            // creating img tag inside img div
-            const img = document.createElement('img');
-            img.style.width = "350px";
-            img.style.height = "230px";
-            img.style.objectFit = "cover";
-            img.src = `data:image/jpeg;base64,${store.image}`;
-            img.alt = 'Post Image';
-
-            // creating div tag for store name
-            const name = document.createElement('a');
-            link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
-            const nameHeader = document.createElement('h4'); // <a> <h4> </h4> </a> 
-            nameHeader.innerHTML = store.storeName;
-            name.appendChild(nameHeader);
-
-            // div tag for cuisine, location, price and rating
-            const details = document.createElement('div');
-            // add styling for details div 
-            details.classList.add('d-flex', 'justify-content-between');
-
-            const detailsChild = document.createElement('div');
-            const ratingDiv = document.createElement('div');
-
-            const cuisine = document.createElement('p');
-            cuisine.innerHTML = "Cuisine: " + store.cuisine;
-
-            const location = document.createElement('p');
-            location.innerHTML = "Location: " + store.location;
-
-            const priceRange = document.createElement('p');
-            priceRange.innerHTML = "Price Range: " + store.priceRange;
-
-            const rating = document.createElement('p');
-            rating.innerHTML = `Rating: ${store.average_rating ?? 'N/A'} (${store.review_count ?? 0} reviews)`;
-
-
-            // append can multiple , appendChild only 1
-            detailsChild.append(cuisine, location, priceRange);
-            ratingDiv.appendChild(rating);
-            details.append(detailsChild, rating); // add the details into the parent div
-
-
-            link.appendChild(img); // <a><img></a>
-            imgDiv.appendChild(link); // <div class="post-image"><a>...</a></div>
-
-            singlePost.append(imgDiv, name, details);
-
-            // Append the complete post to the colDiv
-            colDiv.appendChild(singlePost);
-
-            // Append the colDiv to the row container
-            foodList.appendChild(colDiv);
+        const response = await fetch('/displayStores', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
         });
 
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const stores = await response.json();
+
+        // Validate response data
+        if (!Array.isArray(stores)) {
+            throw new Error('Invalid response format: expected array');
+        }
+
+        // Clear loading state
+        foodList.innerHTML = "";
+
+        // Performance optimization: Use DocumentFragment for batching DOM operations
+        const fragment = document.createDocumentFragment();
+
+        // Batch process stores for better performance
+        stores.forEach(store => {
+            // Input validation and sanitization
+            if (!isValidStore(store)) {
+                console.warn('Invalid store data detected, skipping:', store);
+                return;
+            }
+
+            const storeElement = createStoreElement(store);
+            fragment.appendChild(storeElement);
+        });
+
+        // Single DOM operation for better performance
+        foodList.appendChild(fragment);
+
+        // Initialize lazy loading for images after DOM is updated
+        initializeLazyLoading();
+
     } catch (error) {
-        console.error('Error:', error);
+        handleDisplayError(error, foodList);
     }
 }
 
+// ======================================
+// HELPER FUNCTIONS
+// ======================================
 
-// Call the function to display users when the page loads
-window.onload = displayStores;
+// Input validation function for security - UPDATED for imageUrl
+function isValidStore(store) {
+    const requiredFields = ['storeName', 'location', 'cuisine', 'priceRange', 'imageUrl'];
+    return requiredFields.every(field =>
+        store.hasOwnProperty(field) &&
+        typeof store[field] === 'string' &&
+        store[field].trim().length > 0
+    );
+}
+
+// Secure HTML escaping to prevent XSS
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Optimized store element creation using template strings - UPDATED for imageUrl
+function createStoreElement(store) {
+    // Sanitize all text content
+    const safeName = escapeHtml(store.storeName);
+    const safeLocation = escapeHtml(store.location);
+    const safeCuisine = escapeHtml(store.cuisine);
+    const safePriceRange = escapeHtml(store.priceRange);
+    const safeAltText = escapeHtml(store.altText || 'Restaurant image');
+    const safeRating = store.average_rating ? parseFloat(store.average_rating).toFixed(1) : 'N/A';
+    const reviewCount = parseInt(store.review_count) || 0;
+
+    // Create URL parameters securely
+    const storeUrl = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
+
+    // Create container div
+    const colDiv = document.createElement('div');
+    colDiv.className = 'col-12 col-md-6 col-lg-4 mb-4';
+
+    // Use template string with proper imageUrl handling
+    colDiv.innerHTML = `
+        <div class="single-post wow fadeInUp" data-wow-delay="0.1s">
+            <div class="post-image">
+                <a href="${storeUrl}">
+                    <img
+                        class="lazy-load"
+                        data-src="${store.imageUrl}"
+                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='230'%3E%3Crect width='100%25' height='100%25' fill='%23f8f9fa'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%236c757d'%3ELoading...%3C/text%3E%3C/svg%3E"
+                        alt="${safeAltText}"
+                        style="width: 350px; height: 230px; object-fit: cover;"
+                        loading="lazy"
+                        onerror="this.src='/static/img/restaurants/no-image.png'"
+                    />
+                </a>
+            </div>
+            <a href="${storeUrl}">
+                <h4>${safeName}</h4>
+            </a>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p>Cuisine: ${safeCuisine}</p>
+                    <p>Location: ${safeLocation}</p>
+                    <p>Price Range: ${safePriceRange}</p>
+                </div>
+                <div>
+                    <p>Rating: ${safeRating} (${reviewCount} reviews)</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return colDiv;
+}
+
+// Lazy loading implementation for better performance
+function initializeLazyLoading() {
+    // Use Intersection Observer for efficient lazy loading
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    const src = img.getAttribute('data-src');
+                    if (src) {
+                        img.src = src;
+                        img.classList.remove('lazy-load');
+                        img.classList.add('loaded');
+                        observer.unobserve(img);
+                    }
+                }
+            });
+        }, {
+            rootMargin: '50px 0px',
+            threshold: 0.1
+        });
+
+        document.querySelectorAll('.lazy-load').forEach(img => {
+            imageObserver.observe(img);
+        });
+    } else {
+        // Fallback for browsers without Intersection Observer
+        document.querySelectorAll('.lazy-load').forEach(img => {
+            const src = img.getAttribute('data-src');
+            if (src) {
+                img.src = src;
+                img.classList.remove('lazy-load');
+                img.classList.add('loaded');
+            }
+        });
+    }
+}
+
+// Enhanced error handling
+function handleDisplayError(error, container) {
+    console.error('Error loading stores:', error);
+
+    // Determine error type for user-friendly messaging
+    let errorMessage = 'Unable to load restaurants at this time.';
+
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Network connection error. Please check your internet connection.';
+    } else if (error.message.includes('HTTP error')) {
+        errorMessage = 'Server error occurred. Please try again later.';
+    } else if (error.message.includes('Invalid response')) {
+        errorMessage = 'Data format error. Please contact support if this persists.';
+    }
+
+    // Display user-friendly error message
+    container.innerHTML = `
+        <div class="col-12 text-center p-5">
+            <div class="alert alert-warning" role="alert">
+                <h4>Oops! Something went wrong</h4>
+                <p class="mb-3">${escapeHtml(errorMessage)}</p>
+                <button class="btn btn-primary" onclick="displayStores()">Try Again</button>
+            </div>
+        </div>
+    `;
+}
+
+// ======================================
+// ENHANCED PAGE LOAD OPTIMIZATION
+// ======================================
+
+// Optimized page load with better performance
+function initializePageLoad() {
+    // Use requestAnimationFrame for better performance timing
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            requestAnimationFrame(displayStores);
+        });
+    } else {
+        requestAnimationFrame(displayStores);
+    }
+}
+
+// Enhanced window load with error boundary
+window.onload = function() {
+    try {
+        initializePageLoad();
+    } catch (error) {
+        console.error('Failed to initialize page:', error);
+        // Fallback to basic load
+        displayStores();
+    }
+};
+
+// ======================================
+// OPTIONAL: CACHE MANAGEMENT
+// ======================================
+
+// Cache management for better performance
+class StoreCache {
+    constructor(ttl = 5 * 60 * 1000) { // 5 minutes TTL
+        this.cache = new Map();
+        this.ttl = ttl;
+    }
+
+    set(key, data) {
+        this.cache.set(key, {
+            data,
+            timestamp: Date.now()
+        });
+    }
+
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item) return null;
+
+        if (Date.now() - item.timestamp > this.ttl) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return item.data;
+    }
+
+    clear() {
+        this.cache.clear();
+    }
+}
+
+// Initialize cache (optional enhancement)
+const storeCache = new StoreCache();
+
+// Enhanced displayStores with caching (optional)
+async function displayStoresWithCache() {
+    const cached = storeCache.get('stores');
+    if (cached) {
+        renderStores(cached);
+        return;
+    }
+
+    try {
+        const response = await fetch('/displayStores');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const stores = await response.json();
+        storeCache.set('stores', stores);
+        renderStores(stores);
+
+    } catch (error) {
+        handleDisplayError(error, document.getElementById('post-content'));
+    }
+}
+
+function renderStores(stores) {
+    const foodList = document.getElementById('post-content');
+    if (!foodList) return;
+
+    foodList.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+
+    stores.forEach(store => {
+        if (isValidStore(store)) {
+            fragment.appendChild(createStoreElement(store));
+        }
+    });
+
+    foodList.appendChild(fragment);
+    initializeLazyLoading();
+}
