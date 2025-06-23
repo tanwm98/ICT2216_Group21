@@ -1,13 +1,16 @@
 {
-	# Global defaults for every site
 	email ict2216@gmail.com
 	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+	
+	# Order the WAF directive early in the middleware chain
+	order coraza_waf first
 }
-www.kirbysplunk.kirbychope.xyz {
-  redir https://kirbysplunk.kirbychope.xyz{uri}
-}
-kirbysplunk.kirbychope.xyz {
-	# HEC ingestion
+
+kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
+	# Redirect www to non-www
+	@www host www.kirbychope.xyz
+	redir @www https://kirbychope.xyz{uri} permanent
+	
 	@hec path /services/collector*
 	handle @hec {
 		reverse_proxy https://kirby-splunk:8088 {
@@ -18,8 +21,7 @@ kirbysplunk.kirbychope.xyz {
 			}
 		}
 	}
-
-	# Splunk Web UI (fallback)
+	
 	handle {
 		reverse_proxy https://kirby-splunk:8000 {
 			transport http {
@@ -30,73 +32,166 @@ kirbysplunk.kirbychope.xyz {
 		}
 	}
 }
-www.kirbychope.xyz {
-  redir https://kirbychope.xyz{uri}
-}
+
 kirbychope.xyz {
-	# WAF Protection
+	# WAF Protection with enhanced rules and PUT support
 	coraza_waf {
 		load_owasp_crs
 		directives `
 			Include @coraza.conf-recommended
 			Include @crs-setup.conf.example
 			Include @owasp_crs/*.conf
+			
+			# Enable WAF engine
 			SecRuleEngine On
 			SecAuditEngine On
 			SecAuditLogFormat JSON
+			
+			# Set audit log file location with proper permissions
+			SecAuditLog /var/log/waf/audit.log
+			SecAuditLogParts ABIJDEFHZ
+			SecAuditLogRelevantStatus "^(40[0-35-9]|41[0-9]|42[0-9]|43[0-9]|4[4-9][0-9]|5[0-9][0-9])$"
+
+			
+			# Request body limits
+			SecRequestBodyLimit 13107200
+			SecRequestBodyNoFilesLimit 131072
+			
+			# Response body limits
+			SecResponseBodyLimit 524288
+			SecResponseBodyLimitAction Reject
+			
+			# Set paranoia level (reduced from 2 to 1 for better API compatibility)
+			SecAction "id:900000,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=1"
+			
+			# Allow HTTP methods for RESTful API
+			SecAction "id:900001,phase:1,nolog,pass,t:none,setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE'"
+			
+			# Exception rules for API endpoints
+			# Allow PUT/PATCH/DELETE for API paths
+			SecRule REQUEST_URI "@beginsWith /api/" \
+				"id:1000,phase:1,nolog,pass,t:none,\
+				ctl:ruleRemoveById=911100,\
+				ctl:ruleRemoveById=913120,\
+				ctl:ruleRemoveById=920270,\
+				ctl:ruleRemoveById=920300,\
+				ctl:ruleRemoveById=920420,\
+       			setvar:'tx.allowed_request_content_type=|application/json|application/x-www-form-urlencoded|multipart/form-data|text/xml|application/xml|text/plain|',\
+       			msg:'REST API exception: allow full CRUD+JSON'"
 		`
 	}
-	# API proxy
+	
+	handle_errors {
+		@404 expression {http.error.status_code} == 404
+		@401 expression {http.error.status_code} == 401
+		@403 expression {http.error.status_code} == 403
+		@500 expression {http.error.status_code} == 500
+		@502 expression {http.error.status_code} == 502
+
+		handle @404 {
+			root * /usr/share/caddy/errors
+			rewrite * /404.html
+			file_server
+		}
+		handle @401 {
+			root * /usr/share/caddy/errors
+			rewrite * /401.html
+			file_server
+		}
+		handle @403 {
+			root * /usr/share/caddy/errors
+			rewrite * /403.html
+			file_server
+		}
+		handle @500 {
+			root * /usr/share/caddy/errors
+			rewrite * /500.html
+			file_server
+		}
+		handle @502 {
+			root * /usr/share/caddy/errors
+			rewrite * /502.html
+			file_server
+		}
+	}
+	
+	# API with enhanced error handling
 	@api path /api/*
 	handle @api {
-		reverse_proxy backend:3000
+		reverse_proxy backend:3000 {
+			health_uri /api/health
+			health_interval 30s
+			health_timeout 5s
+		}
 	}
 
-	# Static assets
-	@static path /static/* /js/* /css/* /images/*
+	# Static files (including error pages)
+	@static path /static/* /js/* /css/* /images/* /errors/*
 	handle @static {
 		root * /usr/share/caddy
 		file_server
 	}
 
-	# Root redirect to home.html
-	@root path /
-	handle @root {
-		root * /usr/share/caddy/public
-		rewrite * /home.html
-		file_server
+    # Root redirect
+    @root path /
+    handle @root {
+        root * /usr/share/caddy/public
+        rewrite * /home.html
+        file_server
+    }
+
+    # Try HTML files from multiple locations
+    handle {
+        # First try public folder (login, register, search, etc.)
+        root * /usr/share/caddy/public
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Then try html folder (admin, profile, dashboards)
+        root * /usr/share/caddy/html
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+
+        # Then try common folder (header, footer components)
+        root * /usr/share/caddy/common
+        try_files {path}.html {path}
+        file_server {
+            pass_thru
+        }
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
 	}
 
-	# Try HTML files from multiple locations, then fallback to backend
-	handle {
-		# First try public folder
-		root * /usr/share/caddy/public
-		try_files {path}.html {path}
-		file_server {
-			pass_thru
-		}
-
-		# Then try html folder
-		root * /usr/share/caddy/html
-		try_files {path}.html {path}
-		file_server {
-			pass_thru
-		}
-
-		# Then try common folder
-		root * /usr/share/caddy/common
-		try_files {path}.html {path}
-		file_server {
-			pass_thru
-		}
-
-		# Finally fallback to backend
-		reverse_proxy backend:3000
-	}
 
 	# Security headers
 	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options SAMEORIGIN
+		# HTTPS and transport security
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		
+		# Content security
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		X-XSS-Protection "1; mode=block"
+		
+		# Privacy and referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+		
+		# Content Security Policy (adjust based on your needs)
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none';"
+		
+		# Remove server information
+		-Server
+		-X-Powered-By
+		
+		# Add security policy
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
 	}
 }
