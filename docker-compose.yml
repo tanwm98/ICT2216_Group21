@@ -20,7 +20,15 @@ services:
     networks:
       - app-network
       - infrastructure 
-
+    logging:
+      driver: splunk
+      options:
+        splunk-url: "https://splunk-internal.kirbychope.xyz:8088"
+        splunk-token: "${SPLUNK_HEC_TOKEN}"
+        splunk-format: json
+        splunk-source: "kirby-chope-backend"
+        splunk-sourcetype: "docker:container"
+        splunk-index: "kirby_chope"
   backend:
     container_name: kirby-backend
     build:
@@ -32,13 +40,11 @@ services:
       - "3000"
     networks:
       - app-network
-      - infrastructure 
-      
+      - infrastructure
     extra_hosts:
       - splunk-internal.kirbychope.xyz:127.0.0.1  
     volumes:
       - ./ssl/splunk.crt:/etc/docker/certs.d/splunk-internal.kirbychope.xyz/ca.crt:ro
-  
     logging:
       driver: splunk
       options:
