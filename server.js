@@ -150,12 +150,11 @@ app.get('/api/session', (req, res) => {
     }
 });
 
-<<<<<<< HEAD
 app.get('/api/session/validation-errors', (req, res) => {
   const errors = req.session.validationErrors || [];
   req.session.validationErrors = null; // Clear after reading
   res.json({ errors });
-=======
+});
 
 app.use((req, res, next) => {
     const isApi = req.originalUrl.startsWith('/api/');
@@ -242,7 +241,6 @@ app.use((err, req, res, next) => {
             res.send(`<h1>Error ${statusCode}</h1><a href="/">Go Home</a>`);
         }
     });
->>>>>>> origin/main
 });
 
 // Start server
