@@ -10,6 +10,11 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
 
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.info = () => {};
+  // Keep console.error and console.warn for debugging production issues
+}
 
 function verifyToken(req, res, next) {
     const token = req.cookies.token;
