@@ -16,6 +16,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const { reserveValidator, updateReservationValidator, reviewValidator } = require('../middleware/validators');
+const handleValidation = require('../middleware/handleHybridValidation');
+
 // Route to display data
 router.get('/display_specific_store', async (req, res) => {
   try {
@@ -57,7 +60,7 @@ router.get('/display_reviews', async (req, res) => {
 })
 
 // add reservation into reserve table
-router.get('/reserve', async (req, res) => {
+router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
   try {
     const pax = req.query.pax;
     const time = req.query.time;
@@ -143,7 +146,7 @@ router.get('/reserve', async (req, res) => {
 
 
 // Update reservation
-router.post('/update_reservation', async (req, res) => {
+router.post('/update_reservation', updateReservationValidator, handleValidation, async (req, res) => {
   try {
     const pax = req.body.pax;
     const time = req.body.time;
@@ -422,8 +425,6 @@ router.get('/get_name', async (req, res) => {
   }
 })
 
-
-
 // Get user profile
 router.get('/getUser', async (req, res) => {
   const userId = req.session.userId;
@@ -450,7 +451,6 @@ router.get('/getUser', async (req, res) => {
   }
 });
 
-
 // Check reservation
 router.get('/check-reservation', async (req, res) => {
   const { userid, storeid } = req.query;
@@ -475,9 +475,8 @@ router.get('/check-reservation', async (req, res) => {
   }
 });
 
-
 // add review
-router.post('/add-review', async (req, res) => {
+router.post('/add-review', reviewValidator, handleValidation, async (req, res) => {
   const { userid, storeid, rating, review } = req.body;
 
   console.log("Received review submission:");

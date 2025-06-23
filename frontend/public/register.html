@@ -5,24 +5,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Title -->
     <title>Kirby Chope - Register</title>
 
-    <!-- Bootstrap CSS -->
     <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
     <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
-
-    <!-- Specific page CSS -->
     <link href="/static/styles/login.css" rel="stylesheet">
-
-    <!-- Head Include -->
     <div id="head-placeholder"></div>
 </head>
 
 <body>
 
     <div class="row">
-        <!-- Logo Area Start -->
         <div class="col-12">
             <div class="logo_area text-center">
                 <p class="yummy-logo">
@@ -62,47 +55,68 @@
                     <label for="confirmpassword">Confirm Password</label>
                     <input type="password" class="form-control" id="confirmpassword" name="confirmpassword" required>
                 </div>
+
+                <input type="hidden" name="role" value="user">
+
                 <button type="submit" class="btn" id="registerBtn">Sign Up</button>
             </form>
-            <p>Already have an account? <a href="/login">Sign in</a> | <a href="/rOwnerReg">Register as a business owner</a> </p> 
+            <p>Already have an account? <a href="/login">Sign in</a> | <a href="/rOwnerReg">Register as a business
+                    owner</a></p>
             <a href="/">Back to Home</a>
         </div>
-        <div class="right-side col-md-6">
-
-        </div>
+        <div class="right-side col-md-6"></div>
     </div>
-
 
     <!-- Error Modal -->
     <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="errorModalLabel">Validation Error</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="errorModalBody">
-                <!-- Dynamic error message -->
-            </div>
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="errorModalLabel">Validation Error</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="errorModalBody">
+                    <!-- Dynamic error message -->
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Load include.js FIRST -->
     <script src="/common/common_js/include.js"></script>
-    <!-- Then page-specific JS -->
 
     <script>
-        document.getElementById('registerForm').addEventListener('submit', function (e) {
-            e.preventDefault(); // prevent form from submitting immediately
+        // Show validation errors from server via query string
+        document.addEventListener('DOMContentLoaded', async function () {
+            try {
+                const res = await fetch('/api/session/validation-errors');
+                const data = await res.json();
 
+                if (data.errors?.length) {
+                    const messages = data.errors.map(e => e.msg).join('\n');
+                    showModalError(messages);
+                }
+            } 
+            catch (err) {
+                    console.error('Failed to load session errors:', err);
+            }
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value.trim();
             const firstname = document.getElementById('firstname').value.trim();
             const lastname = document.getElementById('lastname').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmpassword').value;
 
-            // Regex: only letters, spaces, apostrophes, and hyphens allowed
+            const usernameRegex = /^[A-Za-z0-9._-]+$/;
             const nameRegex = /^[A-Za-z\s'-]+$/;
+
+            if (!usernameRegex.test(name)) {
+                showModalError('Username can only contain letters, numbers, dots (.), dashes (-), or underscores (_).');
+                return;
+            }
 
             if (!nameRegex.test(firstname)) {
                 showModalError('First name must not contain numbers or special characters.');
@@ -114,13 +128,16 @@
                 return;
             }
 
-            // Password match validation
-            if (password != confirmPassword) {
+            if (password.length < 8 || password.length > 64) {
+                showModalError('Password must be between 8 and 64 characters.');
+                return;
+            }
+
+            if (password !== confirmPassword) {
                 showModalError('Password and Confirm Password do not match.');
                 return;
             }
 
-            // If validation passes, submit the form
             this.submit();
         });
 
@@ -129,7 +146,7 @@
             const modal = new bootstrap.Modal(document.getElementById('errorModal'));
             modal.show();
         }
-</script>
+    </script>
 
 </body>
 

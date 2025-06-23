@@ -33,7 +33,7 @@ kirbychope.xyz {
 	# API proxy
 	@api path /api/*
 	handle @api {
-		reverse_proxy backend:3000
+		reverse_proxy localhost:3000
 	}
 
 	# Static assets
@@ -75,7 +75,7 @@ kirbychope.xyz {
 		}
 
 		# Finally fallback to backend
-		reverse_proxy backend:3000
+		reverse_proxy localhost:3000
 	}
 
 	# Security headers

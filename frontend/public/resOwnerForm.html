@@ -87,85 +87,69 @@
 <body>
   <div class="container">
     <h2>Restaurant Owner Signup</h2>
-
     <form method="POST" action="/signup-owner" enctype="multipart/form-data">
-
       <h3>Owner Information</h3>
-      <!-- Owner Info -->
       <div class="section">
-
         <label for="ownerName">Owner Username</label>
         <input type="text" id="ownerName" name="ownerName" required />
-
         <label for="firstname">First name</label>
         <input type="text" id="firstname" name="firstname" required />
-
         <label for="lastname">Last name</label>
-        <input type="text" id="ownerName" name="ownerName" required />
-
+        <input type="text" id="lastname" name="lastname" required />
         <label for="email">Email</label>
         <input type="email" id="email" name="email" required />
       </div>
 
-
       <h3>Restaurant Information</h3>
-      <!-- Restaurant Info -->
       <div class="section">
-        <div class="mb-3">
-          <label for="storeName" class="form-label">Store Name</label>
-          <input class="form-control" id="storeName" name="storeName" required>
-        </div>
-        <div class="mb-3">
-          <label for="address" class="form-label">Address</label>
-          <input class="form-control" id="address" name="address" required>
-        </div>
-        <div class="mb-3">
-          <label for="postalCode" class="form-label">Postal Code</label>
-          <input class="form-control" id="postalCode" name="postalCode" required>
-        </div>
-        <div class="mb-3">
-          <label for="cuisine" class="form-label">Cuisine</label>
-          <input class="form-control" id="cuisine" name="cuisine" required>
-        </div>
-        <div class="mb-3">
-          <label for="location" class="form-label">Location</label>
-          <input class="form-control" id="location" name="location" required>
-        </div>
-        <div class="mb-3">
-          <label for="priceRange" class="form-label">Price Range</label>
-          <select class="form-select" id="priceRange" name="priceRange" required>
-            <option value="">Select...</option>
-            <option value="$">$</option>
-            <option value="$$">$$</option>
-            <option value="$$$">$$$</option>
-            <option value="$$$$">$$$$</option>
-            <option value="$$$$$">$$$$$</option>
-            </select>
-
-            <label for="capacity">Seating Capacity (For Reservation)</label>
-            <input type="number" id="capacity" name="capacity" min="1" required />
-          </select>
-        </div>
-        <div class="mb-3">
-          <label for="totalCapacity" class="form-label">Total Capacity</label>
-          <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
-        </div>
-        <div class="mb-3">
-          <label for="opening" class="form-label">Opening Hour</label>
-          <input type="time" class="form-control" id="opening" name="opening" required>
-        </div>
-        <div class="mb-3">
-          <label for="closing" class="form-label">Closing Hour</label>
-          <input type="time" class="form-control" id="closing" name="closing" required>
-        </div>
-        <div class="mb-3">
-          <label for="image" class="form-label">Upload Image</label>
-          <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
-        </div>
-
+        <label for="storeName">Store Name</label>
+        <input class="form-control" id="storeName" name="storeName" required>
+        <label for="address">Address</label>
+        <input class="form-control" id="address" name="address" required>
+        <label for="postalCode">Postal Code</label>
+        <input class="form-control" id="postalCode" name="postalCode" required>
+        <label for="cuisine">Cuisine</label>
+        <input class="form-control" id="cuisine" name="cuisine" required>
+        <label for="location">Location</label>
+        <input class="form-control" id="location" name="location" required>
+        <label for="priceRange">Price Range</label>
+        <select class="form-select" id="priceRange" name="priceRange" required>
+          <option value="">Select...</option>
+          <option value="$">$</option>
+          <option value="$$">$$</option>
+          <option value="$$$">$$$</option>
+          <option value="$$$$">$$$$</option>
+          <option value="$$$$$">$$$$$</option>
+        </select>
+        <label for="capacity">Seating Capacity (For Reservation)</label>
+        <input type="number" id="capacity" name="capacity" min="1" required />
+        <label for="totalCapacity">Total Capacity</label>
+        <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
+        <label for="opening">Opening Hour</label>
+        <input type="time" class="form-control" id="opening" name="opening" required>
+        <label for="closing">Closing Hour</label>
+        <input type="time" class="form-control" id="closing" name="closing" required>
+        <label for="image">Upload Image</label>
+        <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
         <button type="submit">Submit</button>
+      </div>
     </form>
   </div>
+
+  <!-- Validation Error Modal -->
+  <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="errorModalLabel">Validation Error</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="errorModalBody">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Success Modal -->
   <div class="modal fade" id="signupSuccessModal" tabindex="-1" aria-labelledby="signupSuccessLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -173,39 +157,46 @@
         <div class="modal-header">
           <h5 class="modal-title" id="signupSuccessLabel">Signup Successful</h5>
         </div>
-        <div class="modal-body">
-          Thanks for signing up! Your request has been sent.
-        </div>
+        <div class="modal-body">Thanks for signing up! Your request has been sent.</div>
         <div class="modal-footer">
           <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
         </div>
       </div>
     </div>
   </div>
-  <!-- Error Modal -->
+
+  <!-- Email Error Modal -->
   <div class="modal fade" id="signupErrorModal" tabindex="-1" aria-labelledby="signupErrorLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title text-danger" id="signupErrorLabel">Signup Failed</h5>
         </div>
-        <div class="modal-body">
-          Sorry, we couldn't send your signup email. Please try again later.
-        </div>
+        <div class="modal-body">Sorry, we couldn't send your signup email. Please try again later.</div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>
   </div>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const urlParams = new URLSearchParams(window.location.search);
 
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/session/validation-errors');
+        const data = await res.json();
+        if (data.errors?.length) {
+          const messages = data.errors.map(e => e.msg).join('\n');
+          showModalError(messages);
+        }
+      } catch (err) {
+        console.error('Failed to load session errors:', err);
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.has('success')) {
         const successModal = new bootstrap.Modal(document.getElementById('signupSuccessModal'));
-        const modalElement = document.getElementById('signupSuccessModal');
-        modalElement.addEventListener('hidden.bs.modal', () => {
+        document.getElementById('signupSuccessModal').addEventListener('hidden.bs.modal', () => {
           window.location.href = '/';
         });
         successModal.show();
@@ -215,9 +206,49 @@
         errorModal.show();
       }
     });
+
+    document.querySelector('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const ownerName = document.getElementById('ownerName').value.trim();
+      const firstname = document.getElementById('firstname').value.trim();
+      const lastname = document.getElementById('lastname').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const storeName = document.getElementById('storeName').value.trim();
+      const address = document.getElementById('address').value.trim();
+      const postalCode = document.getElementById('postalCode').value.trim();
+      const cuisine = document.getElementById('cuisine').value.trim();
+      const location = document.getElementById('location').value.trim();
+      const image = document.getElementById('image').files[0];
+
+      const usernameRegex = /^[A-Za-z0-9._-]+$/;
+      const alphaRegex = /^[A-Za-z]+$/;
+      const alphaSpaceRegex = /^[A-Za-z\s]+$/;
+      const addressRegex = /^[A-Za-z0-9#,-\s]+$/;
+      const storeNameRegex = /^[A-Za-z0-9\s]+$/;
+      const postalCodeRegex = /^\d{6}$/;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!usernameRegex.test(ownerName)) return showModalError('Username can only contain letters, numbers, dots (.), dashes (-), or underscores (_).');
+      if (!alphaRegex.test(firstname)) return showModalError('First name must be alphabetic.');
+      if (!alphaRegex.test(lastname)) return showModalError('Last name must be alphabetic.');
+      if (!emailRegex.test(email)) return showModalError('Please enter a valid email address.');
+      if (!storeNameRegex.test(storeName)) return showModalError('Store name must only contain letters and numbers.');
+      if (!addressRegex.test(address)) return showModalError('Address must only contain letters, numbers, #, dash and commas.');
+      if (!postalCodeRegex.test(postalCode)) return showModalError('Postal code must be a 6-digit number.');
+      if (!alphaSpaceRegex.test(cuisine)) return showModalError('Cuisine must only contain letters.');
+      if (!alphaSpaceRegex.test(location)) return showModalError('Location must only contain letters.');
+      if (!image) return showModalError('Please upload an image.');
+
+      this.submit();
+    });
+
+    function showModalError(message) {
+      document.getElementById('errorModalBody').innerText = message;
+      const modal = new bootstrap.Modal(document.getElementById('errorModal'));
+      modal.show();
+    }
   </script>
   <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
-
 </body>
 
 </html>

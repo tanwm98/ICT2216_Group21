@@ -48,7 +48,6 @@ app.use('/public', express.static(path.join(__dirname, 'frontend/public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-
 // import route files
 const authRoutes = require('./backend/routes/authApi')
 const adminDash = require('./backend/routes/adminDashboardApi')
@@ -58,7 +57,6 @@ const selectedResRoutes = require('./backend/routes/selectedResApi');
 const search = require('./backend/routes/searchApi');
 const loggedUser = require('./backend/routes/userProfileApi');
 const { verify } = require('crypto');
-
 
 // using the routes
 app.use(homeRoutes);
@@ -111,7 +109,6 @@ app.get('/reset-password', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/public/reset-password.html'));
 });
 
-
 // ======== VERIFICATION REQUIRED ======== 
 
 app.get('/admin',verifyToken, (req, res) => {
@@ -143,12 +140,16 @@ app.get('/api/session', (req, res) => {
     }
 });
 
+app.get('/api/session/validation-errors', (req, res) => {
+  const errors = req.session.validationErrors || [];
+  req.session.validationErrors = null; // Clear after reading
+  res.json({ errors });
+});
+
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
 });
-
-
 
 // =========== Route request
 app.post('/request-reset', async (req, res) => {
@@ -194,7 +195,6 @@ app.post('/request-reset', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 // Reset password 
 app.put('/reset-password', async (req, res) => {
