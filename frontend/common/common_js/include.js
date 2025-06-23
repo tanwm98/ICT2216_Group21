@@ -1,3 +1,17 @@
+(function() {
+    'use strict';
+    const hostname = window.location.hostname;
+    const isProduction = hostname !== 'localhost' && hostname !== '127.0.0.1';
+    
+    if (isProduction) {
+        console.log = function() {};
+        console.info = function() {};
+        console.debug = function() {};
+        console.warn = function() {};
+        console.error = function() {};
+    }
+})();
+
 window.addEventListener('DOMContentLoaded', () => {
   // First, check session status
   fetch('/api/session')
