@@ -4,6 +4,46 @@ let reservationid;
 let reserveBtn;
 let reservationDetails;
 
+function escapeHtml(unsafe) {
+    if (!unsafe || typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// SECURITY: Create secure image element
+function createSecureImageElement(imageUrl, altText, fallbackText = 'Restaurant image') {
+    const img = document.createElement('img');
+    
+    // SECURITY: Validate image URL format
+    if (!imageUrl || typeof imageUrl !== 'string') {
+        img.src = '/static/img/restaurants/no-image.png';
+    } else if (imageUrl.startsWith('/static/img/restaurants/')) {
+        img.src = imageUrl;
+    } else {
+        console.warn('Invalid image URL detected:', imageUrl);
+        img.src = '/static/img/restaurants/no-image.png';
+    }
+    
+    // SECURITY: Escape alt text to prevent XSS
+    img.alt = escapeHtml(altText || fallbackText);
+    
+    // SECURITY: Add security attributes
+    img.referrerPolicy = 'strict-origin-when-cross-origin';
+    img.loading = 'lazy';
+    
+    // Error handling for missing images
+    img.onerror = function() {
+        this.src = '/static/img/restaurants/no-image.png';
+        this.onerror = null; // Prevent infinite loop
+    };
+    
+    return img;
+}
+
 window.onload = async function () {
     // check session if logged in to determine button content
     try {
@@ -28,12 +68,9 @@ window.onload = async function () {
         defaultDate: 'today',
     });
 
-
     // wait until store and timing buttons are loaded
     await displaySpecificStore();
-
 };
-
 
 // initialize 0 adults & 0 child
 let adultCount = 0;
@@ -47,68 +84,72 @@ let maxcapacity;
 // a boolean tracker to track whether the selected pax exceeds current capacity
 let isCapacityExceeded = false;
 
+// SECURITY: Input validation for dropdowns
+function validatePaxInput(value, maxValue = 20) {
+    const parsed = parseInt(value);
+    if (isNaN(parsed) || parsed < 0 || parsed > maxValue) {
+        return 0;
+    }
+    return parsed;
+}
+
 // event listener for when user changes the dropdown
 document.getElementById("adultDropdown").addEventListener("change", function () {
-    // convert value to int -> if empty then 0
-    // 'this' refers to the select tag
-    adultCount = parseInt(this.value) || 0;
+    // SECURITY: Validate input
+    adultCount = validatePaxInput(this.value);
     changePax();
     handleCapacityUpdate();
+    
+    const paxError = document.getElementById("paxError");
     if (pax > availCapacity) {
-        paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+        paxError.innerHTML = escapeHtml(`So sorry, the restaurant only has ${availCapacity} seats left.`);
         paxError.style.color = "red";
         paxError.style.display = "unset";
         isCapacityExceeded = true;
         // to disable button
         reserveBtn.disabled = true;
         reserveBtn.style.cursor = "not-allowed";
-
     } else {
         paxError.style.display = "none";
         isCapacityExceeded = false;
         reserveBtn.disabled = false;
         reserveBtn.style.backgroundColor = "#fc6c3f";
-
     }
 });
 
 document.getElementById("childDropdown").addEventListener("change", function () {
-    childCount = parseInt(this.value) || 0;
+    // SECURITY: Validate input
+    childCount = validatePaxInput(this.value);
     changePax();
     handleCapacityUpdate();
+    
+    const paxError = document.getElementById("paxError");
     if (pax > availCapacity) {
-        paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+        paxError.innerHTML = escapeHtml(`So sorry, the restaurant only has ${availCapacity} seats left.`);
         paxError.style.color = "red";
         paxError.style.display = "unset";
         isCapacityExceeded = true;
         // to disable button
         reserveBtn.disabled = true;
         reserveBtn.style.cursor = "not-allowed";
-
-    }
-    else {
+    } else {
         paxError.style.display = "none";
         isCapacityExceeded = false;
         reserveBtn.disabled = false;
-        reserveBtn.backgroundColor = "#fc6c3f";
-
+        reserveBtn.style.backgroundColor = "#fc6c3f";
     }
 });
-
 
 async function changePax() {
     // to update pax count
     const text = document.getElementById("paxText");
     let totalpax = `${adultCount} Adults, ${childCount} Children`;
-
-    // if (childCount > 0) {
-    //     totalpax += `, ${childCount} Children`;
-    // }
-    text.innerHTML = totalpax;
+    
+    // SECURITY: Use textContent to prevent XSS
+    text.textContent = totalpax;
 }
 
 async function displayTimingOptions() {
-
     const timing = document.getElementById('timing-options');
     timing.innerHTML = "";
 
@@ -117,7 +158,7 @@ async function displayTimingOptions() {
     const closeTime = stores[0].closing;
 
     const label = document.createElement("label");
-    label.innerHTML = "Choose a time: ";
+    label.textContent = "Choose a time: "; // SECURITY: Use textContent
     label.className = "d-block mb-2";
     timing.appendChild(label);
 
@@ -142,12 +183,11 @@ async function displayTimingOptions() {
     const urlParams = new URLSearchParams(window.location.search);
     reservationid = urlParams.get("reservationid");
 
-
     let dateChanged = false;
     let selectedDate;
 
     if (reservationid) {
-        const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
+        const response = await fetch(`/get_reservation_by_id?reservationid=${encodeURIComponent(reservationid)}`);
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -155,45 +195,45 @@ async function displayTimingOptions() {
         console.log(reservationDetails[0]);
         const reservationdate = reservationDetails[0].reservationDate;
         selectedDate = reservationdate;
-
     } else {
         selectedDate = date.value;
     }
 
     async function handleDisable() {
-        console.log("running disable"); // running twice WHY
+        console.log("running disable");
         let paxPerHour = 0;
 
-        // // Clear existing buttons on each regeneration
+        // Clear existing buttons on each regeneration
         visiblePart.innerHTML = '';
         hiddenPart.innerHTML = '';
 
         // whenever change date, it will hide the excess timings and do show more
         hiddenPart.style.display = 'none';
 
-        // need to clear the show more cuz it will keep adding everytime change date -> cuz this func runs everytime change date
+        // need to clear the show more cuz it will keep adding everytime change date
         const oldShowMore = document.getElementById('showMoreBtn');
         if (oldShowMore) oldShowMore.remove();
 
         let startMin = toMinutes(openTime);
         let closeMin = toMinutes(closeTime);
 
-
-
-
-        // const selectedDate = "2025-05-28";
-
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-        // continue tmr: trying to get the timeslot in hours with pax
+        // SECURITY: Validate date format before API call
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(selectedDate)) {
+            console.error('Invalid date format:', selectedDate);
+            return;
+        }
+
         // query reservations at selected date
-        const response = await fetch(`/timeslots?date=${selectedDate}`);
+        const response = await fetch(`/timeslots?date=${encodeURIComponent(selectedDate)}`);
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
         const result = await response.json();
 
-        const maxcapresponse = await fetch(`/maxcapacity?storeid=${stores[0].store_id}`);
+        const maxcapresponse = await fetch(`/maxcapacity?storeid=${encodeURIComponent(stores[0].store_id)}`);
         if (!maxcapresponse.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -207,7 +247,6 @@ async function displayTimingOptions() {
             paxPerHour = 0;
 
             const btn = document.createElement('button');
-
             btn.style.width = "70px";
             btn.style.height = "38px";
             btn.textContent = changeBack(startMin);
@@ -231,54 +270,38 @@ async function displayTimingOptions() {
             // reservation timing
             const slotTime = changeBack(startMin);
             const slotEnd = new Date(`${selectedDate}T${slotTime}:00`);
-            // reservation time - 1 hour
             const slotStart = new Date(slotEnd.getTime() - 60 * 60 * 1000);
-            // console.log("slot end: " + slotEnd);
-            // console.log("Slot start: " + slotStart);
+            
             const formattedSlotEnd = formatTime(slotEnd);
             const formattedSlotStart = formatTime(slotStart);
+            
             console.log("selectedDate: " + selectedDate);
-            console.log("/////////////////////////////////////");
             console.log("end: " + formattedSlotEnd);
             console.log("start: " + formattedSlotStart);
-            // to store number of guest per hour
+            
             let paxHour;
 
             if (count > 0) {
                 for (const r of result) {
                     if (r.reservationTime >= formattedSlotStart && r.reservationTime <= formattedSlotEnd) {
-                        console.log("========================");
                         console.log("reservation timing: " + r.reservationTime);
                         console.log("no of pax: " + r.noOfGuest);
                         paxPerHour += r.noOfGuest;
-
                         console.log("pax per hour: " + paxPerHour);
-                        // store the pax per hour value inside another var, since it will get reset
-
-                        console.log("========================");
                     }
                 }
                 paxHour = paxPerHour;
-
                 availCapacity = maxcapacity[0].totalCapacity - paxHour;
 
                 if (availCapacity == 0) {
                     btn.disabled = true;
                     btn.style.border = "";
                     btn.style.color = "";
-
                     btn.classList.add("btn-outline-secondary");
                 }
 
                 console.log("available capacity: " + availCapacity);
-
-
             }
-            // pax per hour: amt of ppl during the time 
-            // total capacity : max
-            // if the selected total number of pax by user exceed available capacity -> disable?
-
-            console.log("/////////////////////////////////////");
 
             // event listener to track which btn is selected
             btn.addEventListener('click', function () {
@@ -298,41 +321,32 @@ async function displayTimingOptions() {
                 const selectedTime = btn.textContent;
                 document.getElementById('selectedTimeInput').value = selectedTime;
 
-                // when timing is selected, i check the pax 
-                // const pax = adultCount + childCount;
-                // const availCapacity = maxcapacity[0].totalCapacity - paxPerHour;
-                // console.log("avail capacity: " + availCapacity);
-                // console.log("pax: " + pax);
-
                 console.log("pax per hour: " + paxHour);
                 availCapacity = maxcapacity[0].totalCapacity - paxHour;
                 const paxError = document.getElementById("paxError");
                 console.log("available capacity: " + availCapacity);
-                console.log("is pax > capacirty: " + pax > availCapacity);
+                console.log("is pax > capacity: " + (pax > availCapacity));
+                
                 if (pax > availCapacity) {
-                    paxError.innerHTML = `So sorry, the restaurant only has ${availCapacity} seats left.`;
+                    paxError.innerHTML = escapeHtml(`So sorry, the restaurant only has ${availCapacity} seats left.`);
                     paxError.style.color = "red";
                     paxError.style.display = "unset";
                     isCapacityExceeded = true;
-                    // to disable button
                     reserveBtn.disabled = true;
                     reserveBtn.style.cursor = "not-allowed";
                 } else {
                     paxError.style.display = "none";
                     isCapacityExceeded = false;
                     reserveBtn.disabled = false;
-                    reserveBtn.backgroundColor = "#fc6c3f";
+                    reserveBtn.style.backgroundColor = "#fc6c3f";
                 }
-
-
-            })
+            });
 
             if (count < 10) {
                 visiblePart.appendChild(btn);
             } else {
                 hiddenPart.appendChild(btn);
             }
-
 
             startMin += 30;
             count++;
@@ -352,14 +366,10 @@ async function displayTimingOptions() {
                 showmore.textContent = isHidden ? "Show less ▲" : "Show more ▼";
             });
             timing.appendChild(showmore);
-
         }
     }
 
-    // if want to update reservation, page will be loaded with reservation details
-    // so dont need to run handleDisable() again -> will have another set of timing option if run this func
     await handleDisable();
-
 
     if (reservationid) {
         const timingButton = document.querySelectorAll('button.timingButtons');
@@ -378,15 +388,8 @@ async function handleCapacityUpdate() {
     console.log("selected pax: " + pax);
 }
 
-
 // edit reservation
 async function loadFields(reservationid, timingButton) {
-    // console.log("reservationid: " + reservationid);
-    // const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
-    // if (!response.ok) {
-    //     throw new Error('Failed to fetch data');
-    // }
-    // const reservationDetails = await response.json();
     console.log(reservationDetails);
     document.getElementById("adultDropdown").value = reservationDetails[0].adultPax;
     document.getElementById("childDropdown").value = reservationDetails[0].childPax;
@@ -408,15 +411,20 @@ async function loadFields(reservationid, timingButton) {
         }
     });
 
-    document.getElementById("reserveBtn").innerHTML = "Update Reservation";
-
+    document.getElementById("reserveBtn").textContent = "Update Reservation"; // SECURITY: Use textContent
 }
 
+// FIXED: Display specific store with secure image handling
 async function displaySpecificStore() {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const name = urlParams.get('name');
         const location = urlParams.get('location');
+
+        // SECURITY: Validate URL parameters
+        if (!name || !location) {
+            throw new Error('Missing required parameters');
+        }
 
         const response = await fetch(`/display_specific_store?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
         if (!response.ok) {
@@ -426,26 +434,20 @@ async function displaySpecificStore() {
         stores = await response.json();
         await displayTimingOptions();
 
-        // reservationid = urlParams.get("reservationid");
-        // // after buttons loaded, then run the inputting values in input fields
-        // // if (reservationid) {
-        // //     const timingButton = document.querySelectorAll('button.timingButtons');
-        // //     loadFields(reservationid, timingButton);
-        // // }
-
         navTabs(stores);
         await reservationForm(stores);
 
         currentcapacity = stores[0].currentCapacity;
 
+        // SECURITY: Use textContent for user-controlled data
         const storeName = document.getElementById("storeName");
-        storeName.innerHTML = stores[0].storeName;
+        storeName.textContent = stores[0].storeName;
 
         const cuisine = document.getElementById("cuisine");
-        cuisine.innerHTML = stores[0].cuisine;
+        cuisine.textContent = stores[0].cuisine;
 
         const price = document.getElementById("price");
-        price.innerHTML = stores[0].priceRange;
+        price.textContent = stores[0].priceRange;
 
         const left = document.getElementById('left-side');
         left.innerHTML = "";
@@ -453,22 +455,23 @@ async function displaySpecificStore() {
         const link = document.createElement('a');
         link.href = "#";
 
-        const img = document.createElement('img');
+        // FIXED: Use secure image URL instead of base64
+        const img = createSecureImageElement(
+            stores[0].imageUrl, // FIXED: Use imageUrl instead of base64
+            stores[0].altText || `${stores[0].storeName} restaurant image`,
+            'Restaurant image'
+        );
+        
+        // Set image styling
         img.style.width = "650px";
         img.style.height = "450px";
         img.style.objectFit = "cover";
-        img.src = `data:image/jpeg;base64,${stores[0].image}`;
-        img.alt = 'Post Image';
-
-
 
         link.appendChild(img);
         left.append(link);
 
-        // const userId = sessionData.loggedIn ? sessionData.userId : null;
-
         // Set hidden input values
-        document.getElementById("reviewUserId").value = userid
+        document.getElementById("reviewUserId").value = userid;
         document.getElementById("reviewStoreId").value = stores[0].store_id;
 
         // Setup review form submission handler
@@ -480,31 +483,31 @@ async function displaySpecificStore() {
 
     } catch (error) {
         console.error('Error:', error);
+        showErrorMessage('Failed to load restaurant details. Please try again.');
     }
 }
 
 async function navTabs(stores) {
-
     // about content
     const title = document.getElementById("aboutTitle");
-    title.innerHTML = `About ${stores[0].storeName}`
+    title.textContent = `About ${stores[0].storeName}`; // SECURITY: Use textContent
 
     const address = document.getElementById("address");
-    address.innerHTML = `<i style="color:#FC6C3F" class="bi bi-geo-alt-fill mr-3"></i> ${stores[0].address}, Singapore ${stores[0].postalCode}`
+    // SECURITY: Escape user data in innerHTML
+    address.innerHTML = `<i style="color:#FC6C3F" class="bi bi-geo-alt-fill mr-3"></i> ${escapeHtml(stores[0].address)}, Singapore ${escapeHtml(stores[0].postalCode)}`;
 
     const openinghours = document.getElementById("openinghours");
-    openinghours.innerHTML = `<i style="color:#FC6C3F" class="bi bi-clock mr-3"></i> ${stores[0].opening.slice(0, 5)} - ${stores[0].closing.slice(0, 5)}`
+    openinghours.innerHTML = `<i style="color:#FC6C3F" class="bi bi-clock mr-3"></i> ${escapeHtml(stores[0].opening.slice(0, 5))} - ${escapeHtml(stores[0].closing.slice(0, 5))}`;
 
     // review content
     const reviewContent = document.getElementById("reviewContent");
-    const response = await fetch(`/display_reviews?storeid=${stores[0].store_id}`);
+    const response = await fetch(`/display_reviews?storeid=${encodeURIComponent(stores[0].store_id)}`);
     if (!response.ok) {
         throw new Error('Failed to fetch data');
     }
 
     const reviews = await response.json();
     reviews.forEach(r => {
-        // TODO: add who the review is posted by
         const eachReview = document.createElement("div");
         eachReview.style.backgroundColor = "#F9FAFB";
         eachReview.style.boxShadow = "0 2px 2px lightgrey";
@@ -512,16 +515,15 @@ async function navTabs(stores) {
         eachReview.style.marginBottom = "10px";
         eachReview.style.borderRadius = "6px";
 
-
         const ratingContent = document.createElement("p");
-        ratingContent.innerHTML = `<strong>Rating:</strong> ${r.rating}`;
+        // SECURITY: Escape user content
+        ratingContent.innerHTML = `<strong>Rating:</strong> ${escapeHtml(r.rating.toString())}`;
 
         const descriptionContent = document.createElement("p");
-        descriptionContent.innerHTML = `<strong>Description:</strong> ${r.description}`;
+        descriptionContent.innerHTML = `<strong>Description:</strong> ${escapeHtml(r.description)}`;
 
         eachReview.append(ratingContent, descriptionContent);
         reviewContent.append(eachReview);
-
     });
 }
 
@@ -532,7 +534,6 @@ async function reservationForm(stores) {
         e.preventDefault();
 
         const paxError = document.getElementById("paxError");
-
         const pax = document.getElementById("paxText").textContent;
         console.log("pax in form: " + pax);
 
@@ -545,34 +546,24 @@ async function reservationForm(stores) {
         const errorMsg = document.getElementById("requiredError");
 
         if (adultCount == 0 && childCount == 0) {
-            paxError.innerHTML = "Pax cannot be 0!";
+            paxError.textContent = "Pax cannot be 0!"; // SECURITY: Use textContent
             paxError.style.color = "red";
             paxError.style.display = "unset";
-
-            // } else if (!(await validateCapacity())) {
-
-            // }
         } else if (isCapacityExceeded) {
-        }
-        else if (!time) {
-            errorMsg.innerHTML = "Please select a timing.";
+            // Error already shown
+        } else if (!time) {
+            errorMsg.textContent = "Please select a timing."; // SECURITY: Use textContent
             errorMsg.style.color = "red";
             errorMsg.style.display = "unset";
-
-        }
-        else {
+        } else {
             const totalpeople = childCount + adultCount;
-
-            console.log("totalpax; " + totalpeople);
-
+            console.log("totalpax: " + totalpeople);
             console.log("Current user: " + userid);
 
             const storeid = stores[0].store_id;
-
             const storename = stores[0].storeName;
 
-
-            // to store reservation data
+            // SECURITY: Store reservation data securely (consider using JWT instead of sessionStorage for sensitive data)
             sessionStorage.setItem('reservationData', JSON.stringify({
                 totalpeople,
                 date,
@@ -584,40 +575,30 @@ async function reservationForm(stores) {
             }));
 
             if (reservationid) {
-                window.location.href = `/reserveform?rid=${reservationid}`;
-
+                window.location.href = `/reserveform?rid=${encodeURIComponent(reservationid)}`;
             } else {
                 window.location.href = `/reserveform`;
-
             }
         }
-    })
+    });
 }
 
 async function validateCapacity() {
     const paxError = document.getElementById("paxError");
 
     if (pax > currentcapacity) {
-        paxError.innerHTML = "No seats available.";
+        paxError.textContent = "No seats available."; // SECURITY: Use textContent
         paxError.style.color = "red";
         paxError.style.display = "unset";
         return false;
     } else {
-        paxError.innerHTML = "";
+        paxError.textContent = "";
         paxError.style.display = "none";
         return true;
     }
 }
 
-
-/// To submit a review ////
-
-// document.getElementById("reviewForm").addEventListener("submit", function (e) {
-//   e.preventDefault();
-//   submitReview(currentStoreId);  // `currentStoreId` should be globally accessible or passed in.
-// });
-
-
+// SECURITY: Enhanced review submission with input validation
 async function submitReview(userId, storeId) {
     const rating = parseFloat(document.getElementById("reviewRating").value);
     const review = document.getElementById("reviewText").value.trim();
@@ -627,18 +608,24 @@ async function submitReview(userId, storeId) {
     console.log("User:", userId, "Store:", storeId);
     console.log("Rating:", rating, "Review:", review);
 
+    // SECURITY: Validate inputs
     if (!userId) {
         errorMsg.textContent = "You must be logged in to submit a review.";
         return;
     }
 
-    if (rating < 0.1 || rating > 5.0) {
+    if (isNaN(rating) || rating < 0.1 || rating > 5.0) {
         errorMsg.textContent = "Rating must be between 0.1 and 5.0.";
         return;
     }
 
+    if (!review || review.length < 5 || review.length > 500) {
+        errorMsg.textContent = "Review must be between 5 and 500 characters.";
+        return;
+    }
+
     try {
-        const checkRes = await fetch(`/check-reservation?userid=${userId}&storeid=${storeId}`);
+        const checkRes = await fetch(`/check-reservation?userid=${encodeURIComponent(userId)}&storeid=${encodeURIComponent(storeId)}`);
         const resData = await checkRes.json();
 
         if (!resData.hasReserved) {
@@ -668,9 +655,7 @@ async function submitReview(userId, storeId) {
             modal.hide();
 
             document.getElementById("reviewForm").reset();
-
             location.reload();
-
         } else {
             errorMsg.textContent = data.error || "Something went wrong.";
         }
@@ -681,28 +666,43 @@ async function submitReview(userId, storeId) {
     }
 }
 
-// convert hours to minutes for calculation
+// SECURITY: Show user-friendly error messages
+function showErrorMessage(message) {
+    const container = document.querySelector('.container') || document.body;
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-danger';
+    errorDiv.style.position = 'fixed';
+    errorDiv.style.top = '20px';
+    errorDiv.style.left = '50%';
+    errorDiv.style.transform = 'translateX(-50%)';
+    errorDiv.style.zIndex = '9999';
+    errorDiv.textContent = message;
+    
+    container.appendChild(errorDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.parentNode.removeChild(errorDiv);
+        }
+    }, 5000);
+}
+
+// Helper functions (unchanged)
 function toMinutes(time) {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
 }
 
-// convert startMin (mins) to HH:MM format ( for display time )
 function changeBack(mins) {
     const hours = Math.floor(mins / 60);
     const minutes = mins % 60;
-    // formatting hours & mins into HH:MM 
-    // converts hours n mins to string 
-    // .padStart(2, '0') -> if only 1 digit like 8, then will put 0 in front to become 08
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
-// Convert to HH:mm format
 const formatTime = (date) => {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
     const seconds = date.getSeconds().toString().padStart(2, '0');
-
     return `${hours}:${minutes}:${seconds}`;
 };
-

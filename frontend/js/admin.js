@@ -28,7 +28,7 @@ function loadDashboardStats() {
       document.getElementById('totalUsers').textContent = stats.totalUsers ?? 'N/A';
       document.getElementById('totalRestaurants').textContent = stats.totalRestaurants ?? 'N/A';
       document.getElementById('totalReservations').textContent = stats.totalReservations ?? 'N/A';
-      
+
       // Display top-rated restaurant by average rating
       if (stats.topRatedRestaurant && stats.topAverageRating !== undefined) {
         document.getElementById('topReviewCount').textContent = stats.topAverageRating;
@@ -173,7 +173,7 @@ function clearRestaurantForm() {
   document.getElementById("totalCapacity").value = '';
   document.getElementById("opening").value = '';
   document.getElementById("closing").value = '';
-  document.getElementById("previewImage").src = ''; 
+  document.getElementById("previewImage").src = '';
 
   document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
 }
@@ -438,7 +438,7 @@ function clearUserForm() {
   document.getElementById("userModalBtn").textContent = "Add User";
 }
 
-// edit user 
+// edit user
 function editUser(userId) {
   fetch(`/api/users/${userId}`)
     .then(res => res.json())
