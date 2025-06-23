@@ -82,6 +82,19 @@ function logSecurity(event, severity, metadata = {}, req = null) {
     }, req);
 }
 
+function logHttpError(statusCode, message, metadata = {}, req = null) {
+    const eventType = `http_error_${statusCode}`;
+    const errorMessage = `HTTP ${statusCode}: ${message}`;
+    
+    logEvent(eventType, errorMessage, {
+        http_status: statusCode,
+        error_type: 'http_error',
+        severity: statusCode >= 500 ? 'high' : 'medium',
+        ...metadata
+    }, req);
+}
+
+
 module.exports = {
     logEvent,
     logAuth,

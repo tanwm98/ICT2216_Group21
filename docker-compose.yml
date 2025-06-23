@@ -1,8 +1,9 @@
 services:
   caddy:
+    container_name: kirby-caddy
     build:
       context: .
-      dockerfile: Caddy_Dockerfile
+      dockerfile: Dockerfile.caddy
     ports:
       - "80:80"
       - "443:443"
@@ -11,13 +12,17 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+      - waf_logs:/var/log/waf
     depends_on:
-      - backend      
+      backend:
+        condition: service_healthy      
     networks:
       - app-network
       - infrastructure 
 
   backend:
+    container_name: kirby-backend
     build:
       context: .
       dockerfile: Dockerfile
@@ -43,8 +48,6 @@ services:
         splunk-source: "kirby-chope-backend"
         splunk-sourcetype: "docker:container"
         splunk-index: "kirby_chope"
-        
-        
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -53,8 +56,20 @@ services:
 
 volumes:
   caddy_data:
+    name: kirby_caddy_data
+    driver: local
   caddy_config:
-
+    name: kirby_caddy_config
+    driver: local
+  caddy_logs:
+    name: kirby_caddy_logs
+    driver: local
+  waf_logs:
+    name: kirby_waf_logs
+    driver: local
+  backend_logs:
+    name: kirby_backend_logs
+    driver: local
 
 networks:
   app-network:
