@@ -198,7 +198,7 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
     // upon successful update, send email to user
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      to: 'chuaxinjing03@gmail.com', // can be changed to ict2216kirby@gmail.com or own email for testing
+      to: 'ict2216kirby@gmail.com', // can be changed to ict2216kirby@gmail.com or own email for testing
       subject: `Modification of Reservation at ${storename} `,
       html: `
               <p>Hello ${username},</p>
@@ -272,7 +272,7 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
 
 
 // another cron for reservation reminder email
-cron.schedule('* * * * *', async () => {
+cron.schedule('0 * * * *', async () => {
   // need to convert now() to singapore timezone to compare the timing 
   const result = await pool.query(
     `

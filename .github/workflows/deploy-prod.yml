@@ -27,6 +27,7 @@ jobs:
           echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> .env
           echo "SPLUNK_ADMIN_PASSWORD=${{ secrets.SPLUNK_ADMIN_PASSWORD }}" >> .env
           echo "SPLUNK_HEC_TOKEN=${{ secrets.SPLUNK_HEC_TOKEN }}" >> .env
+          echo "NODE_ENV=production" >> .env
           git pull origin main
           docker compose down
           docker compose up -d --build

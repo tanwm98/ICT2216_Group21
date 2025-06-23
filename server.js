@@ -8,13 +8,21 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const logger = require('./backend/logger');
 
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.info = () => {};
+  // Keep console.error and console.warn for debugging production issues
+}
 
 function verifyToken(req, res, next) {
     const token = req.cookies.token;
 
     if (!token) {
-        return res.status(403).send('Unauthorized');
+        const error = new Error('Authentication required');
+        error.statusCode = 401;
+        return next(error);  // This will trigger your error handler
     }
 
     try {
@@ -22,7 +30,9 @@ function verifyToken(req, res, next) {
         req.user = decoded; // Attach decoded token to request
         next();
     } catch (err) {
-        return res.status(401).send('Invalid or expired token');
+        const error = new Error('Invalid or expired token');
+        error.statusCode = 401;
+        return next(error);  // This will trigger your error handler
     }
 }
 
@@ -140,10 +150,99 @@ app.get('/api/session', (req, res) => {
     }
 });
 
+<<<<<<< HEAD
 app.get('/api/session/validation-errors', (req, res) => {
   const errors = req.session.validationErrors || [];
   req.session.validationErrors = null; // Clear after reading
   res.json({ errors });
+=======
+
+app.use((req, res, next) => {
+    const isApi = req.originalUrl.startsWith('/api/');
+    const acceptsJson = req.get('Accept')?.includes('application/json');
+    
+    // Log the 404 for monitoring
+    logger.logEvent('http_404', `404 Not Found: ${req.originalUrl}`, {
+        ip: req.ip,
+        user_agent: req.get('User-Agent'),
+        referer: req.get('Referer'),
+        is_api: isApi
+    }, req);
+    
+    if (isApi || acceptsJson) {
+        // API or AJAX request - return JSON
+        return res.status(404).json({ 
+            error: 'Not Found', 
+            message: 'API endpoint not found',
+            path: req.originalUrl,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // Web request - return custom HTML error page
+    res.status(404);
+    res.sendFile(path.join(__dirname, 'frontend/errors/404.html'));
+});
+
+
+// Enhanced 404 handler
+app.use((req, res, next) => {
+    const isApi = req.originalUrl.startsWith('/api/');
+    const acceptsJson = req.get('Accept')?.includes('application/json');
+    
+    console.log(`404 Not Found: ${req.originalUrl} from IP: ${req.ip}`);
+    
+    if (isApi || acceptsJson) {
+        return res.status(404).json({ 
+            error: 'Not Found', 
+            message: 'API endpoint not found',
+            path: req.originalUrl
+        });
+    }
+    
+    res.status(404);
+    res.sendFile(path.join(__dirname, 'frontend/errors/404.html'));
+});
+
+// Enhanced general error handler
+app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || err.status || 500;
+    
+    console.error(`Error ${statusCode}:`, err.message);
+    
+    const isApi = req.originalUrl.startsWith('/api/');
+    const acceptsJson = req.get('Accept')?.includes('application/json');
+    
+    if (isApi || acceptsJson) {
+        return res.status(statusCode).json({
+            error: true,
+            message: statusCode === 500 ? 'Internal Server Error' : err.message
+        });
+    }
+    
+    res.status(statusCode);
+    
+    let errorPagePath;
+    switch (statusCode) {
+        case 401:
+            errorPagePath = path.join(__dirname, 'frontend/errors/401.html');
+            break;
+        case 403:
+            errorPagePath = path.join(__dirname, 'frontend/errors/403.html');
+            break;
+        case 500:
+            errorPagePath = path.join(__dirname, 'frontend/errors/500.html');
+            break;
+        default:
+            errorPagePath = path.join(__dirname, 'frontend/errors/404.html');
+    }
+    
+    res.sendFile(errorPagePath, (sendErr) => {
+        if (sendErr) {
+            res.send(`<h1>Error ${statusCode}</h1><a href="/">Go Home</a>`);
+        }
+    });
+>>>>>>> origin/main
 });
 
 // Start server
