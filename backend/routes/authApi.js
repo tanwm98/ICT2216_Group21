@@ -419,60 +419,60 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
 
             // 4. Send notification email to admin
             const adminMessage = `
-New Restaurant Owner Registration:
+                New Restaurant Owner Registration:
 
-👤 Owner Details:
-   Name: ${ownerName} (${firstname} ${lastname})
-   Email: ${email}
-   User ID: ${ownerId}
+                👤 Owner Details:
+                Name: ${ownerName} (${firstname} ${lastname})
+                Email: ${email}
+                User ID: ${ownerId}
 
-🏪 Restaurant Details:
-   Store Name: ${storeName}
-   Store ID: ${storeId}
-   Address: ${address}
-   Postal Code: ${postalCode}
-   Cuisine: ${cuisine}
-   Location: ${location}
-   Price Range: ${priceRange}
-   Seating Capacity: ${capacityNum}
-   Total Capacity: ${totalCapacityNum}
-   Opening Hours: ${opening} - ${closing}
-   Image: ${imageFile ? `Uploaded (${imageFile.filename})` : 'Not provided'}
+                🏪 Restaurant Details:
+                Store Name: ${storeName}
+                Store ID: ${storeId}
+                Address: ${address}
+                Postal Code: ${postalCode}
+                Cuisine: ${cuisine}
+                Location: ${location}
+                Price Range: ${priceRange}
+                Seating Capacity: ${capacityNum}
+                Total Capacity: ${totalCapacityNum}
+                Opening Hours: ${opening} - ${closing}
+                Image: ${imageFile ? `Uploaded (${imageFile.filename})` : 'Not provided'}
 
-Status: ACTIVE - Owner can now log in and manage their restaurant.
+                Status: ACTIVE - Owner can now log in and manage their restaurant.
             `;
 
             await transporter.sendMail({
                 from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
-                to: 'ict2216kirby@gmail.com',
+                to: 'dx8153@gmail.com',
                 subject: `New Restaurant Registered: ${storeName}`,
                 text: adminMessage,
             });
 
             // 5. Send welcome email to owner
             const ownerMessage = `
-Welcome to Kirby Chope, ${firstname}!
+                Welcome to Kirby Chope, ${firstname}!
 
-Your restaurant has been successfully registered and is now live on our platform!
+                Your restaurant has been successfully registered and is now live on our platform!
 
-🎉 Your Restaurant Details:
-Restaurant Name: ${storeName}
-Location: ${location}
-Cuisine: ${cuisine}
-Address: ${address}
+                🎉 Your Restaurant Details:
+                Restaurant Name: ${storeName}
+                Location: ${location}
+                Cuisine: ${cuisine}
+                Address: ${address}
 
-You can now log in to your owner dashboard to:
-- Manage your restaurant profile
-- View and handle reservations
-- Update your restaurant information
-- Monitor customer reviews
+                You can now log in to your owner dashboard to:
+                - Manage your restaurant profile
+                - View and handle reservations
+                - Update your restaurant information
+                - Monitor customer reviews
 
-Login at: ${req.protocol}://${req.get('host')}/login
+                Login at: ${req.protocol}://${req.get('host')}/login
 
-Thank you for joining Kirby Chope!
+                Thank you for joining Kirby Chope!
 
-Best regards,
-The Kirby Chope Team
+                Best regards,
+                The Kirby Chope Team
             `;
 
             await transporter.sendMail({
