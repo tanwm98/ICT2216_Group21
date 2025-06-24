@@ -5,22 +5,71 @@ const authenticateToken = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 const argon2 = require('argon2');
-const upload = multer();
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+
+// UPDATED: File storage configuration instead of memory storage
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../../frontend/static/img/restaurants');
+        
+        // Ensure directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+        const extension = path.extname(file.originalname).toLowerCase();
+        const filename = `restaurant-${uniqueSuffix}${extension}`;
+        cb(null, filename);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(extension)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type. Only JPEG and PNG images allowed.'), false);
+    }
+};
+
+const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max
+        files: 1
+    }
+});
+
+// HELPER: Generate secure image URLs
+function generateImageUrl(imageFilename) {
+    if (!imageFilename || typeof imageFilename !== 'string') {
+        return '/static/img/restaurants/no-image.png';
+    }
+    return `/static/img/restaurants/${imageFilename}`;
+}
 
 // Set up your transporter (configure with real credentials)
 const transporter = nodemailer.createTransport({
-    service: 'Gmail', // or 'SendGrid', 'Mailgun', etc.
+    service: 'Gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
 });
 
-
 // ======== ADMIN DASHBOARD ========
 router.get('/dashboard-stats', async (req, res) => {
     try {
-        const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
+        const totalUsers = await pool.query('SELECT COUNT(*) FROM users WHERE role != $1', ['admin']);
         const totalRestaurants = await pool.query('SELECT COUNT(*) FROM stores');
         const totalReservations = await pool.query('SELECT COUNT(*) FROM reservations');
         const topRatingResult = await pool.query(`
@@ -64,8 +113,6 @@ router.get('/users', async (req, res) => {
 // Add a new user (default password Pass123)
 router.post('/users', async (req, res) => {
     const { name, email, role, fname, lname } = req.body;
-
-    console.log(fname)
 
     try {
         const password = 'Pass123';
@@ -146,7 +193,6 @@ router.post('/users/:id/reset-password', async (req, res) => {
     }
 });
 
-
 // ======== RESTAURANTS ========
 // Get all restaurants
 router.get('/restaurants', async (req, res) => {
@@ -178,77 +224,63 @@ router.get('/owners', async (req, res) => {
     }
 });
 
-// Add new restaurant
-// router.post('/restaurants', async (req, res) => {
-//     const {
-//         owner_id, storeName, address, postalCode, location,
-//         cuisine, priceRange, totalCapacity,
-//         opening, closing
-//     } = req.body;
-
-//     try {
-//         await pool.query(`
-//             INSERT INTO stores (
-//                 owner_id, "storeName", address, "postalCode", location,
-//                 cuisine, "priceRange", "totalCapacity", "currentCapacity",
-//                 opening, closing
-//             )
-//             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-//         `, [
-//             owner_id, storeName, address, postalCode, location,
-//             cuisine, priceRange, totalCapacity, totalCapacity,
-//             opening, closing
-//         ]);
-//         res.json({ message: 'Restaurant added successfully' });
-//     } catch (err) {
-//         console.error('Error adding restaurant:', err);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// });
-
+// UPDATED: Add new restaurant with file storage
 router.post('/restaurants', upload.single('image'), async (req, res) => {
-  const {
-    owner_id, storeName, address, postalCode, location,
-    cuisine, priceRange, totalCapacity,
-    opening, closing
-  } = req.body;
+    const {
+        owner_id, storeName, address, postalCode, location,
+        cuisine, priceRange, totalCapacity,
+        opening, closing
+    } = req.body;
 
-  console.log('FILE:', req.file); // ✅ Add this for debugging
-  console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
+    console.log('BODY:', req.body);
 
-  const base64Image = req.file ? req.file.buffer.toString('base64') : null;
+    // UPDATED: Store filename instead of base64
+    const imageFilename = req.file ? req.file.filename : null;
+    const altText = req.file ? `${storeName} restaurant image` : null;
 
-  try {
-    await pool.query(`
-      INSERT INTO stores (
-        owner_id, "storeName", address, "postalCode", location,
-        cuisine, "priceRange", "totalCapacity", "currentCapacity",
-        opening, closing, image
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-    `, [
-      owner_id, storeName, address, postalCode, location,
-      cuisine, priceRange, totalCapacity, totalCapacity,
-      opening, closing, base64Image
-    ]);
+    try {
+        await pool.query(`
+            INSERT INTO stores (
+                owner_id, "storeName", address, "postalCode", location,
+                cuisine, "priceRange", "totalCapacity", "currentCapacity",
+                opening, closing, image_filename, image_alt_text
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        `, [
+            owner_id, storeName, address, postalCode, location,
+            cuisine, priceRange, totalCapacity, totalCapacity,
+            opening, closing, imageFilename, altText
+        ]);
 
-    res.json({ message: 'Restaurant added successfully' });
-  } catch (err) {
-    console.error('Error adding restaurant:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+        res.json({ message: 'Restaurant added successfully' });
+    } catch (err) {
+        console.error('Error adding restaurant:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
-
-// Get restaurant by id
+// UPDATED: Get restaurant by id with proper column names
 router.get('/restaurants/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
         const result = await pool.query(`
-            SELECT store_id, "storeName", address, "postalCode", location,
-                cuisine, "priceRange", "totalCapacity", "currentCapacity",
-                opening, closing, owner_id
+            SELECT 
+                store_id, 
+                "storeName" as "storeName", 
+                address, 
+                "postalCode" as "postalCode", 
+                location,
+                cuisine, 
+                "priceRange" as "priceRange", 
+                "totalCapacity" as "totalCapacity", 
+                "currentCapacity" as "currentCapacity",
+                opening, 
+                closing, 
+                owner_id,
+                image_filename,
+                image_alt_text
             FROM stores
             WHERE store_id = $1
         `, [id]);
@@ -257,57 +289,108 @@ router.get('/restaurants/:id', async (req, res) => {
             return res.status(404).json({ error: 'Restaurant not found' });
         }
 
-        res.json(result.rows[0]);
+        const restaurant = result.rows[0];
+        
+        // Add image URL for frontend compatibility
+        restaurant.imageUrl = generateImageUrl(restaurant.image_filename);
+
+        res.json(restaurant);
     } catch (err) {
         console.error('Error fetching restaurant:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Update restaurant by id
+// UPDATED: Update restaurant by id with file handling
 router.put('/restaurants/:id', upload.single('image'), async (req, res) => {
-  const id = req.params.id;
-  const {
-    storeName, address, postalCode, cuisine, location,
-    priceRange, totalCapacity, opening, closing, owner_id
-  } = req.body;
+    const id = req.params.id;
+    const {
+        storeName, address, postalCode, cuisine, location,
+        priceRange, totalCapacity, opening, closing, owner_id
+    } = req.body;
 
-  const imageBase64 = req.file ? req.file.buffer.toString('base64') : null;
+    try {
+        // Get current restaurant data
+        const currentResult = await pool.query(
+            'SELECT image_filename FROM stores WHERE store_id = $1',
+            [id]
+        );
 
-  try {
-    const result = await pool.query(`
-      UPDATE stores SET
-        "storeName" = $1,
-        address = $2,
-        "postalCode" = $3,
-        cuisine = $4,
-        location = $5,
-        "priceRange" = $6,
-        "totalCapacity" = $7,
-        "currentCapacity" = $7,
-        opening = $8,
-        closing = $9,
-        owner_id = $10,
-        image = COALESCE($11, image)
-      WHERE store_id = $12
-    `, [
-      storeName, address, postalCode, cuisine, location,
-      priceRange, totalCapacity, opening, closing,
-      owner_id, imageBase64, id
-    ]);
+        if (currentResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
 
-    res.json({ message: 'Restaurant updated successfully' });
-  } catch (err) {
-    console.error('Error updating restaurant:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+        const currentRestaurant = currentResult.rows[0];
+        let imageFilename = currentRestaurant.image_filename;
+        let altText = `${storeName} restaurant image`;
+
+        // If new image uploaded
+        if (req.file) {
+            // Delete old image file if it exists
+            if (currentRestaurant.image_filename) {
+                const oldImagePath = path.join(__dirname, '../../frontend/static/img/restaurants', currentRestaurant.image_filename);
+                try {
+                    if (fs.existsSync(oldImagePath)) {
+                        fs.unlinkSync(oldImagePath);
+                    }
+                } catch (deleteErr) {
+                    console.warn('Failed to delete old image:', deleteErr);
+                }
+            }
+            imageFilename = req.file.filename;
+        }
+
+        await pool.query(`
+            UPDATE stores SET
+                "storeName" = $1,
+                address = $2,
+                "postalCode" = $3,
+                cuisine = $4,
+                location = $5,
+                "priceRange" = $6,
+                "totalCapacity" = $7,
+                "currentCapacity" = $7,
+                opening = $8,
+                closing = $9,
+                owner_id = $10,
+                image_filename = $11,
+                image_alt_text = $12
+            WHERE store_id = $13
+        `, [
+            storeName, address, postalCode, cuisine, location,
+            priceRange, totalCapacity, opening, closing,
+            owner_id, imageFilename, altText, id
+        ]);
+
+        res.json({ message: 'Restaurant updated successfully' });
+    } catch (err) {
+        console.error('Error updating restaurant:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
-// Delete restaurant by id
+// UPDATED: Delete restaurant by id with file cleanup
 router.delete('/restaurants/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
+        // Get image filename before deleting
+        const result = await pool.query(
+            'SELECT image_filename FROM stores WHERE store_id = $1',
+            [id]
+        );
+
+        if (result.rows.length > 0 && result.rows[0].image_filename) {
+            const imagePath = path.join(__dirname, '../../frontend/static/img/restaurants', result.rows[0].image_filename);
+            try {
+                if (fs.existsSync(imagePath)) {
+                    fs.unlinkSync(imagePath);
+                }
+            } catch (deleteErr) {
+                console.warn('Failed to delete image file:', deleteErr);
+            }
+        }
+
         await pool.query('DELETE FROM stores WHERE store_id = $1', [id]);
         res.json({ message: 'Restaurant deleted successfully' });
     } catch (err) {
@@ -337,51 +420,30 @@ router.get('/reviews', async (req, res) => {
 
 // ======== RESERVATIONS ========
 router.get('/reservations', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        r.reservation_id,
-        r."noOfGuest",
-        r."reservationDate"::TEXT,
-        r."reservationTime",
-        r."specialRequest",
-        r.status,
-        u.name AS "userName",
-        s."storeName" AS "restaurantName"
-      FROM reservations r
-      JOIN users u ON r.user_id = u.user_id
-      JOIN stores s ON r.store_id = s.store_id
-      ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching reservations:', err);
-    res.status(500).json({ error: 'Failed to fetch reservations' });
-  }
+    try {
+        const result = await pool.query(`
+            SELECT 
+                r.reservation_id,
+                r."noOfGuest",
+                r."reservationDate"::TEXT,
+                r."reservationTime",
+                r."specialRequest",
+                r.status,
+                u.name AS "userName",
+                s."storeName" AS "restaurantName"
+            FROM reservations r
+            JOIN users u ON r.user_id = u.user_id
+            JOIN stores s ON r.store_id = s.store_id
+            ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching reservations:', err);
+        res.status(500).json({ error: 'Failed to fetch reservations' });
+    }
 });
 
-
 // =========== CANCEL reservation =============
-// router.put('/reservations/:id/cancel', async (req, res) => {
-//     try {
-//         const reservationId = req.params.id;
-
-//         const result = await pool.query(
-//             `UPDATE reservations SET status = 'cancelled' WHERE reservation_id = $1 RETURNING *`,
-//             [reservationId]
-//         );
-
-//         if (result.rowCount === 0) {
-//             return res.status(404).json({ error: 'Reservation not found' });
-//         }
-
-//         res.json({ message: 'Reservation cancelled', reservation: result.rows[0] });
-//     } catch (err) {
-//         console.error('Error cancelling reservation:', err);
-//         res.status(500).json({ error: 'Failed to cancel reservation' });
-//     }
-// });
-
 router.put('/reservations/:id/cancel', async (req, res) => {
     try {
         const reservationId = req.params.id;
@@ -403,16 +465,6 @@ router.put('/reservations/:id/cancel', async (req, res) => {
 
         const reservation = result.rows[0];
 
-        // Log reservation details
-        console.log('📋 Reservation Details:');
-        console.log(`User Name: ${reservation.user_name}`);
-        console.log(`User Email: ${reservation.user_email}`);
-        console.log(`Restaurant: ${reservation.storeName}`);
-        console.log(`Date: ${reservation.reservationDate}`);
-        console.log(`Time: ${reservation.reservationTime}`);
-        console.log(`Guests: ${reservation.noOfGuest}`);
-        console.log(`Special Request: ${reservation.specialRequest || 'None'}`);
-
         // Cancel the reservation
         await pool.query(
             `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
@@ -421,12 +473,12 @@ router.put('/reservations/:id/cancel', async (req, res) => {
 
         // Format date and time
         const date = new Date(reservation.reservationDate).toLocaleDateString();
-        const time = reservation.reservationTime.slice(0, 5); // HH:MM
+        const time = reservation.reservationTime.slice(0, 5);
 
         // Compose email
         const mailOptions = {
             from: '"Kirby Chope" <yourapp@example.com>',
-            to: reservation.user_email,     // testing maybe use own email 'dx8153@gmail.com'
+            to: reservation.user_email,
             subject: `Your reservation at ${reservation.storeName} has been cancelled`,
             html: `
                 <p>Hello ${reservation.user_name || ''},</p>
@@ -458,6 +510,5 @@ router.put('/reservations/:id/cancel', async (req, res) => {
         res.status(500).json({ error: 'Failed to cancel reservation' });
     }
 });
-
 
 module.exports = router;
