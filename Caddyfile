@@ -76,6 +76,7 @@ kirbychope.xyz {
 				ctl:ruleRemoveById=920270,\
 				ctl:ruleRemoveById=920300,\
 				ctl:ruleRemoveById=920420,\
+				ctl:ruleRemoveById=949110,\
        			setvar:'tx.allowed_request_content_type=|application/json|application/x-www-form-urlencoded|multipart/form-data|text/xml|application/xml|text/plain|',\
        			msg:'REST API exception: allow full CRUD+JSON'"
 		`
