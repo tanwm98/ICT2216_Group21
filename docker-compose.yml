@@ -8,7 +8,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./frontend:/usr/share/caddy:ro
+      - ./frontend:/usr/share/caddy
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -44,6 +44,8 @@ services:
     extra_hosts:
       - splunk-internal.kirbychope.xyz:127.0.0.1  
     volumes:
+      - ./frontend:/app/frontend
+      - /app/node_modules            # Preserve node_modules in container
       - ./ssl/splunk.crt:/etc/docker/certs.d/splunk-internal.kirbychope.xyz/ca.crt:ro
     logging:
       driver: splunk
