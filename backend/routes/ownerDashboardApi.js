@@ -3,6 +3,9 @@ const pool = require('../../db');
 const router = express.Router();
 const authenticateToken = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
+const { updateRestaurantValidator, cancelReservationValidator } = require('../middleware/validators');
+const handleValidation = require('../middleware/handleHybridValidation');
+const session = require('express-session');
 
 // Set up your transporter (configure with real credentials)
 const transporter = nodemailer.createTransport({
@@ -48,7 +51,6 @@ router.get('/reservations/:ownerId',authenticateToken, async (req, res) => {
             WHERE s.owner_id = $1
             ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
         `, [ownerId]);
-
         res.json(result.rows);
     } catch (err) {
         console.error('Error fetching owner reservations:', err);
@@ -77,29 +79,24 @@ router.get('/reservations/:ownerId',authenticateToken, async (req, res) => {
 //     }
 // });
 
-router.put('/reservations/:id/cancel', async (req, res) => {
+router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
     try {
         const reservationId = req.params.id;
-
-        // Fetch reservation details, user email, and store name
-        const result = await pool.query(
-            `SELECT r.*, u.email AS user_email, u.name AS user_name, s."storeName"
+        const result = await pool.query(`
+            SELECT r.*, u.email AS user_email, u.name AS user_name, s."storeName"
              FROM reservations r
              JOIN users u ON r."user_id" = u."user_id"
              JOIN stores s ON r."store_id" = s."store_id"
-             WHERE r."reservation_id" = $1`,
-            [reservationId]
-        );
+             WHERE r."reservation_id" = $1`, [reservationId]);
 
         if (result.rowCount === 0) {
-            console.log(`No reservation found with ID ${reservationId}`);
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
         const reservation = result.rows[0];
 
         // Log reservation details
-        console.log('📋 Reservation Details:');
+        console.log('Reservation Details:');
         console.log(`User Name: ${reservation.user_name}`);
         console.log(`User Email: ${reservation.user_email}`);
         console.log(`Restaurant: ${reservation.storeName}`);
@@ -108,30 +105,23 @@ router.put('/reservations/:id/cancel', async (req, res) => {
         console.log(`Guests: ${reservation.noOfGuest}`);
         console.log(`Special Request: ${reservation.specialRequest || 'None'}`);
 
-        // Cancel the reservation
-        await pool.query(
-            `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
-            [reservationId]
-        );
+        await pool.query(`UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`, [reservationId]);
 
-        // Format date and time
         const date = new Date(reservation.reservationDate).toLocaleDateString();
-        const time = reservation.reservationTime.slice(0, 5); // HH:MM
+        const time = reservation.reservationTime.slice(0, 5);
 
-        // Compose email
         const mailOptions = {
             from: '"Kirby Chope" <yourapp@example.com>',
-            to: reservation.user_email,     // testing maybe use own email 'dx8153@gmail.com'
+            to: reservation.user_email,
             subject: `Your reservation at ${reservation.storeName} has been cancelled`,
             html: `
                 <p>Hello ${reservation.user_name || ''},</p>
-                <p>We regret to inform you that your reservation has been <strong>cancelled</strong> by the restaurant.</p>
-                <h4>Reservation Details:</h4>
+                <p>Your reservation has been <strong>cancelled</strong> by the restaurant.</p>
                 <ul>
                     <li><strong>Restaurant:</strong> ${reservation.storeName}</li>
                     <li><strong>Date:</strong> ${date}</li>
                     <li><strong>Time:</strong> ${time}</li>
-                    <li><strong>Number of Guests:</strong> ${reservation.noOfGuest}</li>
+                    <li><strong>Guests:</strong> ${reservation.noOfGuest}</li>
                     ${reservation.specialRequest ? `<li><strong>Special Request:</strong> ${reservation.specialRequest}</li>` : ''}
                 </ul>
                 <p>We apologize for the inconvenience.</p>
@@ -139,12 +129,8 @@ router.put('/reservations/:id/cancel', async (req, res) => {
         };
 
         await transporter.sendMail(mailOptions)
-            .then(info => {
-                console.log(`Email sent to ${reservation.user_email}: ${info.response}`);
-            })
-            .catch(error => {
-                console.error(`Failed to send email to ${reservation.user_email}:`, error);
-            });
+            .then(info => console.log(`Email sent: ${info.response}`))
+            .catch(error => console.error(`Email failed:`, error));
 
         res.json({ message: 'Reservation cancelled and email sent', reservation });
 
@@ -156,40 +142,18 @@ router.put('/reservations/:id/cancel', async (req, res) => {
 
 
 // ========== UPDATE EXISTING RESTAURANT ==========
-router.put('/restaurants/:id', authenticateToken, async (req, res) => {
+router.put('/restaurants/:id', authenticateToken, updateRestaurantValidator, handleValidation, async (req, res) => {
     const ownerId = req.user.userId;
     const restaurantId = req.params.id;
-    const {
-        storeName,
-        address,
-        postalCode,
-        location,
-        cuisine,
-        priceRange,
-        totalCapacity,
-        opening,
-        closing
-    } = req.body;
+    const { storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing } = req.body;
 
     try {
         const result = await pool.query(`
             UPDATE stores
-            SET "storeName" = $1,
-                address = $2,
-                "postalCode" = $3,
-                location = $4,
-                cuisine = $5,
-                "priceRange" = $6,
-                "totalCapacity" = $7,
-                opening = $8,
-                closing = $9
-            WHERE store_id = $10 AND owner_id = $11
-            RETURNING *
-        `, [
-            storeName, address, postalCode, location, cuisine,
-            priceRange, totalCapacity, opening, closing,
-            restaurantId, ownerId
-        ]);
+            SET "storeName" = $1, address = $2, "postalCode" = $3, location = $4, cuisine = $5,
+                "priceRange" = $6, "totalCapacity" = $7, opening = $8, closing = $9
+            WHERE store_id = $10 AND owner_id = $11 RETURNING *
+        `, [storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing, restaurantId, ownerId]);
 
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Restaurant not found or unauthorized' });

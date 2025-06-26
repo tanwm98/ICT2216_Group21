@@ -4,6 +4,9 @@ const pool = require('../../db');
 const argon2 = require('argon2');
 const authenticateToken = require('../../frontend/js/token');
 
+const { userPasswordValidator, userNameValidator, userFirstNameValidator, userLastNameValidator, cancelReservationValidator } = require('../middleware/validators');
+const handleValidation = require('../middleware/handleHybridValidation');
+
 // ======== Get user profile ======== 
 router.get('/getUser', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
@@ -86,7 +89,7 @@ router.get('/reviews', authenticateToken, async (req, res) => {
 
 
 // ======== Reset user password ======== 
-router.post('/reset-password', authenticateToken, async (req, res) => {
+router.post('/reset-password', authenticateToken, userPasswordValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
   const { newPassword } = req.body;
 
@@ -94,8 +97,8 @@ router.post('/reset-password', authenticateToken, async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
 
-  if (!newPassword || newPassword.length < 5) {
-    return res.status(400).json({ error: 'Password must be at least 5 characters long.' });
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
   }
 
   try {
@@ -133,7 +136,7 @@ router.post('/reset-password', authenticateToken, async (req, res) => {
 // });
 // ======== Update user profile fields ======== 
 // ======== Update Username ========
-router.put('/edit/username', authenticateToken, async (req, res) => {
+router.put('/edit/username', authenticateToken, userNameValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
   const { name } = req.body;
 
@@ -151,7 +154,7 @@ router.put('/edit/username', authenticateToken, async (req, res) => {
 });
 
 // ======== Update First Name ========
-router.put('/edit/firstname', authenticateToken, async (req, res) => {
+router.put('/edit/firstname', authenticateToken, userFirstNameValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
   const { firstname } = req.body;
 
@@ -160,7 +163,7 @@ router.put('/edit/firstname', authenticateToken, async (req, res) => {
   }
 
   if (/\d/.test(firstname)) {
-    return res.status(400).json({ message: 'First name cannot contain numbers.' });
+    return res.status(400).json({ message: 'First name cannot contain numbers and characters.' });
   }
 
   try {
@@ -173,7 +176,7 @@ router.put('/edit/firstname', authenticateToken, async (req, res) => {
 });
 
 // ======== Update Last Name ========
-router.put('/edit/lastname', authenticateToken, async (req, res) => {
+router.put('/edit/lastname', authenticateToken, userLastNameValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
   const { lastname } = req.body;
 
@@ -182,7 +185,7 @@ router.put('/edit/lastname', authenticateToken, async (req, res) => {
   }
 
   if (/\d/.test(lastname)) {
-    return res.status(400).json({ message: 'Last name cannot contain numbers.' });
+    return res.status(400).json({ message: 'Last name cannot contain numbers and characters.' });
   }
 
   try {
@@ -194,11 +197,8 @@ router.put('/edit/lastname', authenticateToken, async (req, res) => {
   }
 });
 
-
-
-
 // ======== Cancel reservation ======== 
-router.put('/reservations/:id/cancel', authenticateToken, async (req, res) => {
+router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValidator, handleValidation, async (req, res) => {
   try {
     const reservationId = req.params.id;
     const userId = req.user.userId;
@@ -241,6 +241,12 @@ router.put('/reservations/:id/cancel', authenticateToken, async (req, res) => {
     await pool.query(
       `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
       [reservationId]
+    );
+
+    // Add back pax to current capacity
+    await pool.query(
+      `UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2`,
+      [reservation.noOfGuest, reservation.store_id]
     );
 
     res.json({ message: 'Reservation cancelled successfully', reservation });

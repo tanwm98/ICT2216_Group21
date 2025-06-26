@@ -13,6 +13,7 @@ const logger = require('./backend/logger');
 if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
   console.info = () => {};
+  // Keep console.error and console.warn for debugging production issues
 }
 
 function verifyToken(req, res, next) {
@@ -150,6 +151,12 @@ app.get('/api/session', (req, res) => {
     } catch {
         res.json({ loggedIn: false });
     }
+});
+
+app.get('/api/session/validation-errors', (req, res) => {
+  const errors = req.session.validationErrors || [];
+  req.session.validationErrors = null; // Clear after reading
+  res.json({ errors });
 });
 
 app.use((req, res, next) => {
