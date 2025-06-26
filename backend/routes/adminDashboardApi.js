@@ -1,11 +1,59 @@
 const express = require('express');
 const pool = require('../../db'); 
 const router = express.Router();
-const authenticateToken = require('../../frontend/js/token');
+const { authenticateToken, requireAdmin } = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 const argon2 = require('argon2');
-const upload = multer();
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../../frontend/static/img/restaurants');
+
+        // Ensure directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+        const extension = path.extname(file.originalname).toLowerCase();
+        const filename = `restaurant-${uniqueSuffix}${extension}`;
+        cb(null, filename);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(extension)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type. Only JPEG and PNG images allowed.'), false);
+    }
+};
+
+const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max
+        files: 1
+    }
+});
+
+function generateImageUrl(imageFilename) {
+    if (!imageFilename || typeof imageFilename !== 'string') {
+        return '/static/img/restaurants/no-image.png';
+    }
+    return `/static/img/restaurants/${imageFilename}`;
+}
 
 // Set up your transporter (configure with real credentials)
 const transporter = nodemailer.createTransport({
@@ -27,6 +75,9 @@ const {
   restaurantAddValidator
 } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
+
+router.use(authenticateToken, requireAdmin);
+
 
 // ======== ADMIN DASHBOARD ========
 router.get('/dashboard-stats', async (req, res) => {
@@ -90,12 +141,51 @@ router.post('/users', addUserValidator, handleValidation, async (req, res) => {
 });
 
 // Delete user by id
+// Replace the existing deleteUser route with this:
 router.delete('/users/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        await pool.query('DELETE FROM users WHERE user_id = $1', [id]);
-        res.json({ message: 'User deleted successfully' });
+        // Start a transaction
+        await pool.query('BEGIN');
+
+        // Delete related records first (in order of dependencies)
+
+        // 1. Delete user's reviews
+        await pool.query('DELETE FROM reviews WHERE user_id = $1', [id]);
+
+        // 2. Delete user's reservations
+        await pool.query('DELETE FROM reservations WHERE user_id = $1', [id]);
+
+        // 3. If user is an owner, handle their restaurants
+        const storesResult = await pool.query('SELECT store_id FROM stores WHERE owner_id = $1', [id]);
+        if (storesResult.rows.length > 0) {
+            const storeIds = storesResult.rows.map(row => row.store_id);
+
+            // Delete reviews for these restaurants
+            await pool.query('DELETE FROM reviews WHERE store_id = ANY($1)', [storeIds]);
+
+            // Delete reservations for these restaurants
+            await pool.query('DELETE FROM reservations WHERE store_id = ANY($1)', [storeIds]);
+
+            // Delete the restaurants themselves
+            await pool.query('DELETE FROM stores WHERE owner_id = $1', [id]);
+        }
+
+        // 4. Finally delete the user
+        const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING *', [id]);
+
+        if (result.rowCount === 0) {
+            await pool.query('ROLLBACK');
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Commit the transaction
+        await pool.query('COMMIT');
+
+        res.json({ message: 'User and all related data deleted successfully' });
     } catch (err) {
+        // Rollback on error
+        await pool.query('ROLLBACK');
         console.error('Error deleting user:', err);
         res.status(500).json({ error: 'Internal server error' });
     }

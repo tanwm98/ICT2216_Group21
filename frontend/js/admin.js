@@ -19,7 +19,7 @@ function showSection(id) {
 // =================  DASHBOARD ==============
 // load dashboard
 function loadDashboardStats() {
-  fetch('/api/dashboard-stats')
+  fetch('/api/admin/dashboard-stats')
     .then(res => {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
@@ -47,7 +47,7 @@ function loadDashboardStats() {
 // =============== RESTAURANTS ==============
 // fetch restaurant info
 function fetchRestaurants() {
-  fetch('/api/restaurants')
+  fetch('/api/admin/restaurants')
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector('#restaurantList tbody');
@@ -97,7 +97,7 @@ function addRestaurant() {
   const file = formData.get('image');
   console.log('Attached image:', file); // Should be a File object
 
-  fetch('/api/restaurants', {
+  fetch('/api/admin/restaurants', {
     method: 'POST',
     body: formData, // Don't set Content-Type!
   })
@@ -121,7 +121,7 @@ function updateRestaurant(id) {
   const ownerId = document.getElementById('ownerSelect').value;
   formData.set('owner_id', ownerId);
 
-  fetch(`/api/restaurants/${id}`, {
+  fetch(`/api/admin/restaurants/${id}`, {
     method: 'PUT',
     body: formData
   })
@@ -140,7 +140,7 @@ function updateRestaurant(id) {
 
 /// edit restaurant
 function editRestaurant(id) {
-  fetch(`/api/restaurants/${id}`)
+  fetch(`/api/admin/restaurants/${id}`)
     .then(res => res.json())
     .then(r => {
       document.getElementById("restaurantId").value = r.store_id;
@@ -197,7 +197,7 @@ function getRestaurantFormData() {
 
 // load owner dashboard
 function loadOwnersDropdown(selectedId = '') {
-  fetch('/api/owners')
+  fetch('/api/admin/owners')
     .then(res => res.json())
     .then(owners => {
       const ownerSelect = document.getElementById('ownerSelect');
@@ -266,7 +266,7 @@ function submitRestaurantForm() {
 
 // edit restaurant
 function editRestaurant(id) {
-  fetch(`/api/restaurants/${id}`)
+  fetch(`/api/admin/restaurants/${id}`)
     .then(res => res.json())
     .then(r => {
       document.getElementById("restaurantId").value = r.store_id;
@@ -295,7 +295,7 @@ function editRestaurant(id) {
 function deleteRestaurant(storeId) {
   if (!confirm("Are you sure you want to delete this restaurant?")) return;
 
-  fetch(`/api/restaurants/${storeId}`, {
+  fetch(`/api/admin/restaurants/${storeId}`, {
     method: 'DELETE'
   })
     .then(res => {
@@ -317,7 +317,7 @@ function deleteRestaurant(storeId) {
 // ============== USERS ==================
 // fetch user info
 function fetchUsers() {
-  fetch('/api/users')
+  fetch('/api/admin/users')
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector('#userList tbody');
@@ -374,7 +374,7 @@ function addUser() {
   const email = emailInput.value;
   const role = roleSelect.value;
 
-  fetch('/api/users', {
+  fetch('/api/admin/users', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -406,15 +406,15 @@ function addUser() {
 // update user details
 function updateUser(userId) {
   const name = document.getElementById("name").value;
-  const firstName = document.getElementById("firstname").value;
-  const lastName = document.getElementById("lastname").value;
+  const firstname = document.getElementById("firstname").value;
+  const lastname = document.getElementById("lastname").value;
   const email = document.getElementById("email").value;
   const role = document.getElementById("role").value;
 
-  fetch(`/api/users/${userId}`, {
+  fetch(`/api/admin/users/${userId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, role, firstName, lastName })
+    body: JSON.stringify({ name, email, role, firstname, lastname })
   })
     .then(res => res.json())
     .then(() => {
@@ -440,7 +440,7 @@ function clearUserForm() {
 
 // edit user
 function editUser(userId) {
-  fetch(`/api/users/${userId}`)
+  fetch(`/api/admin/users/${userId}`)
     .then(res => res.json())
     .then(user => {
       document.getElementById("userId").value = user.user_id;
@@ -462,7 +462,7 @@ function editUser(userId) {
 function deleteUser(userId) {
   if (!confirm("Are you sure you want to delete this user?")) return;
 
-  fetch(`/api/users/${userId}`, {
+  fetch(`/api/admin/users/${userId}`, {
     method: 'DELETE',
   })
     .then(res => {
@@ -482,7 +482,7 @@ function deleteUser(userId) {
 function resetUserPassword(userId) {
   if (!confirm('Reset this user\'s password?')) return;
 
-  fetch(`/api/users/${userId}/reset-password`, {
+  fetch(`/api/admin/users/${userId}/reset-password`, {
     method: 'POST'
   })
     .then(res => res.json())
@@ -498,7 +498,7 @@ function resetUserPassword(userId) {
 
 // ================= RESERVATIONS ==================
 function fetchReservations() {
-  fetch('/api/reservations')
+  fetch('/api/admin/reservations')
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector('#reservationList tbody');
@@ -540,7 +540,7 @@ function fetchReservations() {
 }
 
 function cancelReservation(id) {
-  fetch(`/api/reservations/${id}/cancel`, {
+  fetch(`/api/admin/reservations/${id}/cancel`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json'

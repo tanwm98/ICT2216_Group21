@@ -9,31 +9,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
+const { authenticateToken, requireAdmin, requireOwner, requireUser } = require('./frontend/js/token');
 
 if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
   console.info = () => {};
   // Keep console.error and console.warn for debugging production issues
-}
-
-function verifyToken(req, res, next) {
-    const token = req.cookies.token;
-
-    if (!token) {
-        const error = new Error('Authentication required');
-        error.statusCode = 401;
-        return next(error);  // This will trigger your error handler
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // Attach decoded token to request
-        next();
-    } catch (err) {
-        const error = new Error('Invalid or expired token');
-        error.statusCode = 401;
-        return next(error);  // This will trigger your error handler
-    }
 }
 
 // Cookie with JWT
@@ -69,15 +50,43 @@ const search = require('./backend/routes/searchApi');
 const loggedUser = require('./backend/routes/userProfileApi');
 const { verify } = require('crypto');
 
-
 // using the routes
 app.use(homeRoutes);
 app.use(selectedResRoutes);
 app.use('/', authRoutes);
-app.use('/api', adminDash);
-app.use('/api/owner', ownerApi);
-app.use(search); 
-app.use('/api/user', loggedUser);
+app.use(search);
+
+app.get('/api/session', (req, res) => {
+     const token = req.cookies.token;
+    if (!token) return res.json({ loggedIn: false });
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        res.json({
+            loggedIn: true,
+            userId: decoded.userId,
+            role: decoded.role,
+            permissions: {
+                canAccessAdmin: decoded.role === 'admin',
+                canAccessOwner: ['owner', 'admin'].includes(decoded.role),
+                canAccessUser: ['user', 'owner', 'admin'].includes(decoded.role)
+            }
+        });
+    } catch {
+        res.json({ loggedIn: false });
+    }
+});
+
+app.get('/api/session/validation-errors', (req, res) => {
+  const errors = req.session.validationErrors || [];
+  req.session.validationErrors = null;
+  res.json({ errors });
+});
+
+// PROTECTED API ROUTES (AFTER SESSION ROUTES)
+app.use('/api/admin', adminDash);  // Admin routes are protected inside the router
+app.use('/api/owner', ownerApi);   // Owner routes are protected inside the router
+app.use('/api/user', loggedUser);  // User routes are protected inside the router
 
 // ======== PUBLIC ROUTES ========
 app.get('/', (req, res) => {
@@ -124,39 +133,20 @@ app.get('/reset-password', (req, res) => {
 
 // ======== VERIFICATION REQUIRED ======== 
 
-app.get('/admin',verifyToken, (req, res) => {
+app.get('/admin', authenticateToken, requireAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
 });
 
-app.get('/resOwner',verifyToken, (req, res) => {
+app.get('/resOwner', authenticateToken, requireOwner, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
 });
 
-app.get('/profile',verifyToken, (req, res) => {
+app.get('/profile', authenticateToken, requireUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/userprofile.html'));
 });
 
-app.get('/reserveform', verifyToken, (req, res) => {
+app.get('/reserveform', authenticateToken, requireUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
-});
-
-// ======== SESSION STATUS API ========
-app.get('/api/session', (req, res) => {
-     const token = req.cookies.token;
-    if (!token) return res.json({ loggedIn: false });
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        res.json({ loggedIn: true, userId: decoded.userId, role: decoded.role });
-    } catch {
-        res.json({ loggedIn: false });
-    }
-});
-
-app.get('/api/session/validation-errors', (req, res) => {
-  const errors = req.session.validationErrors || [];
-  req.session.validationErrors = null; // Clear after reading
-  res.json({ errors });
 });
 
 app.use((req, res, next) => {

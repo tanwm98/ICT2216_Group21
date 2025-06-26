@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../../db');
 const router = express.Router();
-const authenticateToken = require('../../frontend/js/token');
+const { authenticateToken, requireOwner } = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
 const { updateRestaurantValidator, cancelReservationValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
@@ -16,8 +16,10 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+router.use(authenticateToken, requireOwner);
+
 // ========== GET ALL RESTAURANTS BY OWNER ==========
-router.get('/restaurants',authenticateToken, async (req, res) => {
+router.get('/restaurants', async (req, res) => {
     const ownerId = req.user.userId;
 
     if (!ownerId) {
@@ -38,7 +40,7 @@ router.get('/restaurants',authenticateToken, async (req, res) => {
 });
 
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
-router.get('/reservations/:ownerId',authenticateToken, async (req, res) => {
+router.get('/reservations/:ownerId', async (req, res) => {
     const ownerId = req.user.userId;
     
     try {
@@ -142,7 +144,7 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
 
 
 // ========== UPDATE EXISTING RESTAURANT ==========
-router.put('/restaurants/:id', authenticateToken, updateRestaurantValidator, handleValidation, async (req, res) => {
+router.put('/restaurants/:id', updateRestaurantValidator, handleValidation, async (req, res) => {
     const ownerId = req.user.userId;
     const restaurantId = req.params.id;
     const { storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing } = req.body;
@@ -167,7 +169,7 @@ router.put('/restaurants/:id', authenticateToken, updateRestaurantValidator, han
 });
 
 // ========== GET REVIEWS FOR OWNER'S RESTAURANTS ==========
-router.get('/reviews/:ownerId',authenticateToken, async (req, res) => {
+router.get('/reviews/:ownerId', async (req, res) => {
     const ownerId = req.user.userId;
 
     try {
