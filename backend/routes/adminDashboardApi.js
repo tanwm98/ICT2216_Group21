@@ -16,6 +16,17 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+const { body } = require('express-validator');
+const {
+  userNameValidator,
+  userFirstNameValidator,
+  userLastNameValidator,
+  updateRestaurantValidator,
+  cancelReservationValidator,
+  addUserValidator,
+  restaurantAddValidator
+} = require('../middleware/validators');
+const handleValidation = require('../middleware/handleHybridValidation');
 
 // ======== ADMIN DASHBOARD ========
 router.get('/dashboard-stats', async (req, res) => {
@@ -62,25 +73,20 @@ router.get('/users', async (req, res) => {
 });
 
 // Add a new user (default password Pass123)
-router.post('/users', async (req, res) => {
-    const { name, email, role, fname, lname } = req.body;
-
-    console.log(fname)
-
-    try {
-        const password = 'Pass123';
-        const hashedPassword = await argon2.hash(password);
-
-        await pool.query(
-            'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
-            [name, email, hashedPassword, role, fname, lname]
-        );
-
-        res.status(201).json({ message: 'User added successfully' });
-    } catch (err) {
-        console.error('Error adding user:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
+router.post('/users', addUserValidator, handleValidation, async (req, res) => {
+  const { name, email, role, fname, lname } = req.body;
+  try {
+    const password = 'Pass123';
+    const hashedPassword = await argon2.hash(password);
+    await pool.query(
+      'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
+      [name, email, hashedPassword, role, fname, lname]
+    );
+    res.status(201).json({ message: 'User added successfully' });
+  } catch (err) {
+    console.error('Error adding user:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // Delete user by id
@@ -96,20 +102,25 @@ router.delete('/users/:id', async (req, res) => {
 });
 
 // Update user by id
-router.put('/users/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, email, role, firstName, lastName } = req.body;
-
-    try {
-        await pool.query(
-            'UPDATE users SET name = $1, email = $2, role = $3, firstname = $4, lastname = $5 WHERE user_id = $6',
-            [name, email, role, firstName, lastName, id]
-        );
-        res.json({ message: 'User updated' });
-    } catch (err) {
-        console.error('Error updating user:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+router.put('/users/:id', [
+  userNameValidator,
+  userFirstNameValidator,
+  userLastNameValidator,
+  body('email').isEmail().normalizeEmail(),
+  body('role').isIn(['user', 'owner'])
+], handleValidation, async (req, res) => {
+  const { id } = req.params;
+  const { name, email, role, firstname, lastname } = req.body;
+  try {
+    await pool.query(
+      'UPDATE users SET name = $1, email = $2, role = $3, firstname = $4, lastname = $5 WHERE user_id = $6',
+      [name, email, role, firstname, lastname, id]
+    );
+    res.json({ message: 'User updated' });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get user by id
@@ -206,14 +217,14 @@ router.get('/owners', async (req, res) => {
 //     }
 // });
 
-router.post('/restaurants', upload.single('image'), async (req, res) => {
+router.post('/restaurants', upload.single('image'), restaurantAddValidator, handleValidation, async (req, res) => {
   const {
     owner_id, storeName, address, postalCode, location,
     cuisine, priceRange, totalCapacity,
     opening, closing
   } = req.body;
 
-  console.log('FILE:', req.file); // ✅ Add this for debugging
+  console.log('FILE:', req.file); // Add this for debugging
   console.log('BODY:', req.body);
 
   const base64Image = req.file ? req.file.buffer.toString('base64') : null;
@@ -265,7 +276,7 @@ router.get('/restaurants/:id', async (req, res) => {
 });
 
 // Update restaurant by id
-router.put('/restaurants/:id', upload.single('image'), async (req, res) => {
+router.put('/restaurants/:id', upload.single('image'), updateRestaurantValidator, handleValidation, async (req, res) => {
   const id = req.params.id;
   const {
     storeName, address, postalCode, cuisine, location,
@@ -275,7 +286,7 @@ router.put('/restaurants/:id', upload.single('image'), async (req, res) => {
   const imageBase64 = req.file ? req.file.buffer.toString('base64') : null;
 
   try {
-    const result = await pool.query(`
+    await pool.query(`
       UPDATE stores SET
         "storeName" = $1,
         address = $2,
@@ -382,7 +393,7 @@ router.get('/reservations', async (req, res) => {
 //     }
 // });
 
-router.put('/reservations/:id/cancel', async (req, res) => {
+router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
     try {
         const reservationId = req.params.id;
 

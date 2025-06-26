@@ -67,7 +67,7 @@
               <h4>Review score</h4>
               <div id="review-score-slider" style="margin: 20px 0;"></div>
               <div class="range-labels" style="display: flex; justify-content: space-between; padding: 0 10px;">
-                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
               </div>
             </div>
 
@@ -151,12 +151,12 @@
   const slider = document.getElementById('review-score-slider');
 
   noUiSlider.create(slider, {
-    start: [1, 6],      // Initial values
+    start: [1, 5],      // Initial values
     connect: true,
     step: 1,
     range: {
       'min': 1,
-      'max': 6
+      'max': 5
     },
     format: {
       to: value => Math.round(value),

@@ -87,6 +87,13 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
     const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`, [storeid, userid, time, date]);
     console.log(checkExistingReservation.rows);
 
+    const storeDetails = await pool.query('SELECT "currentCapacity" FROM stores WHERE store_id = $1', [storeid]);
+    const currentCapacity = storeDetails.rows[0].currentCapacity;
+
+    if (parseInt(pax) > currentCapacity) {
+      return res.status(400).json({ message: `Reservation exceeds remaining capacity of ${currentCapacity}.` });
+    }
+
     // get store details
     const store_details = await pool.query(`SELECT * FROM stores WHERE store_id = $1`, [storeid]);
     const store = store_details.rows;
@@ -148,32 +155,46 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
 // Update reservation
 router.post('/update_reservation', updateReservationValidator, handleValidation, async (req, res) => {
   try {
-    const pax = req.body.pax;
-    const time = req.body.time;
-    const date = req.body.date;
-    const firstname = req.body.firstname;
-    const lastname = req.body.lastname;
-    const specialreq = req.body.specialrequest;
-    const reservationid = req.body.reservationid;
-    const adultpax = req.body.adultpax;
-    const childpax = req.body.childpax;
+    const { pax, time, date, firstname, lastname, specialrequest, reservationid, adultpax, childpax, storename, userid } = req.body;
 
-    // details for email
-    const storename = req.body.storename;
-    const userid = req.body.userid;
+    // Step 1: Get original reservation to restore its pax
+    const originalRes = await pool.query(
+      'SELECT "store_id", "noOfGuest" FROM reservations WHERE reservation_id = $1',
+      [reservationid]
+    );
 
-    console.log("storename: " + storename);
-    console.log("userid: " + userid);
-    console.log("Pax: " + pax);
-    console.log("time: " + time);
-    console.log("date: " + date);
-    console.log("firstname: " + firstname);
-    console.log("lastname: " + lastname);
-    console.log("specialreq: " + specialreq);
-    console.log("Rid: " + reservationid);
-    console.log("adult pax: " + adultpax);
-    console.log("childpax: " + childpax);
+    if (originalRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Reservation not found' });
+    }
 
+    const storeId = originalRes.rows[0].store_id;
+    const originalPax = originalRes.rows[0].noOfGuest;
+
+    // Step 2: Restore old pax to currentCapacity
+    await pool.query(
+      'UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2',
+      [originalPax, storeId]
+    );
+
+    // Step 3: Fetch total and current capacity for validation
+    const capacityResult = await pool.query(
+      'SELECT "totalCapacity", "currentCapacity", address FROM stores WHERE store_id = $1',
+      [storeId]
+    );
+    const { totalCapacity, currentCapacity, address } = capacityResult.rows[0];
+
+    // Step 4: Check if new pax exceeds available capacity
+    if (parseInt(pax) > currentCapacity) {
+      return res.status(400).json({ message: `Reservation exceeds available capacity of ${currentCapacity}.` });
+    }
+
+    // Step 5: Deduct new pax from current capacity
+    await pool.query(
+      'UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2',
+      [pax, storeId]
+    );
+
+    // Step 6: Update reservation
     await pool.query(`
       UPDATE reservations 
       SET "noOfGuest" = $1, 
@@ -181,56 +202,52 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
           "reservationTime" = $3, 
           "specialRequest" = $4, 
           "adultPax" = $5,
-          "childPax" = $6
-      WHERE reservation_id = $7
-    `, [pax, date, time, specialreq, adultpax, childpax, reservationid]);
+          "childPax" = $6,
+          "first_name" = $7,
+          "last_name" = $8
+      WHERE reservation_id = $9
+    `, [pax, date, time, specialrequest, adultpax, childpax, firstname, lastname, reservationid]);
 
-
-    // get current username 
+    // Step 7: Fetch user name
     const usernameResult = await pool.query("SELECT name FROM users WHERE user_id = $1", [userid]);
+    const username = usernameResult.rows[0]?.name || '';
 
-    const username = usernameResult.rows[0]?.name;
-
-    // get store thats affected
-    const which_store = await pool.query(`SELECT * FROM reservations WHERE reservation_id = $1`, [reservationid]);
-    const store_details = await pool.query(`SELECT * FROM stores WHERE store_id = $1`, [(which_store.rows)[0].store_id]);
-
-    // upon successful update, send email to user
+    // Step 8: Send email notification
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      to: 'ict2216kirby@gmail.com', // can be changed to ict2216kirby@gmail.com or own email for testing
-      subject: `Modification of Reservation at ${storename} `,
+      to: 'ict2216kirby@gmail.com',
+      subject: `Modification of Reservation at ${storename}`,
       html: `
-              <p>Hello ${username},</p>
-              <p>Your reservation with ${storename} has been successfully <strong>updated</strong>. See below for updated details.</p>
-              <h4>Updated Reservation Details:</h4>
-              <ul>
-                  <li><strong>👤 First Name:</strong> ${firstname}</li>
-                  <li><strong>👤 Last Name:</strong> ${lastname}</li>
-                  <li><strong>🏪 Restaurant:</strong> ${storename}</li>
-                  <li><strong>📍 Location:</strong> ${(store_details.rows)[0].address}</li>
-                  <li><strong>📅 Date:</strong> ${date}</li>
-                  <li><strong>🕒 Time:</strong> ${time}</li>
-                  <li><strong>👥 Number of Guests:</strong> ${pax}
-                    <ul>
-                      <li><strong>Number of Adults:</strong> ${adultpax}</li>
-                      <li><strong>Number of Child:</strong> ${childpax}</li>
-                    </ul>
-                  </li>
-                  ${specialreq ? `<li><strong>📢 Special Request:</strong> ${specialreq}</li>` : ''}
-              </ul>
-              <p>Thank you!</p>
-              <p>Kirby Chope</p>
-            `
-    })
+        <p>Hello ${username},</p>
+        <p>Your reservation with ${storename} has been successfully <strong>updated</strong>. See below for updated details.</p>
+        <h4>Updated Reservation Details:</h4>
+        <ul>
+          <li><strong>👤 First Name:</strong> ${firstname}</li>
+          <li><strong>👤 Last Name:</strong> ${lastname}</li>
+          <li><strong>🏪 Restaurant:</strong> ${storename}</li>
+          <li><strong>📍 Location:</strong> ${address}</li>
+          <li><strong>📅 Date:</strong> ${date}</li>
+          <li><strong>🕒 Time:</strong> ${time}</li>
+          <li><strong>👥 Number of Guests:</strong> ${pax}
+            <ul>
+              <li><strong>Number of Adults:</strong> ${adultpax}</li>
+              <li><strong>Number of Child:</strong> ${childpax}</li>
+            </ul>
+          </li>
+          ${specialrequest ? `<li><strong>📢 Special Request:</strong> ${specialrequest}</li>` : ''}
+        </ul>
+        <p>Thank you!</p>
+        <p>Kirby Chope</p>
+      `
+    });
 
     res.status(200).json({ message: 'Reservation updated successfully.' });
 
   } catch (err) {
     console.error('Error querying database:', err);
-    res.status(500).json({ error: 'Failed to update data' });
+    res.status(500).json({ error: 'Failed to update reservation.' });
   }
-})
+});
 
 // node-cron for real-time reservation updates
 // will run every minute

@@ -163,7 +163,7 @@ router.put('/edit/firstname', authenticateToken, userFirstNameValidator, handleV
   }
 
   if (/\d/.test(firstname)) {
-    return res.status(400).json({ message: 'First name cannot contain numbers.' });
+    return res.status(400).json({ message: 'First name cannot contain numbers and characters.' });
   }
 
   try {
@@ -185,7 +185,7 @@ router.put('/edit/lastname', authenticateToken, userLastNameValidator, handleVal
   }
 
   if (/\d/.test(lastname)) {
-    return res.status(400).json({ message: 'Last name cannot contain numbers.' });
+    return res.status(400).json({ message: 'Last name cannot contain numbers and characters.' });
   }
 
   try {
@@ -241,6 +241,12 @@ router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValid
     await pool.query(
       `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
       [reservationId]
+    );
+
+    // Add back pax to current capacity
+    await pool.query(
+      `UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2`,
+      [reservation.noOfGuest, reservation.store_id]
     );
 
     res.json({ message: 'Reservation cancelled successfully', reservation });
