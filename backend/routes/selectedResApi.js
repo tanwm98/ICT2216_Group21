@@ -16,35 +16,177 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// SECURITY: Validate and generate secure image URLs
+function validateAndGenerateImageUrl(imageFilename) {
+    if (!imageFilename || typeof imageFilename !== 'string') {
+        return '/static/img/restaurants/no-image.png';
+    }
+
+    // SECURITY: Validate filename format to prevent directory traversal
+    const safeFilenameRegex = /^[a-zA-Z0-9_-]+\.(jpg|jpeg|png)$/i;
+    if (!safeFilenameRegex.test(imageFilename)) {
+        console.warn('Invalid image filename detected:', imageFilename);
+        return '/static/img/restaurants/no-image.png';
+    }
+
+    // SECURITY: Ensure filename doesn't contain path traversal attempts
+    if (imageFilename.includes('..') || imageFilename.includes('/') || imageFilename.includes('\\')) {
+        console.warn('Path traversal attempt detected:', imageFilename);
+        return '/static/img/restaurants/no-image.png';
+    }
+
+    return `/static/img/restaurants/${imageFilename}`;
+}
+
+// SECURITY: Sanitize alt text to prevent XSS
+function sanitizeAltText(altText, storeName) {
+    if (!altText || typeof altText !== 'string') {
+        return `${sanitizeString(storeName || 'Unknown Restaurant')} restaurant image`;
+    }
+
+    return sanitizeString(altText.substring(0, 100)); // Limit length
+}
+
+// SECURITY: General string sanitization
+function sanitizeString(str) {
+    if (!str || typeof str !== 'string') {
+        return '';
+    }
+
+    return str
+        .replace(/[<>\"'&]/g, '') // Remove potentially dangerous characters
+        .trim()
+        .substring(0, 255); // Limit length
+}
+
 const { reserveValidator, updateReservationValidator, reviewValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
 
 // Route to display data
 router.get('/display_specific_store', async (req, res) => {
   try {
-    // get store name from the request
-    const storeName = req.query.name;
-    const location = req.query.location;
+    // SECURITY: Validate required parameters
+    const { name, location, reservationid } = req.query;
 
-    const reservationid = req.query.reservationid;
+    if (!name || !location) {
+        return res.status(400).json({
+            error: 'Missing required parameters',
+            required: ['name', 'location']
+        });
+    }
+
+    // SECURITY: Validate input lengths
+    if (name.length > 100 || location.length > 100) {
+        return res.status(400).json({
+            error: 'Parameter length exceeds maximum allowed'
+        });
+    }
 
     let result;
 
-    if (reservationid && userid) {
-      result = await pool.query(`
-      SELECT * FROM stores s WHERE "storeName" = $1 AND location = $2 AND "reservation_id" = $3
-      INNER JOIN reservations r ON r."store_id" = s."store_id"
-      `
-        , [storeName, location, reservationid]);
+    // FIXED: Corrected SQL query structure and selected specific columns
+    if (reservationid) {
+        // SECURITY: Validate reservationid if provided
+        const reservationIdNum = parseInt(reservationid);
+        if (isNaN(reservationIdNum)) {
+            return res.status(400).json({
+                error: 'Invalid reservation ID format'
+            });
+        }
+
+        // UPDATED: Select image_filename and image_alt_text instead of image
+        result = await pool.query(`
+            SELECT
+                s.store_id,
+                s."storeName",
+                s.image_filename,
+                s.image_alt_text,
+                s.cuisine,
+                s.location,
+                s."priceRange",
+                s.address,
+                s."postalCode",
+                s.opening,
+                s.closing,
+                s."currentCapacity",
+                s."totalCapacity",
+                r.reservation_id,
+                r."noOfGuest",
+                r."reservationDate",
+                r."reservationTime"
+            FROM stores s
+            INNER JOIN reservations r ON r.store_id = s.store_id
+            WHERE s."storeName" = $1 AND s.location = $2 AND r.reservation_id = $3
+        `, [name, location, reservationIdNum]);
     } else {
-      result = await pool.query('SELECT * FROM stores WHERE "storeName" = $1 AND location = $2', [storeName, location]);
+        // UPDATED: Select image_filename and image_alt_text instead of image
+        result = await pool.query(`
+            SELECT
+                store_id,
+                "storeName",
+                image_filename,
+                image_alt_text,
+                cuisine,
+                location,
+                "priceRange",
+                address,
+                "postalCode",
+                opening,
+                closing,
+                "currentCapacity",
+                "totalCapacity"
+            FROM stores
+            WHERE "storeName" = $1 AND location = $2
+        `, [name, location]);
     }
-    res.json(result.rows); // send data back as json
+
+    if (result.rows.length === 0) {
+        return res.status(404).json({
+            error: 'Restaurant not found'
+        });
+    }
+
+    // FIXED: Transform data to include secure image URLs
+    const transformedStores = result.rows.map(store => ({
+        store_id: store.store_id,
+        storeName: store.storeName,
+        location: store.location,
+        cuisine: store.cuisine,
+        priceRange: store.priceRange,
+        address: store.address,
+        postalCode: store.postalCode,
+        opening: store.opening,
+        closing: store.closing,
+        currentCapacity: store.currentCapacity,
+        totalCapacity: store.totalCapacity,
+
+        // Include reservation data if available
+        ...(store.reservation_id && {
+            reservation_id: store.reservation_id,
+            noOfGuest: store.noOfGuest,
+            reservationDate: store.reservationDate,
+            reservationTime: store.reservationTime
+        }),
+
+        // FIXED: Generate secure image URLs instead of base64
+        imageUrl: validateAndGenerateImageUrl(store.image_filename),
+        altText: sanitizeAltText(store.image_alt_text, store.storeName)
+    }));
+
+    // SECURITY: Add security headers
+    res.set({
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'public, max-age=300'
+    });
+
+    res.json(transformedStores);
+
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to fetch data' });
   }
 });
+
 
 // Route to get reviews for the selected shop
 router.get('/display_reviews', async (req, res) => {

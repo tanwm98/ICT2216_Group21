@@ -48,20 +48,30 @@ router.get('/displayallStores', async (req, res) => {
 router.get(
   '/display_by_ReservationAvailability',
   [
-    query('people').isInt({ min: 1 }).withMessage('People must be a positive integer'),
+    // All validation is now here
+    query('people').isInt({ min: 1, max: 50 }).withMessage('People count must be an integer between 1 and 50'),
     query('date').isISO8601().withMessage('Date must be in YYYY-MM-DD format'),
     query('time').matches(/^\d{2}:\d{2}$/).withMessage('Time must be in HH:MM format'),
   ],
-  handleValidation,
+  handleValidation, // This middleware handles sending the 400 error response
   async (req, res) => {
     try {
       const { people, date, time } = req.query;
 
+      // Single, correct query. No more redeclaration or manual validation.
+      // NOTE: The SQL logic itself is still simplistic, as noted in point #4.
       const result = await pool.query(
         `
-        SELECT s.*,
+        SELECT s."store_id",
+               s."storeName",
+               s.image_filename,
+               s.image_alt_text,
+               s.cuisine,
+               s.location,
+               s."priceRange",
+               s."currentCapacity",
                AVG(rv.rating)::numeric(2,1) AS "average_rating",
-               COUNT(rv."store_id") AS "review_count"
+               COUNT(rv.rating) AS "review_count"
         FROM stores s
         LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
         WHERE s."currentCapacity" >= $1
@@ -75,39 +85,6 @@ router.get(
         `,
         [people, date, time]
       );
-        if (isNaN(people) || people < 1 || people > 50) {
-            return res.status(400).json({
-                error: 'Invalid people count',
-                message: 'People count must be between 1 and 50'
-            });
-        }
-
-        // UPDATED: Select image_filename and image_alt_text, exclude image
-        const result = await pool.query(
-            `
-            SELECT s."store_id",
-                   s."storeName",
-                   s.image_filename,
-                   s.image_alt_text,
-                   s.cuisine,
-                   s.location,
-                   s."priceRange",
-                   s."currentCapacity",
-                   AVG(rv.rating)::numeric(2,1) AS "average_rating",
-                   COUNT(rv."store_id") AS "review_count"
-            FROM stores s
-            LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
-            WHERE s."currentCapacity" >= $1
-              AND NOT EXISTS (
-                    SELECT 1 FROM reservations r
-                    WHERE r.store_id = s.store_id
-                      AND r."reservationDate" = $2
-                      AND r."reservationTime" = $3
-              )
-            GROUP BY s."store_id", s."storeName", s.image_filename, s.image_alt_text, s.cuisine, s.location, s."priceRange", s."currentCapacity"
-            `,
-            [people, date, time]
-        );
 
       res.json(result.rows);
     } catch (err) {
