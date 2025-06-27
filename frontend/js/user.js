@@ -111,11 +111,6 @@ function setupResetPasswordHandler() {
         return;
       }
 
-      if (newPassword.length < 5) {
-        alert('Password must be at least 5 characters long.');
-        return;
-      }
-
       try {
         const response = await fetch('/api/user/reset-password', {
           method: 'POST',
@@ -123,15 +118,18 @@ function setupResetPasswordHandler() {
           body: JSON.stringify({ newPassword })
         });
 
-        const result = await response.json();
-
         if (response.ok) {
           alert('Password has been reset successfully! You will be logged out.');
-          await fetch('/api/auth/logout', { method: 'POST' });
+          await fetch('/logout', { method: 'POST' });
           window.location.href = '/login';
-
         } else {
-          alert(result.error || 'Failed to reset password.');
+          const result = await response.json();
+          if (result.errors && Array.isArray(result.errors)) {
+            const errorMessages = result.errors.map(err => err.msg).join('\n');
+            alert(`Password requirements:\n${errorMessages}`);
+          } else {
+            alert('Failed to reset password. Please try again.');
+          }
         }
       } catch (err) {
         console.error('Password reset failed:', err);
@@ -140,8 +138,6 @@ function setupResetPasswordHandler() {
     });
   }
 }
-
-
 
 // ======== Edit name function ======== 
 function setupNameEditHandlers() {
@@ -159,6 +155,7 @@ function setupNameEditHandlers() {
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
+
 
     cancelBtn.addEventListener('click', () => {
       inputGroup.classList.add('d-none');
@@ -198,8 +195,6 @@ function setupNameEditHandlers() {
     });
   }
 }
-
-
 
 // Validation function for names (no digits allowed)
 function validateNameNoNumbers(name) {

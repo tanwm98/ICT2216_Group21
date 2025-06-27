@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
 const { authenticateToken, requireAdmin, requireOwner, requireUser } = require('./frontend/js/token');
+const { sanitizeInput, sanitizeOutput, createRateLimiter } = require('./backend/middleware/sanitization');
 
 if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
@@ -38,6 +39,8 @@ app.use('/public', express.static(path.join(__dirname, 'frontend/public')));
 // Body parsers
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(sanitizeInput);    // Sanitize all incoming data
+app.use(sanitizeOutput);   // Sanitize all outgoing responses
 
 
 // import route files
@@ -147,6 +150,103 @@ app.get('/profile', authenticateToken, requireUser, (req, res) => {
 
 app.get('/reserveform', authenticateToken, requireUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
+});
+
+
+// =========== Route request
+app.post('/request-reset', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    try {
+        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+
+        if (userResult.rows.length === 0) {
+            // Don't reveal if email exists or not (security best practice)
+            return res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 3600_000); // 1 hour
+
+        await pool.query(
+            'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3',
+            [token, expires, email]
+        );
+
+        const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+
+        // FIX 1: Correct method name
+        const transporter = nodemailer.createTransport({
+            service: 'Gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        // FIX 2: Send to actual user email, not hardcoded
+        // FIX 3: Add proper error handling
+        try {
+            await transporter.sendMail({
+                from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+                to: email, // Use the actual user's email
+                subject: 'Password Reset Request - Kirby Chope',
+                html: `
+          <h2>Password Reset Request</h2>
+          <p>You requested a password reset for your Kirby Chope account.</p>
+          <p>Click the link below to reset your password:</p>
+          <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+          <p>This link will expire in 1 hour.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+        `,
+            });
+
+            console.log(`Password reset email sent to: ${email}`);
+            res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
+
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+            // Don't reveal email sending failed to user (security)
+            res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
+        }
+
+    } catch (err) {
+        console.error('Password reset request error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Reset password
+app.put('/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+        return res.status(400).json({ message: 'Missing token or new password' });
+    }
+
+    try {
+        const userResult = await pool.query(
+            'SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+            [token]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(400).json({ message: 'Invalid or expired token' });
+        }
+
+        const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
+
+        await pool.query(
+            'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE reset_token = $2',
+            [hashedPassword, token]
+        );
+
+        res.status(200).json({ message: 'Password updated successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
 app.use((req, res, next) => {
@@ -262,84 +362,4 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
-});
-
-
-
-// =========== Route request
-app.post('/request-reset', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email is required' });
-
-  try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-
-    if (userResult.rows.length === 0) {
-      return res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
-    }
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 3600_000); // 1 hour
-
-    await pool.query(
-      'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3',
-      [token, expires, email]
-    );
-
-    const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
-
-    // Configure email (adjust to your email provider)
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    await transporter.sendMail({
-        from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-        to: 'shira.yuki51@gmail.com',
-        subject: 'Password Reset Request',
-        html: `<p>Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`,
-    });
-
-    res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-
-// Reset password 
-app.put('/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    return res.status(400).json({ message: 'Missing token or new password' });
-  }
-
-  try {
-    const userResult = await pool.query(
-      'SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
-      [token]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(400).json({ message: 'Invalid or expired token' });
-    }
-
-    const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
-
-    await pool.query(
-      'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE reset_token = $2',
-      [hashedPassword, token]
-    );
-
-    res.status(200).json({ message: 'Password updated successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
 });

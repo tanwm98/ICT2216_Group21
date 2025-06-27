@@ -48,7 +48,7 @@
 
         if (!res.ok) throw new Error(data.message || 'Something went wrong');
 
-        messageDiv.textContent = 'Check your email for the password reset link.';
+        messageDiv.textContent = 'If the email exists, a reset link has been sent.';
         messageDiv.className = 'text-success';
         document.getElementById('requestResetForm').reset();
       } catch (err) {
