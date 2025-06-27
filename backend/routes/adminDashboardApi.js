@@ -344,7 +344,7 @@ router.post('/restaurants', upload.single('image'), restaurantAddValidator, hand
 });
 
 // UPDATED: Get restaurant by id with proper column names
-router.get('/restaurants/:id', sanitizeSpecificFields, async (req, res) => {
+router.get('/restaurants/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
