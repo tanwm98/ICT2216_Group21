@@ -13,6 +13,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
+const { sanitizeInput } = require('../middleware/sanitization');
+const { loginValidator, registerValidator } = require('../middleware/validators');
+const handleValidation = require('../middleware/handleValidation');
+//const AppError = require('../AppError'); 
 
 // ======================================
 // SECURE FILE UPLOAD CONFIGURATION
@@ -147,7 +151,7 @@ function sanitizeAndValidate(input, fieldName, required = true) {
 // ======================================
 
 // POST /login
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
@@ -224,7 +228,7 @@ router.post('/login', async (req, res, next) => {
 });
 
 // POST /register for user
-router.post('/register', async (req, res, next) => {
+router.post('/register', registerValidator, handleValidation, async (req, res, next) => {
     try {
         let { name, email, password, firstname, lastname } = req.body;
 

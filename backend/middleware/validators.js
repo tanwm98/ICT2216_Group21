@@ -95,8 +95,8 @@ exports.ownerValidator = [
     .withMessage('Postal code must be a 6-digit number'),
 
   body('cuisine')
-    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese'])
-    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian or Chinese'),
+    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese'])
+    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese or Japanese'),
 
   body('location')
     .trim()
@@ -189,8 +189,8 @@ exports.restaurantAddValidator = [
     .withMessage('Location must only contain letters'),
 
   body('cuisine')
-    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese'])
-    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian or Chinese'),
+    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese'])
+    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese or Japanese'),
 
   body('priceRange')
     .isIn(['$', '$$', '$$$', '$$$$', '$$$$$'])
@@ -269,8 +269,8 @@ exports.updateRestaurantValidator = [
     .withMessage('Location must only contain letters'),
 
   body('cuisine')
-    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese'])
-    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian or Chinese'),
+    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese'])
+    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese or Japanese'),
 
   body('priceRange')
     .isIn(['$', '$$', '$$$', '$$$$', '$$$$$'])

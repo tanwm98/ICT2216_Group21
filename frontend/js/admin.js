@@ -15,6 +15,15 @@ function showSection(id) {
   }
 }
 
+function decodeHtmlEntities(str) {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&#x2F;/g, '/')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
+}
 
 // =================  DASHBOARD ==============
 // load dashboard
@@ -145,7 +154,7 @@ function editRestaurant(id) {
     .then(r => {
       document.getElementById("restaurantId").value = r.store_id;
       document.getElementById("storeName").value = r.storeName;
-      document.getElementById("address").value = r.address;
+      document.getElementById("address").value = decodeHtmlEntities(r.address);
       document.getElementById("postalCode").value = r.postalCode;
       document.getElementById("cuisine").value = r.cuisine;
       document.getElementById("location").value = r.location;
@@ -252,18 +261,6 @@ function clearRestaurantForm() {
   document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
 }
 
-
-// submit restaurant form
-function submitRestaurantForm() {
-  const restaurantId = document.getElementById("restaurantId").value;
-  if (restaurantId) {
-    updateRestaurant(restaurantId);
-  } else {
-    addRestaurant();
-  }
-}
-
-
 // edit restaurant
 function editRestaurant(id) {
   fetch(`/api/admin/restaurants/${id}`)
@@ -271,7 +268,7 @@ function editRestaurant(id) {
     .then(r => {
       document.getElementById("restaurantId").value = r.store_id;
       document.getElementById("storeName").value = r.storeName;
-      document.getElementById("address").value = r.address;
+      document.getElementById("address").value = decodeHtmlEntities(r.address);
       document.getElementById("postalCode").value = r.postalCode;
       document.getElementById("location").value = r.location;
       document.getElementById("cuisine").value = r.cuisine;

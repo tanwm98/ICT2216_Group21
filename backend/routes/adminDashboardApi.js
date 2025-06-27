@@ -307,7 +307,7 @@ router.get('/owners', async (req, res) => {
 //     }
 // });
 
-router.post('/restaurants', upload.single('image'), async (req, res) => {
+router.post('/restaurants', upload.single('image'), restaurantAddValidator, handleValidation, async (req, res) => {
   const {
     owner_id, storeName, address, postalCode, location,
     cuisine, priceRange, totalCapacity,
@@ -343,7 +343,7 @@ router.post('/restaurants', upload.single('image'), async (req, res) => {
 });
 
 // UPDATED: Get restaurant by id with proper column names
-router.get('/restaurants/:id', async (req, res) => {
+router.get('/restaurants/:id', sanitizeSpecificFields, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -384,7 +384,7 @@ router.get('/restaurants/:id', async (req, res) => {
 });
 
 // UPDATED: Update restaurant by id with file handling
-router.put('/restaurants/:id', upload.single('image'), async (req, res) => {
+router.put('/restaurants/:id', upload.single('image'), updateRestaurantValidator, handleValidation, async (req, res) => {
     const id = req.params.id;
     const {
         storeName, address, postalCode, cuisine, location,
