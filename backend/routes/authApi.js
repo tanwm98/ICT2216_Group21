@@ -85,10 +85,6 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// ======================================
-// CUSTOM ERROR CLASSES (Node.js Best Practice)
-// ======================================
-
 class AppError extends Error {
     constructor(message, statusCode, isOperational = true) {
         super(message);
@@ -99,30 +95,16 @@ class AppError extends Error {
     }
 }
 
-// ======================================
-// SECURITY HELPER FUNCTIONS
-// ======================================
-
-// Password strength validation with fail-fast principle
 function validatePassword(password) {
     if (!password || typeof password !== 'string') {
         throw new AppError('Password is required and must be a string', 400);
     }
 
     const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[@$!%*?&]/.test(password);
-
     const validation = {
-        isValid: password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar,
+        isValid: password.length >= minLength,
         requirements: {
-            minLength: password.length >= minLength,
-            hasUpperCase,
-            hasLowerCase,
-            hasNumbers,
-            hasSpecialChar
+            minLength: password.length >= minLength
         }
     };
 
@@ -146,9 +128,6 @@ function sanitizeAndValidate(input, fieldName, required = true) {
     return input;
 }
 
-// ======================================
-// AUTHENTICATION ROUTES
-// ======================================
 
 // POST /login
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
@@ -238,7 +217,6 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
         firstname = sanitizeAndValidate(firstname, 'First name');
         lastname = sanitizeAndValidate(lastname, 'Last name');
 
-        // Validate password strength (throws if invalid)
         validatePassword(password);
 
         const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
@@ -254,8 +232,9 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
         const hashedPassword = await argon2.hash(password, {
             type: argon2.argon2id,
             memoryCost: 2 ** 16, // 64 MB
-            timeCost: 3,
-            parallelism: 1,
+            timeCost: 2,
+            parallelism: 2,
+
         });
 
         const result = await pool.query(
@@ -275,7 +254,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
             user_type: 'customer'
         }, req);
 
-        res.redirect('/login');
+        res.redirect('/login?success=1');
     } catch (error) {
         next(error);
     }
@@ -382,8 +361,8 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             const hashedPassword = await argon2.hash(password, {
                 type: argon2.argon2id,
                 memoryCost: 2 ** 16, // 64 MB
-                timeCost: 3,
-                parallelism: 1,
+                timeCost: 2,
+                parallelism: 2,
             });
 
             const userResult = await pool.query(
@@ -555,11 +534,6 @@ router.get('/logout', (req, res) => {
     res.redirect('/');
 });
 
-// ======================================
-// CENTRALIZED ERROR HANDLING MIDDLEWARE
-// ======================================
-
-// Error handling middleware following Node.js best practices
 router.use((err, req, res, next) => {
     // Log error details
     logSystem('error', 'Request error occurred', {
@@ -573,7 +547,6 @@ router.use((err, req, res, next) => {
 
     // Handle operational errors with proper error messages
     if (err.isOperational) {
-        // Client-facing error - safe to show message
         if (req.originalUrl.includes('/signup-owner')) {
             return res.redirect(`/rOwnerReg?error=${encodeURIComponent(err.message)}`);
         } else if (req.originalUrl.includes('/register')) {
@@ -584,7 +557,6 @@ router.use((err, req, res, next) => {
         return res.status(err.statusCode || 400).json({ error: err.message });
     }
 
-    // Programming errors - don't leak details
     console.error('Unexpected error:', err);
 
     // FIXED: Provide specific error messages instead of generic error=1

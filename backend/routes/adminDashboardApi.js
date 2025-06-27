@@ -8,6 +8,7 @@ const argon2 = require('argon2');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { sanitizeInput, sanitizeSpecificFields } = require('../middleware/sanitization');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {

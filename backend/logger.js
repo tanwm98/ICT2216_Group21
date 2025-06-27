@@ -16,7 +16,6 @@ function logEvent(eventType, message, metadata = {}, req = null) {
         logEntry.request_method = req.method;
         logEntry.request_url = req.originalUrl;
         
-        // Add user info if available in token
         if (req.user) {
             logEntry.user_id = req.user.userId;
             logEntry.user_role = req.user.role;
@@ -24,7 +23,6 @@ function logEvent(eventType, message, metadata = {}, req = null) {
         }
     }
     
-    // Output as JSON for Splunk ingestion
     console.log(JSON.stringify(logEntry));
 }
 

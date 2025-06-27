@@ -53,7 +53,22 @@
             <div class="right-side col-md-6"></div>
         </div>
     </section>
-
+    <div class="modal fade" id="registrationSuccessModal" tabindex="-1" aria-labelledby="registrationSuccessLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-success">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="registrationSuccessLabel">Registration Successful</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Your account has been created! Please log in below.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- modal for login error -->
     <div class="modal fade" id="loginErrorModal" tabindex="-1" aria-labelledby="loginErrorLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -81,10 +96,21 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            console.log('Login page loaded. error param:', urlParams.get('error'));
+            console.log('Login page loaded. error param:', urlParams.get('error'), 'success param:', urlParams.get('success'));
+
+            // Show error modal if error parameter exists
             if (urlParams.has('error')) {
                 const errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
                 errorModal.show();
+            }
+
+            // Show success modal if success parameter exists
+            if (urlParams.has('success')) {
+                const successModal = new bootstrap.Modal(document.getElementById('registrationSuccessModal'));
+                successModal.show();
+
+                const cleanURL = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanURL);
             }
         });
     </script>

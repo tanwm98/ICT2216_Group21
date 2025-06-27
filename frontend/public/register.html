@@ -85,7 +85,6 @@
     <script src="/common/common_js/include.js"></script>
 
     <script>
-        // Show validation errors from server via query string
         document.addEventListener('DOMContentLoaded', async function () {
             try {
                 const res = await fetch('/api/session/validation-errors');
@@ -100,7 +99,7 @@
                     console.error('Failed to load session errors:', err);
             }
         });
-
+        // Handle form submission with validation
         document.getElementById('registerForm').addEventListener('submit', function (e) {
             e.preventDefault();
 
@@ -140,12 +139,33 @@
 
             this.submit();
         });
-
         function showModalError(message) {
             document.getElementById('errorModalBody').innerText = message;
             const modal = new bootstrap.Modal(document.getElementById('errorModal'));
             modal.show();
         }
+        document.addEventListener('DOMContentLoaded', async function () {
+        // Check URL parameters for errors first
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorFromUrl = urlParams.get('error');
+        if (errorFromUrl) {
+            showModalError(decodeURIComponent(errorFromUrl));
+            return; // Don't check session errors if we have URL error
+        }
+
+        // Existing session error check
+        try {
+            const res = await fetch('/api/session/validation-errors');
+            const data = await res.json();
+            if (data.errors?.length) {
+                const messages = data.errors.map(e => e.msg).join('\n');
+                showModalError(messages);
+            }
+        } catch (err) {
+            console.error('Failed to load session errors:', err);
+        }
+    });
+
     </script>
 
 </body>

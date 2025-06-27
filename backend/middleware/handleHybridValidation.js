@@ -9,7 +9,19 @@ module.exports = (req, res, next) => {
   console.info('Method:', req.method);
   console.info('IP:', req.ip);
   console.info('User-Agent:', req.headers['user-agent']);
-  console.info('Body:', JSON.stringify(req.body, null, 2));
+  console.info(
+    'Body:',
+    JSON.stringify(
+      req.body,
+      (key, value) => {
+        if (key && key.toLowerCase().includes('password')) {
+          return '[FILTERED]';
+        }
+        return value;
+      },
+      2
+    )
+  );
 
   if (hasErrors) {
     const errorList = errors.array();

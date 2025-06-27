@@ -38,7 +38,7 @@ function sanitizeOutput(req, res, next) {
 /**
  * Recursively sanitize an object
  */
-function sanitizeObject(obj) {
+function sanitizeObject(obj, parentKey = '') {
     if (obj === null || obj === undefined) {
         return obj;
     }
@@ -50,13 +50,13 @@ function sanitizeObject(obj) {
     if (typeof obj === 'object') {
         const sanitized = {};
         for (const [key, value] of Object.entries(obj)) {
-            sanitized[key] = sanitizeObject(value);
+            sanitized[key] = sanitizeObject(value, key);
         }
         return sanitized;
     }
 
     if (typeof obj === 'string') {
-        return sanitizeString(obj);
+        return sanitizeFieldByType(parentKey, obj);  // Use field-aware sanitization
     }
 
     return obj;
@@ -121,6 +121,13 @@ function sanitizeObjectAdvanced(obj) {
  */
 function sanitizeFieldByType(fieldName, value) {
     if (typeof value === 'string') {
+        // URL fields - don't escape URLs
+        if (fieldName.toLowerCase().includes('url') ||
+            fieldName.toLowerCase().includes('image') ||
+            value.startsWith('/static/')) {
+            return value;
+        }
+
         // Email fields - additional validation
         if (fieldName.toLowerCase().includes('email')) {
             return validator.normalizeEmail(value) || '';
