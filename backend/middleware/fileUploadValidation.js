@@ -1,4 +1,3 @@
-// middleware/fileUploadValidation.js
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -22,6 +21,12 @@ const storage = multer.diskStorage({
     filename: (req, file, cb) => {
         const uniqueSuffix = crypto.randomBytes(16).toString('hex');
         const extension = path.extname(file.originalname).toLowerCase();
+
+        const disallowedExts = ['.js', '.php', '.exe', '.sh', '.bat', '.py'];
+        if (disallowedExts.includes(extension)) {
+            return cb(new Error('Executable files are not allowed.'));
+        }
+
         const filename = `restaurant-${uniqueSuffix}${extension}`;
         cb(null, filename);
     }
@@ -62,7 +67,17 @@ const validateUploadedImage = async (req, res, next) => {
 
             let totalExtractedSize = 0;
             for (const entry of entries) {
-                if (entry.entryName.includes('..') || path.isAbsolute(entry.entryName)) {
+                const entryPath = entry.entryName;
+
+                const normalizedPath = path.normalize(entryPath);
+                const safePath = path.join(uploadDir, normalizedPath);
+
+                if (!safePath.startsWith(uploadDir)) {
+                    fs.unlinkSync(filePath);
+                    return res.status(400).json({ error: 'Zip slip path traversal attempt detected.' });
+                }
+
+                if (entryPath.includes('..') || path.isAbsolute(entryPath)) {
                     fs.unlinkSync(filePath);
                     return res.status(400).json({ error: 'Zip contains unsafe paths' });
                 }

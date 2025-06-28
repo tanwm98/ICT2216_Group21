@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { sanitizeInput, sanitizeSpecificFields } = require('../middleware/sanitization');
 const { upload, validateUploadedImage } = require('../middleware/fileUploadValidation');
+const mime = require('mime-types');
 
 function generateImageUrl(imageFilename) {
     if (!imageFilename || typeof imageFilename !== 'string') {
@@ -205,6 +206,23 @@ router.post('/users/:id/reset-password', async (req, res) => {
         console.error('Error resetting password:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// Filename validation & Content-Disposition
+router.get('/download/:filename', (req, res) => {
+    const unsafeFilename = req.params.filename;
+    const safeFilename = path.basename(unsafeFilename).replace(/[^\w.\-]/g, '_');
+
+    const filePath = path.join(__dirname, '../../frontend/static/img/restaurants', safeFilename);
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+
+    const contentType = mime.lookup(filePath) || 'application/octet-stream';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(safeFilename)}"`); // sanitization & encoding
+    res.sendFile(filePath);
 });
 
 
