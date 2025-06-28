@@ -45,7 +45,7 @@ app.use(sanitizeOutput);   // Sanitize all outgoing responses
 
 // import route files
 const authRoutes = require('./backend/routes/authApi')
-const adminDash = require('./backend/routes/adminDashboardApi')
+const { router: adminDash } = require('./backend/routes/adminDashboardApi')
 const ownerApi = require('./backend/routes/ownerDashboardApi');
 const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
