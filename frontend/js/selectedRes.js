@@ -432,6 +432,7 @@ async function displaySpecificStore() {
         }
 
         stores = await response.json();
+        document.title = `${escapeHtml(stores[0].storeName)} - ${escapeHtml(stores[0].location)}`;
         await displayTimingOptions();
 
         navTabs(stores);

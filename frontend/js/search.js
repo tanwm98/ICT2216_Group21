@@ -1,9 +1,3 @@
-// ======================================
-// FIXED: Secure Image Serving with URLs Instead of Base64
-// Enhanced with OWASP Security Best Practices
-// ======================================
-
-// Load all stores on initial load
 window.onload = function () {
   flatpickr("#dateInput", {
       dateFormat: "Y-m-d",
@@ -14,8 +8,6 @@ window.onload = function () {
   displayStores();
 };
 
-//  ======== BUTTON EVENTS  ======== //
-
 // CLEAR all filters
 document.getElementById('clear').addEventListener('click', function () {
   // Reset input fields
@@ -23,16 +15,10 @@ document.getElementById('clear').addEventListener('click', function () {
   document.getElementById('dateInput').value = '';
   document.getElementById('timeInput').value = '';
 
-  // Reset review score
-  const reviewScoreInput = document.querySelector('.review-score');
-  if (reviewScoreInput) {
-    reviewScoreInput.value = '';
-  }
-
-  // Reset the review score range input to 1
-  const reviewSlider = document.querySelector('.review-score');
-  if (reviewSlider) {
-    reviewSlider.value = 1;
+  // Reset review score slider
+  const slider = document.getElementById('review-score-slider');
+  if (slider && slider.noUiSlider) {
+    slider.noUiSlider.set([1, 5]);
   }
 
   // Uncheck all cuisine checkboxes
@@ -43,10 +29,16 @@ document.getElementById('clear').addEventListener('click', function () {
   const priceRadios = document.querySelectorAll('.price-range');
   priceRadios.forEach(rb => rb.checked = false);
 
+  // Reset location dropdown
+  const locationSelect = document.getElementById('locationSelect');
+  if (locationSelect) {
+    locationSelect.value = '';
+  }
+
   displayStores();
 });
 
-// APPLY for table availability filtering
+// APPLY for table availability filtering - IMPROVED UX
 document.getElementById('applyButton').addEventListener('click', function () {
   filterByReservationDetails();
 });
@@ -55,6 +47,12 @@ function filterByReservationDetails() {
   const people = document.getElementById('peopleInput').value;
   const date = document.getElementById('dateInput').value;
   const time = document.getElementById('timeInput').value;
+
+  // IMPROVED: Better validation with user feedback
+  if (!people || !date || !time) {
+    showMessage('Please fill in all reservation details (people, date, and time).', 'warning');
+    return;
+  }
 
   displayReservationAvailability(people, date, time);
 }
@@ -105,131 +103,76 @@ function filterByRestaurantDetails() {
   displayFiltered(queryParams);
 }
 
-//  ======== SECURE HELPER FUNCTIONS ======== //
-
-// SECURITY: XSS Prevention - Escape HTML content
-function escapeHtml(unsafe) {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-// SECURITY: Validate and sanitize image URLs
-function createSecureImageElement(imageUrl, altText, storeName) {
-  const img = document.createElement('img');
-
-  // SECURITY: Validate image URL format
-  if (!imageUrl || typeof imageUrl !== 'string') {
-    img.src = '/static/img/restaurants/no-image.png';
-  } else if (imageUrl.startsWith('/static/img/restaurants/')) {
-    // Valid internal image URL
-    img.src = imageUrl;
-  } else {
-    // Invalid or external URL - use fallback
-    console.warn('Invalid image URL detected:', imageUrl);
-    img.src = '/static/img/restaurants/no-image.png';
-  }
-
-  // SECURITY: Escape alt text to prevent XSS
-  img.alt = escapeHtml(altText || `${storeName} restaurant image`);
-
-  // SECURITY: Add CSP-compliant loading and error handling
-  img.loading = 'lazy'; // Performance optimization
-  img.onerror = function() {
-    // Fallback to default image if loading fails
-    this.src = '/static/img/restaurants/no-image.png';
-    this.onerror = null; // Prevent infinite loop
-  };
-
-  // SECURITY: Add security attributes
-  img.referrerPolicy = 'strict-origin-when-cross-origin';
-
-  return img;
-}
-
-// SECURITY: Sanitize store data
-function sanitizeStoreData(store) {
-  return {
-    store_id: parseInt(store.store_id) || 0,
-    storeName: escapeHtml(store.storeName || 'Unknown Restaurant'),
-    location: escapeHtml(store.location || 'Unknown Location'),
-    cuisine: escapeHtml(store.cuisine || 'Various'),
-    priceRange: escapeHtml(store.priceRange || 'N/A'),
-    // FIXED: Use imageUrl instead of base64 image data
-    imageUrl: store.imageUrl || '/static/img/restaurants/no-image.png',
-    altText: store.altText || `${store.storeName} restaurant image`,
-    average_rating: parseFloat(store.average_rating) || null,
-    review_count: parseInt(store.review_count) || 0
-  };
-}
+//  ======== HELPER FUNCTIONS ======== //
 
 // SECURITY: Create restaurant card with proper sanitization
 function createRestaurantCard(store) {
-  // Sanitize store data
-  const sanitizedStore = sanitizeStoreData(store);
 
   const card = document.createElement('div');
   card.classList.add('restaurant-card');
 
-  // FIXED: Use secure image URL instead of base64
-  const img = createSecureImageElement(
-    sanitizedStore.imageUrl,
-    sanitizedStore.altText,
-    sanitizedStore.storeName
-  );
+  // Create image element
+  const img = document.createElement('img');
+
+  // FIXED: Use imageUrl from backend response (now includes proper /static/img/restaurants/ path)
+  if (store.imageUrl && store.imageUrl.startsWith('/static/img/restaurants/')) {
+    img.src = store.imageUrl;
+  } else {
+    img.src = '/static/img/restaurants/no-image.png';
+  }
+
+  img.alt = store.altText || `${store.storeName} restaurant image`;
+  img.loading = 'lazy';
+  img.onerror = function() {
+    this.src = '/static/img/restaurants/no-image.png';
+    this.onerror = null;
+  };
+
   card.appendChild(img);
 
-  // Restaurant Info with XSS protection
+  // Restaurant Info
   const infoDiv = document.createElement('div');
   infoDiv.classList.add('restaurant-info');
 
   const name = document.createElement('h4');
-  name.textContent = sanitizedStore.storeName; // Use textContent to prevent XSS
+  name.textContent = store.storeName || 'Unknown Restaurant';
   infoDiv.appendChild(name);
 
   const location = document.createElement('p');
-  location.textContent = sanitizedStore.location;
+  location.textContent = `Located at ${store.location || 'Unknown Location'}`;
   infoDiv.appendChild(location);
 
   const cuisine = document.createElement('p');
-  cuisine.textContent = sanitizedStore.cuisine;
+  cuisine.textContent = `${store.cuisine || 'Various'} Restaurant`;
   infoDiv.appendChild(cuisine);
 
   const price = document.createElement('p');
-  price.textContent = `Price ${sanitizedStore.priceRange}`;
+  price.textContent = `Price ${store.priceRange || 'N/A'}`;
   infoDiv.appendChild(price);
 
   card.appendChild(infoDiv);
 
-  // Rating Section with proper validation
+  // Rating Section
   const ratingDiv = document.createElement('div');
-  ratingDiv.classList.add('rating-info');
+  ratingDiv.classList.add('rating');
 
-  const averageRating = sanitizedStore.average_rating !== null
-    ? sanitizedStore.average_rating.toFixed(1)
-    : 'N/A';
-  const reviewCount = sanitizedStore.review_count;
+  if (store.average_rating && store.review_count > 0) {
+    const averageRating = parseFloat(store.average_rating).toFixed(1);
+    const reviewCount = parseInt(store.review_count);
 
-  // Use textContent to prevent XSS
-  ratingDiv.innerHTML = `Rating: ${averageRating} <br/><small>(${reviewCount} reviews)</small>`;
+    ratingDiv.innerHTML = `${averageRating}/5<br/><small>${reviewCount} reviews</small>`;
+  } else {
+    ratingDiv.innerHTML = `N/A<br/><small>No reviews</small>`;
+  }
+
   card.appendChild(ratingDiv);
 
-  // SECURITY: Validate URL parameters before creating link
-  const encodedStoreName = encodeURIComponent(sanitizedStore.storeName);
-  const encodedLocation = encodeURIComponent(sanitizedStore.location);
-
-  // Link to access this selected restaurant page [selectedRes.html]
+  // Link to restaurant details page
   const link = document.createElement('a');
-  link.href = `/selectedRes?name=${encodedStoreName}&location=${encodedLocation}`;
+  link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
   link.style.textDecoration = 'none';
   link.style.color = 'inherit';
-
-  // SECURITY: Add security attributes to link
   link.rel = 'noopener';
-
   link.appendChild(card);
 
   return link;
@@ -237,22 +180,21 @@ function createRestaurantCard(store) {
 
 //  ======== ASYNC FUNCTIONS TO DISPLAY STORES / LOAD DATA  ======== //
 
-// Load locations with error handling
+// Load locations
 async function loadLocations() {
   try {
     const response = await fetch('/available_locations');
-    if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to fetch locations`);
+    if (!response.ok) throw new Error(`Failed to fetch locations`);
 
     const locations = await response.json();
     const locationSelect = document.getElementById('locationSelect');
 
-    // SECURITY: Validate and sanitize location data
     if (Array.isArray(locations)) {
       locations.forEach(loc => {
         if (typeof loc === 'string' && loc.trim()) {
           const option = document.createElement('option');
-          option.value = escapeHtml(loc.trim());
-          option.textContent = escapeHtml(loc.trim());
+          option.value = loc.trim();
+          option.textContent = loc.trim();
           locationSelect.appendChild(option);
         }
       });
@@ -260,193 +202,157 @@ async function loadLocations() {
 
   } catch (err) {
     console.error('Error loading locations:', err);
-    // Show user-friendly error message
-    showErrorMessage('Failed to load locations. Please refresh the page.');
+    showMessage('Failed to load locations. Please refresh the page.', 'error');
   }
 }
 
-// FIXED: Display ALL stores with secure image URLs
+// Display ALL stores
 async function displayStores() {
     try {
+        showLoading();
+
         const response = await fetch('/displayallStores');
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Failed to fetch data`);
+            throw new Error(`Failed to fetch data`);
         }
 
         const stores = await response.json();
         const foodList = document.getElementById('res-content');
 
-        if (!foodList) {
-          throw new Error('Restaurant content container not found');
-        }
-
         foodList.innerHTML = "";
 
-        // SECURITY: Validate response data
-        if (!Array.isArray(stores)) {
-          throw new Error('Invalid response format');
-        }
-
-        if (stores.length === 0) {
-          foodList.innerHTML = '<div class="no-results">No restaurants found.</div>';
+        if (!Array.isArray(stores) || stores.length === 0) {
+          showMessage('No restaurants found.', 'info');
           return;
         }
 
-        // FIXED: Process each store with secure image URLs
         stores.forEach(store => {
           try {
             const restaurantCard = createRestaurantCard(store);
             foodList.appendChild(restaurantCard);
           } catch (cardError) {
             console.error('Error creating restaurant card:', cardError);
-            // Continue with other restaurants
           }
         });
 
     } catch (error) {
         console.error('Error in displayStores:', error);
-        showErrorMessage('Failed to load restaurants. Please try again later.');
+        showMessage('Failed to load restaurants. Please try again later.', 'error');
     }
 }
 
-// FIXED: Display reservation available stores with secure image URLs
+// Display reservation available stores
 async function displayReservationAvailability(people, date, time) {
     try {
-        // SECURITY: Validate input parameters
-        if (!people || !date || !time) {
-          showErrorMessage('Please fill in all reservation details.');
-          return;
-        }
+        showLoading();
 
         const query = `?people=${encodeURIComponent(people)}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`;
         const response = await fetch(`/display_by_ReservationAvailability${query}`);
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Failed to fetch data`);
+            if (response.status === 400) {
+              const errorData = await response.json();
+              showMessage(`Please check your input: ${errorData.errors ? errorData.errors.join(', ') : 'Invalid reservation details.'}`, 'warning');
+              return;
+            }
+            throw new Error(`Failed to fetch data`);
         }
 
         const stores = await response.json();
         const foodList = document.getElementById('res-content');
 
-        if (!foodList) {
-          throw new Error('Restaurant content container not found');
-        }
-
         foodList.innerHTML = "";
 
-        // SECURITY: Validate response data
-        if (!Array.isArray(stores)) {
-          throw new Error('Invalid response format');
-        }
-
-        if (stores.length === 0) {
-          foodList.innerHTML = '<div class="no-results">No restaurants available for the selected date and time.</div>';
+        if (!Array.isArray(stores) || stores.length === 0) {
+          showMessage(`No restaurants available for ${people} people on ${date} at ${time}. Try different date/time or fewer people.`, 'info');
           return;
         }
 
-        // FIXED: Process each store with secure image URLs
+        showMessage(`Found ${stores.length} restaurant(s) available for your reservation`, 'success');
+
         stores.forEach(store => {
           try {
             const restaurantCard = createRestaurantCard(store);
             foodList.appendChild(restaurantCard);
           } catch (cardError) {
             console.error('Error creating restaurant card:', cardError);
-            // Continue with other restaurants
           }
         });
 
     } catch (error) {
         console.error('Error in displayReservationAvailability:', error);
-        showErrorMessage('Failed to load available restaurants. Please try again later.');
+        showMessage('Failed to check restaurant availability. Please try again later.', 'error');
     }
 }
 
-// FIXED: Display FILTERED stores with secure image URLs
+// Display FILTERED stores
 async function displayFiltered(queryParams) {
   try {
+    showLoading();
+
     const response = await fetch(`/display_filtered_store?${queryParams.toString()}`);
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: Failed to fetch data`);
+      throw new Error(`Failed to fetch data`);
     }
 
     const stores = await response.json();
     const foodList = document.getElementById('res-content');
 
-    if (!foodList) {
-      throw new Error('Restaurant content container not found');
-    }
-
     foodList.innerHTML = "";
 
-    // SECURITY: Validate response data
-    if (!Array.isArray(stores)) {
-      throw new Error('Invalid response format');
-    }
-
-    if (stores.length === 0) {
-      foodList.innerHTML = '<div class="no-results">No restaurants match your filters.</div>';
+    if (!Array.isArray(stores) || stores.length === 0) {
+      showMessage('No restaurants match your filters. Try adjusting your criteria.', 'info');
       return;
     }
 
-    // FIXED: Process each store with secure image URLs
+    showMessage(`Found ${stores.length} restaurant(s) matching your filters`, 'success');
+
     stores.forEach(store => {
       try {
         const restaurantCard = createRestaurantCard(store);
         foodList.appendChild(restaurantCard);
       } catch (cardError) {
         console.error('Error creating restaurant card:', cardError);
-        // Continue with other restaurants
       }
     });
 
   } catch (error) {
     console.error('Error in displayFiltered:', error);
-    showErrorMessage('Failed to load filtered restaurants. Please try again later.');
+    showMessage('Failed to load filtered restaurants. Please try again later.', 'error');
   }
 }
 
-// SECURITY: Show user-friendly error messages
-function showErrorMessage(message) {
+// IMPROVED: Simple message system
+function showMessage(message, type = 'info') {
   const foodList = document.getElementById('res-content');
   if (foodList) {
+    let className = 'alert ';
+    switch(type) {
+      case 'error': className += 'alert-danger'; break;
+      case 'warning': className += 'alert-warning'; break;
+      case 'success': className += 'alert-success'; break;
+      default: className += 'alert-info'; break;
+    }
+
     foodList.innerHTML = `
-      <div class="error-message" style="
-        text-align: center;
-        padding: 2rem;
-        color: #dc3545;
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        border-radius: 8px;
-        margin: 1rem 0;
-      ">
-        <strong>⚠️ Error:</strong> ${escapeHtml(message)}
-        <br><br>
-        <button onclick="location.reload()" style="
-          background: #dc3545;
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 4px;
-          cursor: pointer;
-        ">
-          Refresh Page
-        </button>
+      <div class="${className}" style="margin: 1rem 0; padding: 1rem; border-radius: 8px; text-align: center;">
+        ${message}
+        ${type === 'error' ? '<br><br><button onclick="location.reload()" class="btn btn-danger btn-sm">Refresh Page</button>' : ''}
       </div>
     `;
   }
 }
 
-// SECURITY: Add CSP event listeners for enhanced security
-document.addEventListener('DOMContentLoaded', function() {
-  // Add security headers validation
-  if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
-    console.warn('CSP header not detected. Consider adding Content Security Policy.');
+function showLoading() {
+  const foodList = document.getElementById('res-content');
+  if (foodList) {
+    foodList.innerHTML = `
+      <div style="text-align: center; padding: 3rem; color: #6c757d;">
+        <div class="spinner-border" role="status" style="color: #fc6c3f;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p style="margin-top: 1rem;">Loading restaurants...</p>
+      </div>
+    `;
   }
-});
-
-// SECURITY: Global error handler for unhandled promise rejections
-window.addEventListener('unhandledrejection', function(event) {
-  console.error('Unhandled promise rejection:', event.reason);
-  showErrorMessage('An unexpected error occurred. Please refresh the page.');
-  event.preventDefault();
-});
+}

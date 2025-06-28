@@ -1,9 +1,9 @@
-body, html {
+body.login-page, body.login-page html {
     height: 100%;
     justify-content: center;
     overflow-x: hidden;
     flex-direction: column;
-    
+
 }
 
 .login-header {
@@ -25,12 +25,6 @@ body, html {
     margin-right: 13px;
     border-right: 2px solid #c2c2c2;
     padding-right: 13px;
-}
-
-.container {
-    display: flex;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-    padding: 0 !important;
 }
 
 .left-side, .right-side {
