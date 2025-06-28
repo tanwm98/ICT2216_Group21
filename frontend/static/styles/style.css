@@ -384,21 +384,6 @@ li {
     font-size: 12px;
 }
 
-.search-hidden-form.search-form-open {
-    z-index: 18;
-    opacity: 1;
-    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
-}
-
-.search-hidden-form #search-anything {
-    width: 100%;
-    height: 30px;
-    border: 1px solid #ddd;
-    top: 5px;
-    position: relative;
-    padding: 5px 10px;
-}
-
 .search-hidden-form span {
     line-height: 30px;
     width: 30px;

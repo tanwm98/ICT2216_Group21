@@ -137,13 +137,17 @@ function sanitizeFieldByType(fieldName, value) {
         if (fieldName.toLowerCase().includes('name') ||
             fieldName.toLowerCase().includes('firstname') ||
             fieldName.toLowerCase().includes('lastname')) {
-            const namePattern = /^[A-Za-z\s'-]+$/;
+            // FIXED: Allow Unicode characters including Chinese, & symbol, and common punctuation
+            const namePattern = /^[\p{L}\p{N}\s'&.-]+$/u;
             if (namePattern.test(value)) {
-                return validator.escape(value);
+                // Only escape HTML tags, not ampersands for display purposes
+                return value.replace(/[<>]/g, '');
             }
             return ''; // Invalid name format
         }
-
+        if (fieldName.toLowerCase().includes('storename')) {
+            return value.replace(/[<>]/g, '');
+        }
         // Description/review fields - allow more characters but escape HTML
         if (fieldName.toLowerCase().includes('description') ||
             fieldName.toLowerCase().includes('review') ||

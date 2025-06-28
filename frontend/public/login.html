@@ -5,29 +5,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kirby Chope - Login</title>
-
-    <!-- Bootstrap CSS via CDN -->
     <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Your custom login styles -->
+    <link href="/static/styles/responsive/responsive.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles/style.css">
     <link href="/static/styles/login.css" rel="stylesheet">
-
-    <!-- Optional: Include head placeholder -->
     <div id="head-placeholder"></div>
 </head>
 
-<body>
-    <div class="row">
-        <div class="col-12 mt-2 text-center">
-            <div class="logo_area">
-                <p class="yummy-logo">
-                    <img src="/static/img/core-img/Kirby_Cafe.png" alt="" height="200px">
-                    <br>Kirby Chope
-                </p>
-            </div>
-        </div>
-    </div>
-
+<body class = "login-page">
+<div id="header-placeholder"></div>
     <section class="archive-area">
         <div class="container sticky">
             <div class="left-side col-md-6">
@@ -86,13 +72,8 @@
         </div>
     </div>
 
-    <!-- Bootstrap Bundle JS via CDN -->
     <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
-
-    <!-- Include common head/footer loader -->
     <script src="/common/common_js/include.js"></script>
-
-    <!-- Show Bootstrap modal if login error exists in query string -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);

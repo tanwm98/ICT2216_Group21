@@ -1,13 +1,11 @@
 async function displayStores() {
-    // Cache DOM elements
     const foodList = document.getElementById('post-content');
     if (!foodList) {
         console.error('Element with ID "post-content" not found');
         return;
     }
 
-    // Add loading state
-    foodList.innerHTML = '<div class="loading-spinner text-center p-4"><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div></div>';
+    foodList.innerHTML = '<div class="loading-spinner text-center p-4"><div class="spinner-border" role="status"><span class="sr-only"></span></div></div>';
 
     try {
         const response = await fetch('/displayStores', {
@@ -83,9 +81,7 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-// Optimized store element creation using template strings - UPDATED for imageUrl
 function createStoreElement(store) {
-    // Sanitize all text content
     const safeName = escapeHtml(store.storeName);
     const safeLocation = escapeHtml(store.location);
     const safeCuisine = escapeHtml(store.cuisine);
@@ -201,13 +197,7 @@ function handleDisplayError(error, container) {
     `;
 }
 
-// ======================================
-// ENHANCED PAGE LOAD OPTIMIZATION
-// ======================================
-
-// Optimized page load with better performance
 function initializePageLoad() {
-    // Use requestAnimationFrame for better performance timing
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             requestAnimationFrame(displayStores);
@@ -217,7 +207,6 @@ function initializePageLoad() {
     }
 }
 
-// Enhanced window load with error boundary
 window.onload = function() {
     try {
         initializePageLoad();
@@ -228,11 +217,6 @@ window.onload = function() {
     }
 };
 
-// ======================================
-// OPTIONAL: CACHE MANAGEMENT
-// ======================================
-
-// Cache management for better performance
 class StoreCache {
     constructor(ttl = 5 * 60 * 1000) { // 5 minutes TTL
         this.cache = new Map();
@@ -263,10 +247,8 @@ class StoreCache {
     }
 }
 
-// Initialize cache (optional enhancement)
 const storeCache = new StoreCache();
 
-// Enhanced displayStores with caching (optional)
 async function displayStoresWithCache() {
     const cached = storeCache.get('stores');
     if (cached) {
