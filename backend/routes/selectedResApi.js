@@ -411,7 +411,7 @@ cron.schedule('0 * * * *', async () => { // Run every hour instead of every minu
 
       // Add back capacity to the restaurant
       await pool.query(
-        'UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2',
+        'UPDATE stores SET "currentCapacity" = LEAST("currentCapacity" + $1, "totalCapacity") WHERE store_id = $2',
         [reservation.noOfGuest, reservation.store_id]
       );
     }

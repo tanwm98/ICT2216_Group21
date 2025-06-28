@@ -1,7 +1,7 @@
 {
 	email ict2216@gmail.com
 	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
-	
+
 	# Order the WAF directive early in the middleware chain
 	order coraza_waf first
 }
@@ -10,7 +10,7 @@ kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
 	# Redirect www to non-www
 	@www host www.kirbychope.xyz
 	redir @www https://kirbychope.xyz{uri} permanent
-	
+
 	@hec path /services/collector*
 	handle @hec {
 		reverse_proxy https://kirby-splunk:8088 {
@@ -21,7 +21,7 @@ kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
 			}
 		}
 	}
-	
+
 	handle {
 		reverse_proxy https://kirby-splunk:8000 {
 			transport http {
@@ -38,38 +38,37 @@ kirbychope.xyz {
 	coraza_waf {
 		load_owasp_crs
 		directives `
-			Include @coraza.conf-recommended
-			Include @crs-setup.conf.example
-			Include @owasp_crs/*.conf
-			
-			# Enable WAF engine
-			SecRuleEngine On
-			SecAuditEngine On
-			SecAuditLogFormat JSON
-			
-			# Set audit log file location with proper permissions
-			SecAuditLog /var/log/waf/audit.log
-			SecAuditLogParts ABIJDEFHZ
-			SecAuditLogRelevantStatus "^(40[0-35-9]|41[0-9]|42[0-9]|43[0-9]|4[4-9][0-9]|5[0-9][0-9])$"
-			
-			
-			# Request body limits
-			SecRequestBodyLimit 13107200
-			SecRequestBodyNoFilesLimit 131072
-			
-			# Response body limits
-			SecResponseBodyLimit 524288
-			SecResponseBodyLimitAction Reject
-			
-			SecAction "id:900000,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=1"
-			
-			# Allow HTTP methods for RESTful API
-			SecAction "id:900001,phase:1,nolog,pass,t:none,setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE'"
-			
-			# Exception rules for API endpoints
-			# Allow PUT/PATCH/DELETE for API paths
-			SecRule REQUEST_URI "@beginsWith /api/" \
-				"id:1000,phase:1,nolog,pass,t:none,\
+		Include @coraza.conf-recommended
+		Include @crs-setup.conf.example
+		Include @owasp_crs/*.conf
+
+		# Enable WAF engine
+		SecRuleEngine On
+		SecAuditEngine On
+		SecAuditLogFormat JSON
+
+		# Set audit log file location with proper permissions
+		SecAuditLog /var/log/waf/audit.log
+		SecAuditLogParts ABIJDEFHZ
+		SecAuditLogRelevantStatus "^(40[0-35-9]|41[0-9]|42[0-9]|43[0-9]|4[4-9][0-9]|5[0-9][0-9])$"
+
+		# Request body limits
+		SecRequestBodyLimit 13107200
+		SecRequestBodyNoFilesLimit 131072
+
+		# Response body limits
+		SecResponseBodyLimit 524288
+		SecResponseBodyLimitAction Reject
+
+		SecAction "id:900000,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=1"
+
+		# Allow HTTP methods for RESTful API
+		SecAction "id:900001,phase:1,nolog,pass,t:none,setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE'"
+
+		# Exception rules for API endpoints
+		# Allow PUT/PATCH/DELETE for API paths
+		SecRule REQUEST_URI "@beginsWith /api/" \
+		"id:1000,phase:1,nolog,pass,t:none,\
 				ctl:ruleRemoveById=911100,\
 				ctl:ruleRemoveById=913120,\
 				ctl:ruleRemoveById=920270,\
@@ -78,16 +77,16 @@ kirbychope.xyz {
 				ctl:ruleRemoveById=949110,\
        			setvar:'tx.allowed_request_content_type=|application/json|application/x-www-form-urlencoded|multipart/form-data|text/xml|application/xml|text/plain|',\
        			msg:'REST API exception: allow full CRUD+JSON'"
-			SecRule REQUEST_URI "@beginsWith /rOwnerReg" \
-				"id:9999,phase:1,nolog,allow,\
+		SecRule REQUEST_URI "@beginsWith /rOwnerReg" \
+		"id:9999,phase:1,nolog,allow,\
 				msg:'allow'"
 
-			SecRule REQUEST_URI "@beginsWith /signup-owner" \
-				"id:9998,phase:1,nolog,allow,\
+		SecRule REQUEST_URI "@beginsWith /signup-owner" \
+		"id:9998,phase:1,nolog,allow,\
 				msg:'allow'"
 		`
 	}
-	
+
 	handle_errors {
 		@404 expression {http.error.status_code} == 404
 		@401 expression {http.error.status_code} == 401
@@ -121,7 +120,7 @@ kirbychope.xyz {
 			file_server
 		}
 	}
-	
+
 	# API with enhanced error handling
 	@api path /api/*
 	handle @api {
@@ -139,66 +138,110 @@ kirbychope.xyz {
 		file_server
 	}
 
-    # Root redirect
-    @root path /
-    handle @root {
-        root * /usr/share/caddy/public
-        rewrite * /home.html
-        file_server
-    }
+	# Root redirect
+	@root path /
+	handle @root {
+		root * /usr/share/caddy/public
+		rewrite * /home.html
+		file_server
+	}
 
-    # Try HTML files from multiple locations
-    handle {
-        # First try public folder (login, register, search, etc.)
-        root * /usr/share/caddy/public
-        try_files {path}.html {path}
-        file_server {
-            pass_thru
-        }
+	# Try HTML files from multiple locations
+	handle {
+		# First try public folder (login, register, search, etc.)
+		root * /usr/share/caddy/public
+		try_files {path}.html {path}
+		file_server {
+			pass_thru
+		}
 
-        # Then try html folder (admin, profile, dashboards)
-        root * /usr/share/caddy/html
-        try_files {path}.html {path}
-        file_server {
-            pass_thru
-        }
+		# Then try html folder (admin, profile, dashboards)
+		root * /usr/share/caddy/html
+		try_files {path}.html {path}
+		file_server {
+			pass_thru
+		}
 
-        # Then try common folder (header, footer components)
-        root * /usr/share/caddy/common
-        try_files {path}.html {path}
-        file_server {
-            pass_thru
-        }
+		# Then try common folder (header, footer components)
+		root * /usr/share/caddy/common
+		try_files {path}.html {path}
+		file_server {
+			pass_thru
+		}
 		reverse_proxy backend:3000 {
 			header_up Host {upstream_hostport}
 			header_up X-Real-IP {remote_host}
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
+
+			# Security: Don't pass sensitive headers to backend
+			header_up -X-Forwarded-Server
+			header_up -X-Forwarded-Host
+
+			# Timeout settings
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 10s
+				expect_continue_timeout 1s
+			}
+		}
+		header /api/* {
+			Cache-Control "no-cache, no-store, must-revalidate"
+			Pragma "no-cache"
+			Expires "0"
+		}
+
+		header /admin/* {
+			Cache-Control "no-cache, no-store, must-revalidate"
+			Pragma "no-cache"
+			Expires "0"
+		}
+
+		header /profile* {
+			Cache-Control "no-cache, no-store, must-revalidate"
+			Pragma "no-cache"
+			Expires "0"
+		}
+
+		# Logout endpoint - clear site data
+		header /logout* {
+			Clear-Site-Data "cache,cookies,storage"
+		}
+
+		# Request body size limiting
+		request_body {
+			max_size 10MB
+		}
+		# Security headers
+		header {
+			# HTTPS and transport security
+			Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+			# Content security (removed deprecated X-XSS-Protection)
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+
+			# Cross-Origin security policies
+			Cross-Origin-Embedder-Policy "require-corp"
+			Cross-Origin-Opener-Policy "same-origin"
+			Cross-Origin-Resource-Policy "same-origin"
+
+			# Privacy and referrer policy
+			Referrer-Policy "strict-origin-when-cross-origin"
+
+			# Enhanced Content Security Policy
+			Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
+
+			# Comprehensive permissions policy
+			Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), vr=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
+
+			# Additional security headers
+			X-Permitted-Cross-Domain-Policies "none"
+
+			# Remove server information
+			-Server
+			-X-Powered-By
+			-X-AspNet-Version
+			-X-AspNetMvc-Version
 		}
 	}
-
-
-	# Security headers
-	header {
-		# HTTPS and transport security
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		
-		# Content security
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
-		X-XSS-Protection "1; mode=block"
-		
-		# Privacy and referrer policy
-		Referrer-Policy "strict-origin-when-cross-origin"
-		
-		# Content Security Policy (adjust based on your needs)
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none';"
-		
-		# Remove server information
-		-Server
-		-X-Powered-By
-		
-		# Add security policy
-		Permissions-Policy "geolocation=(), microphone=(), camera=()"
-	}
-}
