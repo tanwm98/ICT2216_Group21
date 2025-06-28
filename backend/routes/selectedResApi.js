@@ -391,48 +391,41 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
   }
 });
 
-// node-cron for real-time reservation updates
-// will run every minute
-// * in order means -> minute, hour, day of month, month, day of wk
-// cron.schedule('* * * * *', async () => {
-//   console.log('checking for reservations...');
+cron.schedule('0 * * * *', async () => { // Run every hour instead of every minute
+  console.log('Checking for completed reservations...');
+  console.log('🕐 Testing cron job...', new Date());
+  try {
+    const result = await pool.query(`
+      SELECT reservation_id, "noOfGuest", store_id
+      FROM reservations
+      WHERE NOW() >= ("reservationDate"::timestamp + "reservationTime"::interval + INTERVAL '1 hour')
+      AND status = 'Confirmed'
+    `);
 
-//   // sql query to get reservations that has been at least 1 hours since the reservation time
-//   // like if the reservation time is 2pm, resrvation time +1 hours = 3pm 
-//   // now() lets say 3pm -> it will return because the current time is at least 1 hr aft the reservtation
+    for (const reservation of result.rows) {
+      // Update status to Completed
+      await pool.query(
+        'UPDATE reservations SET status = $1 WHERE reservation_id = $2',
+        ['Completed', reservation.reservation_id]
+      );
 
-//   // if reservation time is 2pm, then +1 hours = 3pm
-//   // if now() is 230pm (haven over) -> wont return
-//   const result = await pool.query(
-//     `
-//         SELECT * FROM reservations WHERE 
-//         NOW() >= ("reservationTime" + "reservationDate")::timestamp + INTERVAL '1 hour' AND status = 'Confirmed'
-//       `
-//   )
+      // Add back capacity to the restaurant
+      await pool.query(
+        'UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2',
+        [reservation.noOfGuest, reservation.store_id]
+      );
+    }
 
-//   const results = result.rows;
-//   console.log("=========================================================");
-
-//   for (const r of results) {
-//     // Access each reservation record
-//     console.log(`Reservation ID: ${r.reservation_id}`);
-
-//     // reservation over, so need to update status of reservation to compelted & update the current capacity in stores
-
-//     // update status of reservation
-//     await pool.query(`UPDATE reservations SET status = 'Completed' WHERE reservation_id = $1`, [r.reservation_id]);
-
-//     // update capacity of stores (to add back the no of pax that was minus when reservation made)
-//     await pool.query(`UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2`, [r.noOfGuest, r.store_id]);
-//   }
-
-
-// })
-
+    if (result.rows.length > 0) {
+      console.log(`Updated ${result.rows.length} reservations to Completed status`);
+    }
+  } catch (err) {
+    console.error('Error updating reservation statuses:', err);
+  }
+});
 
 // another cron for reservation reminder email
 cron.schedule('0 * * * *', async () => {
-  // need to convert now() to singapore timezone to compare the timing 
   const result = await pool.query(
     `
       SELECT *, "reservationDate"::TEXT AS date
@@ -443,7 +436,6 @@ cron.schedule('0 * * * *', async () => {
           ((NOW() + INTERVAL '24 hour') AT TIME ZONE 'Asia/Singapore') AND
           ((NOW() + INTERVAL '25 hour') AT TIME ZONE 'Asia/Singapore') AND
         status = 'Confirmed' AND is_reminded = FALSE
-
       `
   )
 

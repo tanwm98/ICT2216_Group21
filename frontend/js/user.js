@@ -30,23 +30,30 @@ function fetchReservations() {
       const tableBody = document.querySelector('#reservationTable tbody');
       tableBody.innerHTML = '';
       data.forEach(reservation => {
+        // Check if reservation date/time has passed
+        const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+        const now = new Date();
+        const isPastReservation = now >= reservationDateTime;
+
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${reservation.storeName}</td>
           <td>${reservation.reservationDate}</td>
           <td>${reservation.reservationTime}</td>
           <td>${reservation.noOfGuest}</td>
-          
+
           <td>
-            ${reservation.status === 'Confirmed'
+            ${(reservation.status === 'Confirmed' && !isPastReservation)
             ? `<button class="btn btn-sm btn-warning" onclick="cancelUserReservation(${reservation.reservation_id})">Cancel</button>`
-            : reservation.status}
+            : (reservation.status === 'Confirmed' && isPastReservation)
+              ? 'Completed'
+              : reservation.status}
           </td>
 
           <td>${reservation.specialRequest || ''}</td>
 
           <td>
-            ${reservation.status === 'Confirmed'
+            ${(reservation.status === 'Confirmed' && !isPastReservation)
             ? `<button class="btn btn-sm" style="background-color: #fc6c3f; color: white;" onclick="editReservation(${reservation.store_id}, ${reservation.reservation_id})">Edit Reservation</button>`
             : "-"}
           </td>
@@ -58,7 +65,6 @@ function fetchReservations() {
       console.error('Error loading reservations:', err);
     });
 }
-
 // ========== CANCEL RESERVATION ==========
 function cancelUserReservation(reservationId) {
   fetch(`/api/user/reservations/${reservationId}/cancel`, {

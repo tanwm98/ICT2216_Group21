@@ -167,7 +167,7 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
             // Set token in HTTP-only cookie with secure settings
             res.cookie('token', token, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: true,
                 sameSite: 'strict',
                 maxAge: 3600000 // 1 hour
             });

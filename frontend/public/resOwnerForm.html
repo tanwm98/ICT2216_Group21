@@ -9,8 +9,6 @@
   <link rel="stylesheet" href="/static/styles/style.css">
   <link rel="stylesheet" href="/static/styles/ownerForm.css">
   <div id="head-placeholder"></div>
-  <style>
-  </style>
 </head>
 
 <body>
@@ -85,15 +83,11 @@
       <div class="mb-3">
         <label for="password" class="form-label">Password</label>
         <input type="password" class="form-control" id="password" name="password" required
-               minlength="8" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$">
+               minlength="8" pattern="^(?=.*[a-z]).{8,}$">
         <div class="password-requirements">
           <strong>Password Requirements:</strong>
           <ul>
             <li>At least 8 characters long</li>
-            <li>At least one lowercase letter (a-z)</li>
-            <li>At least one uppercase letter (A-Z)</li>
-            <li>At least one number (0-9)</li>
-            <li>At least one special character (@$!%*?&)</li>
           </ul>
         </div>
         <div class="invalid-feedback">
