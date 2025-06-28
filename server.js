@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
-const { authenticateToken, requireAdmin, requireOwner, requireUser } = require('./frontend/js/token');
+const { authenticateToken, requireAdmin, requireOwner, requireUser, requireUserOnly } = require('./frontend/js/token');
 const { sanitizeInput, sanitizeOutput, createRateLimiter } = require('./backend/middleware/sanitization');
 
 if (process.env.NODE_ENV === 'production') {
@@ -59,6 +59,17 @@ app.use(selectedResRoutes);
 app.use('/', authRoutes);
 app.use(search);
 
+app.get('/', authenticateToken, (req, res) => {
+    // Role-based redirect
+    if (req.user.role === 'admin') {
+        return res.redirect('/admin');
+    } else if (req.user.role === 'owner') {
+        return res.redirect('/resOwner');
+    } else {
+        return res.redirect('/public/home.html');
+    }
+});
+
 app.get('/api/session', (req, res) => {
      const token = req.cookies.token;
     if (!token) return res.json({ loggedIn: false });
@@ -72,7 +83,7 @@ app.get('/api/session', (req, res) => {
             permissions: {
                 canAccessAdmin: decoded.role === 'admin',
                 canAccessOwner: ['owner', 'admin'].includes(decoded.role),
-                canAccessUser: ['user', 'owner', 'admin'].includes(decoded.role)
+                canAccessUser: decoded.role === 'user'
             }
         });
     } catch {
@@ -92,9 +103,6 @@ app.use('/api/owner', ownerApi);   // Owner routes are protected inside the rout
 app.use('/api/user', loggedUser);  // User routes are protected inside the router
 
 // ======== PUBLIC ROUTES ========
-app.get('/', (req, res) => {
-  res.redirect('/public/home.html');
-});
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({
@@ -148,7 +156,7 @@ app.get('/profile', authenticateToken, requireUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/userprofile.html'));
 });
 
-app.get('/reserveform', authenticateToken, requireUser, (req, res) => {
+app.get('/reserveform', authenticateToken, requireUserOnly, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
 });
 

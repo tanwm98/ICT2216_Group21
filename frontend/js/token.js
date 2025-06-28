@@ -51,11 +51,13 @@ function requireRole(allowedRoles) {
 const requireAdmin = requireRole('admin');
 const requireOwner = requireRole(['owner', 'admin']);
 const requireUser = requireRole(['user', 'owner', 'admin']);
+const requireUserOnly = requireRole('user');
 
 module.exports = {
   authenticateToken,
   requireRole,
   requireAdmin,
   requireOwner,
-  requireUser
+  requireUser,
+  requireUserOnly
 };

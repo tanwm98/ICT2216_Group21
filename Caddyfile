@@ -80,11 +80,11 @@ kirbychope.xyz {
        			msg:'REST API exception: allow full CRUD+JSON'"
 			SecRule REQUEST_URI "@beginsWith /rOwnerReg" \
 				"id:9999,phase:1,nolog,allow,\
-				msg:'Temporary allow for debugging'"
+				msg:'allow'"
 
 			SecRule REQUEST_URI "@beginsWith /signup-owner" \
 				"id:9998,phase:1,nolog,allow,\
-				msg:'Temporary allow for debugging'"
+				msg:'allow'"
 		`
 	}
 	
