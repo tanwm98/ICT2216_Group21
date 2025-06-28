@@ -1,6 +1,6 @@
 {
 	email ict2216@gmail.com
-	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
 
 	# Order the WAF directive early in the middleware chain
 	order coraza_waf first
@@ -171,9 +171,6 @@ kirbychope.xyz {
 		reverse_proxy backend:3000 {
 			header_up Host {upstream_hostport}
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-
 			# Security: Don't pass sensitive headers to backend
 			header_up -X-Forwarded-Server
 			header_up -X-Forwarded-Host
@@ -185,34 +182,6 @@ kirbychope.xyz {
 				expect_continue_timeout 1s
 			}
 		}
-		header /api/* {
-			Cache-Control "no-cache, no-store, must-revalidate"
-			Pragma "no-cache"
-			Expires "0"
-		}
-
-		header /admin/* {
-			Cache-Control "no-cache, no-store, must-revalidate"
-			Pragma "no-cache"
-			Expires "0"
-		}
-
-		header /profile* {
-			Cache-Control "no-cache, no-store, must-revalidate"
-			Pragma "no-cache"
-			Expires "0"
-		}
-
-		# Logout endpoint - clear site data
-		header /logout* {
-			Clear-Site-Data "cache,cookies,storage"
-		}
-
-		# Request body size limiting
-		request_body {
-			max_size 10MB
-		}
-		# Security headers
 		header {
 			# HTTPS and transport security
 			Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"

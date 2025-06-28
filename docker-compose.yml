@@ -35,7 +35,7 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .idea/.env
+      - .env
     expose:
       - "3000"
     networks:
