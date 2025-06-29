@@ -169,4 +169,60 @@
     cursor: pointer;
     font-weight: bold;
   }
-  
+  .loading-container {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
+}
+
+.loading-container .spinner-border {
+  color: #fc6c3f !important; /* !important might be needed to override Bootstrap's default color */
+}
+
+.loading-container p {
+  margin-top: 1rem;
+}
+
+.message-box {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.sidebar-section {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.sidebar-section h4 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+#review-score-slider {
+    height: 6px;
+    background: #ddd;
+    border-radius: 5px;
+    position: relative;
+    cursor: pointer;
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-size: 14px;
+    color: #666;
+}
+
+.review-score-display {
+    text-align: center;
+    margin-top: 10px;
+    font-weight: bold;
+    color: #fc6c3f;
+}

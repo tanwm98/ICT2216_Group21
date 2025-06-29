@@ -1,0 +1,5 @@
+.restaurant-card-image {
+  width: 350px;
+  height: 230px;
+  object-fit: cover;
+}

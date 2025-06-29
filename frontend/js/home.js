@@ -103,13 +103,11 @@ function createStoreElement(store) {
             <div class="post-image">
                 <a href="${storeUrl}">
                     <img
-                        class="lazy-load"
+                        class="lazy-load restaurant-card-image"
                         data-src="${store.imageUrl}"
                         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='230'%3E%3Crect width='100%25' height='100%25' fill='%23f8f9fa'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%236c757d'%3ELoading...%3C/text%3E%3C/svg%3E"
                         alt="${safeAltText}"
-                        style="width: 350px; height: 230px; object-fit: cover;"
                         loading="lazy"
-                        onerror="this.src='/static/img/restaurants/no-image.png'"
                     />
                 </a>
             </div>
@@ -191,10 +189,14 @@ function handleDisplayError(error, container) {
             <div class="alert alert-warning" role="alert">
                 <h4>Oops! Something went wrong</h4>
                 <p class="mb-3">${escapeHtml(errorMessage)}</p>
-                <button class="btn btn-primary" onclick="displayStores()">Try Again</button>
+                <button id="retry-load-btn" class="btn btn-primary">Try Again</button>
             </div>
         </div>
     `;
+    const retryButton = document.getElementById('retry-load-btn');
+    if (retryButton) {
+        retryButton.addEventListener('click', displayStoresWithCache);
+    }
 }
 
 function initializePageLoad() {
@@ -281,7 +283,11 @@ function renderStores(stores) {
             fragment.appendChild(createStoreElement(store));
         }
     });
-
+    foodList.addEventListener('error', (e) => {
+        if (e.target.tagName === 'IMG') {
+            e.target.src = '/static/img/restaurants/no-image.png';
+        }
+    }, true);
     foodList.appendChild(fragment);
     initializeLazyLoading();
 }

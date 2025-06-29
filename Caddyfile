@@ -77,6 +77,12 @@ kirbychope.xyz {
 				ctl:ruleRemoveById=949110,\
        			setvar:'tx.allowed_request_content_type=|application/json|application/x-www-form-urlencoded|multipart/form-data|text/xml|application/xml|text/plain|',\
        			msg:'REST API exception: allow full CRUD+JSON'"
+
+		SecRule REQUEST_URI "@beginsWith /reset-password" \
+		"id:1001,phase:1,nolog,pass,t:none,\
+				ctl:ruleRemoveById=949110,\
+				msg:'ALLOW PUT for reset-password'"
+
 		SecRule REQUEST_URI "@beginsWith /rOwnerReg" \
 		"id:9999,phase:1,nolog,allow,\
 				msg:'allow'"
@@ -87,31 +93,16 @@ kirbychope.xyz {
 		`
 	}
 	header {
-	        # HTTPS and transport security
 	        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-	        
-	        # Content security
 	        X-Content-Type-Options "nosniff"
 	        X-Frame-Options "DENY"
-	        
-	        # Cross-Origin security policies
 	        Cross-Origin-Embedder-Policy "require-corp"
 	        Cross-Origin-Opener-Policy "same-origin"
 	        Cross-Origin-Resource-Policy "same-origin"
-	        
-	        # Privacy and referrer policy
 	        Referrer-Policy "strict-origin-when-cross-origin"
-	        
-	        # Enhanced Content Security Policy
-	        Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
-	        
-	        # Comprehensive permissions policy
+			Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"	        
 	        Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), vr=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
-	        
-	        # Additional security headers
 	        X-Permitted-Cross-Domain-Policies "none"
-	        
-	        # Remove server information
 	        -Server
 	        -X-Powered-By
 	        -X-AspNet-Version

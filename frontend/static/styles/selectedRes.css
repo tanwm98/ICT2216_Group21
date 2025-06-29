@@ -17,10 +17,88 @@
     padding: 10px;
     box-shadow: 0 2px 2px lightgrey;
     border-radius: 5px;
-
 }
 
 .timingButtons:hover {
     background-color: #fc6c3f !important;
     color: white !important;
+}
+
+.btn-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #fc6c3f;
+}
+
+.timing-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.timing-visible,
+.timing-hidden {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.timing-btn {
+    width: 70px;
+    height: 38px;
+    flex-shrink: 0;
+}
+
+.btn-timing-available {
+    border: 1px solid #fc6c3f;
+    color: #fc6c3f;
+    background-color: white;
+}
+
+.btn-timing-selected {
+    background-color: #fc6c3f;
+    color: white;
+    border: 1px solid #fc6c3f;
+}
+
+.btn-reservation-time {
+    border: 1px solid #fc3f3f;
+    background-color: #fc3f3f;
+    color: white;
+}
+
+.error-message {
+    color: red;
+}
+
+.hidden {
+    display: none;
+}
+
+.restaurant-main-image {
+    width: 650px;
+    height: 450px;
+    object-fit: cover;
+}
+
+.review-card {
+    background-color: #F9FAFB;
+    box-shadow: 0 2px 2px lightgrey;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+}
+
+.text-primary {
+    color: #FC6C3F;
+}
+
+.error-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
 }
