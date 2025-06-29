@@ -55,11 +55,11 @@
         <!-- Review Score Range -->
         <div class="sidebar-section">
             <h4>Review Score</h4>
-            <div id="review-score-slider" style="margin: 20px 0;"></div>
-            <div class="range-labels" style="display: flex; justify-content: space-between; padding: 0 10px;">
+            <div id="review-score-slider"></div>
+            <div class="range-labels">
                 <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
             </div>
-            <div class="review-score-display" style="text-align: center; margin-top: 10px; font-weight: bold; color: #fc6c3f;">
+            <div class="review-score-display">
                 Rating: 1 - 5
             </div>
         </div>
@@ -120,38 +120,5 @@
 
 <script src="/common/common_js/include.js"></script>
 <script src="/js/search.js"></script>
-
-<script>
-    // Initialize the review score slider
-    const slider = document.getElementById('review-score-slider');
-    const reviewScoreDisplay = document.querySelector('.review-score-display');
-
-    noUiSlider.create(slider, {
-      start: [1, 5],      // Initial values
-      connect: true,
-      step: 1,
-      range: {
-        'min': 1,
-        'max': 5
-      },
-      format: {
-        to: value => Math.round(value),
-        from: value => Number(value)
-      }
-    });
-
-    // Update display when slider changes
-    slider.noUiSlider.on('update', function (values) {
-      const [min, max] = values.map(v => parseInt(v));
-      reviewScoreDisplay.textContent = `Rating: ${min} - ${max}`;
-    });
-
-    // Export values for filtering
-    slider.noUiSlider.on('change', function (values) {
-      const [min, max] = values.map(v => parseInt(v));
-      console.log(`Review score range: ${min} - ${max}`);
-    });
-</script>
-
 </body>
 </html>

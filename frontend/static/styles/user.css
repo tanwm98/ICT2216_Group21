@@ -1,0 +1,212 @@
+/* Edit container styles */
+.edit-container {
+    margin-top: 0.5rem;
+}
+
+.edit-input {
+    max-width: 250px;
+    width: auto;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Table responsiveness */
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Message area styling */
+.message-area {
+    min-height: 1.5rem;
+}
+
+.message-success {
+    color: #198754;
+    font-weight: 500;
+}
+
+.message-error {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.message-info {
+    color: #0d6efd;
+    font-weight: 500;
+}
+
+/* Profile section styling */
+.profile-field {
+    margin-bottom: 1rem;
+}
+
+.profile-field:last-child {
+    margin-bottom: 0;
+}
+
+/* Button styling for consistency */
+.btn-edit {
+    padding: 0;
+    margin-left: 0.5rem;
+    border: none;
+    background: none;
+    color: #ffc107;
+}
+
+.btn-edit:hover {
+    color: #ffcd39;
+}
+
+.btn-edit:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+/* Action buttons in tables */
+.action-btn {
+    margin: 0 2px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.action-btn-edit {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+
+.action-btn-edit:hover {
+    background-color: #ffcd39;
+    border-color: #ffc720;
+    color: #000;
+}
+
+.action-btn-cancel {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+.action-btn-cancel:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    color: #fff;
+}
+
+/* Status badges */
+.status-confirmed {
+    background-color: #198754;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+.status-pending {
+    background-color: #ffc107;
+    color: #000;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+.status-cancelled {
+    background-color: #dc3545;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+/* Rating display */
+.rating-stars {
+    color: #ffc107;
+    font-size: 1.1rem;
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Loading state */
+.loading-text {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Form validation styles */
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.form-control.is-valid {
+    border-color: #198754;
+}
+
+.invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #dc3545;
+}
+
+.valid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #198754;
+}
+
+/* Modal enhancements */
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .edit-input {
+        max-width: 200px;
+    }
+    
+    .d-flex.align-items-center {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    .d-flex.align-items-center > * {
+        margin-bottom: 0.5rem;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    .d-flex.align-items-center > *:last-child {
+        margin-bottom: 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table {
+        font-size: 0.875rem;
+    }
+    
+    .action-btn {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.75rem;
+    }
+}

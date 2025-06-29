@@ -6,6 +6,35 @@ window.onload = function () {
 
   loadLocations();
   displayStores();
+      // Initialize the review score slider
+    const slider = document.getElementById('review-score-slider');
+    const reviewScoreDisplay = document.querySelector('.review-score-display');
+
+    noUiSlider.create(slider, {
+      start: [1, 5],      // Initial values
+      connect: true,
+      step: 1,
+      range: {
+        'min': 1,
+        'max': 5
+      },
+      format: {
+        to: value => Math.round(value),
+        from: value => Number(value)
+      }
+    });
+
+    // Update display when slider changes
+    slider.noUiSlider.on('update', function (values) {
+      const [min, max] = values.map(v => parseInt(v));
+      reviewScoreDisplay.textContent = `Rating: ${min} - ${max}`;
+    });
+
+    // Export values for filtering
+    slider.noUiSlider.on('change', function (values) {
+      const [min, max] = values.map(v => parseInt(v));
+      console.log(`Review score range: ${min} - ${max}`);
+    });
 };
 
 // CLEAR all filters
@@ -322,20 +351,20 @@ async function displayFiltered(queryParams) {
   }
 }
 
-// IMPROVED: Simple message system
 function showMessage(message, type = 'info') {
   const foodList = document.getElementById('res-content');
   if (foodList) {
-    let className = 'alert ';
+    let alertClass = 'alert ';
     switch(type) {
-      case 'error': className += 'alert-danger'; break;
-      case 'warning': className += 'alert-warning'; break;
-      case 'success': className += 'alert-success'; break;
-      default: className += 'alert-info'; break;
+      case 'error':   alertClass += 'alert-danger'; break;
+      case 'warning': alertClass += 'alert-warning'; break;
+      case 'success': alertClass += 'alert-success'; break;
+      default:        alertClass += 'alert-info'; break;
     }
 
+    // Combine Bootstrap's alert class with your custom message-box class
     foodList.innerHTML = `
-      <div class="${className}" style="margin: 1rem 0; padding: 1rem; border-radius: 8px; text-align: center;">
+      <div class="${alertClass} message-box">
         ${message}
         ${type === 'error' ? '<br><br><button onclick="location.reload()" class="btn btn-danger btn-sm">Refresh Page</button>' : ''}
       </div>
@@ -347,11 +376,11 @@ function showLoading() {
   const foodList = document.getElementById('res-content');
   if (foodList) {
     foodList.innerHTML = `
-      <div style="text-align: center; padding: 3rem; color: #6c757d;">
-        <div class="spinner-border" role="status" style="color: #fc6c3f;">
+      <div class="loading-container">
+        <div class="spinner-border" role="status">
           <span class="visually-hidden">Loading...</span>
         </div>
-        <p style="margin-top: 1rem;">Loading restaurants...</p>
+        <p>Loading restaurants...</p>
       </div>
     `;
   }

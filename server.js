@@ -98,9 +98,9 @@ app.get('/api/session/validation-errors', (req, res) => {
 });
 
 // PROTECTED API ROUTES (AFTER SESSION ROUTES)
-app.use('/api/admin', adminDash);  // Admin routes are protected inside the router
-app.use('/api/owner', ownerApi);   // Owner routes are protected inside the router
-app.use('/api/user', loggedUser);  // User routes are protected inside the router
+app.use('/api/admin', adminDash);
+app.use('/api/owner', ownerApi);  
+app.use('/api/user', loggedUser); 
 
 // ======== PUBLIC ROUTES ========
 
@@ -142,25 +142,6 @@ app.get('/reset-password', (req, res) => {
 });
 
 
-// ======== VERIFICATION REQUIRED ======== 
-
-app.get('/admin', authenticateToken, requireAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
-});
-
-app.get('/resOwner', authenticateToken, requireOwner, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
-});
-
-app.get('/profile', authenticateToken, requireUser, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/userprofile.html'));
-});
-
-app.get('/reserveform', authenticateToken, requireUserOnly, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
-});
-
-
 // =========== Route request
 app.post('/request-reset', async (req, res) => {
     const { email } = req.body;
@@ -182,9 +163,8 @@ app.post('/request-reset', async (req, res) => {
             [token, expires, email]
         );
 
-        const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+        const resetLink = `https://kirbychope.xyz/reset-password?token=${token}`;
 
-        // FIX 1: Correct method name
         const transporter = nodemailer.createTransport({
             service: 'Gmail',
             auth: {
@@ -193,12 +173,10 @@ app.post('/request-reset', async (req, res) => {
             },
         });
 
-        // FIX 2: Send to actual user email, not hardcoded
-        // FIX 3: Add proper error handling
         try {
             await transporter.sendMail({
                 from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-                to: email, // Use the actual user's email
+                to: email, 
                 subject: 'Password Reset Request - Kirby Chope',
                 html: `
           <h2>Password Reset Request</h2>
@@ -215,7 +193,6 @@ app.post('/request-reset', async (req, res) => {
 
         } catch (emailError) {
             console.error('Failed to send email:', emailError);
-            // Don't reveal email sending failed to user (security)
             res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
         }
 
@@ -256,6 +233,24 @@ app.put('/reset-password', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+// ======== VERIFICATION REQUIRED ======== 
+
+app.get('/admin', authenticateToken, requireAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
+});
+
+app.get('/resOwner', authenticateToken, requireOwner, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/resOwnerdashboard.html'));
+});
+
+app.get('/profile', authenticateToken, requireUser, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/userprofile.html'));
+});
+
+app.get('/reserveform', authenticateToken, requireUserOnly, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
+});
+
 
 app.use((req, res, next) => {
     const isApi = req.originalUrl.startsWith('/api/');
@@ -308,25 +303,6 @@ app.use('/static/img/restaurants/:filename', (req, res, next) => {
     }
 });
 
-// Enhanced 404 handler
-app.use((req, res, next) => {
-    const isApi = req.originalUrl.startsWith('/api/');
-    const acceptsJson = req.get('Accept')?.includes('application/json');
-    
-    console.log(`404 Not Found: ${req.originalUrl} from IP: ${req.ip}`);
-    
-    if (isApi || acceptsJson) {
-        return res.status(404).json({ 
-            error: 'Not Found', 
-            message: 'API endpoint not found',
-            path: req.originalUrl
-        });
-    }
-    
-    res.status(404);
-    res.sendFile(path.join(__dirname, 'frontend/errors/404.html'));
-});
-
 // Enhanced general error handler
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || err.status || 500;
@@ -347,6 +323,9 @@ app.use((err, req, res, next) => {
     
     let errorPagePath;
     switch (statusCode) {
+        case 400:
+            errorPagePath = path.join(__dirname, 'frontend/errors/400.html');
+            break;
         case 401:
             errorPagePath = path.join(__dirname, 'frontend/errors/401.html');
             break;
@@ -369,5 +348,4 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}/`);
 });

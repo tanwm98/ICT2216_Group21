@@ -3,10 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Owner Dashboard</title>
     <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="/static/styles/bootstrap/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles/admin.css">
+    <link rel="stylesheet" href="/static/styles/owner.css">
+</head>
 
 <body>
     <div class="container-fluid">
@@ -14,13 +16,21 @@
             <!-- Sidebar -->
             <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column p-3">
                 <h4 class="text-white">Owner Panel</h4>
-                <a onclick="showSection('myRestaurants')" class="active"><i class="bi bi-shop"></i> My Restaurants</a>
-                <a onclick="showSection('reservations')"><i class="bi bi-calendar-check"></i> Reservations</a>
-                <a onclick="showSection('reviews')"><i class="bi bi-star"></i> Reviews</a>
+                <a href="#" data-section="myRestaurants" class="nav-link active">
+                    <i class="bi bi-shop"></i> My Restaurants
+                </a>
+                <a href="#" data-section="reservations" class="nav-link">
+                    <i class="bi bi-calendar-check"></i> Reservations
+                </a>
+                <a href="#" data-section="reviews" class="nav-link">
+                    <i class="bi bi-star"></i> Reviews
+                </a>
 
                 <div class="mt-auto">
                     <hr class="text-secondary">
-                    <a href="/logout" class="text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                    <a href="/logout" class="text-danger">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
                 </div>
             </nav>
 
@@ -33,84 +43,90 @@
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4>Restaurant Details</h4>
                     </div>
-                    <table class="table table-bordered" id="restaurantTable">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Address</th>
-                                <th>Postal Code</th>
-                                <th>Location</th>
-                                <th>Cuisine</th>
-                                <th>Price Range</th>
-                                <th>Capacity</th>
-                                <th>Opening</th>
-                                <th>Closing</th>
-                                <th>Edit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated via owner.js -->
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="restaurantTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Address</th>
+                                    <th>Postal Code</th>
+                                    <th>Location</th>
+                                    <th>Cuisine</th>
+                                    <th>Price Range</th>
+                                    <th>Capacity</th>
+                                    <th>Opening</th>
+                                    <th>Closing</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated via owner.js -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Reservations -->
                 <div id="reservations" class="section">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4>Reservations</h4>
-                        <button class="btn btn-primary" onclick="exportReservationsToCSV()">Download CSV</button>
+                        <button class="btn btn-primary" id="exportCsvBtn">Download CSV</button>
                     </div>
-                    <table class="table table-bordered" id="reservationTable">
-                        <thead>
-                            <tr>
-                                <th>Customer</th>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Restaurant</th>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Guests</th>
-                                <th>Status</th>
-                                <th>Special Request</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated via owner.js -->
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="reservationTable">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>First Name</th>
+                                    <th>Last Name</th>
+                                    <th>Restaurant</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Guests</th>
+                                    <th>Status</th>
+                                    <th>Special Request</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated via owner.js -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Reviews -->
                 <div id="reviews" class="section">
                     <h4>Customer Reviews</h4>
-                    <table class="table table-bordered" id="reviewTable">
-                        <thead>
-                            <tr>
-                                <th>Restaurant</th>
-                                <th>Customer</th>
-                                <th>Rating</th>
-                                <th>Comment</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated via owner.js -->
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="reviewTable">
+                            <thead>
+                                <tr>
+                                    <th>Restaurant</th>
+                                    <th>Customer</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated via owner.js -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </main>
         </div>
     </div>
 
     <!-- Restaurant Modal -->
-    <div id="myModal" class="modal">
+    <div id="myModal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="d-flex justify-content-end">
-                <button type="button" class="btn-close" aria-label="Close" onclick="closeModal()"></button>
+                <button type="button" class="btn-close" aria-label="Close" id="closeModalBtn"></button>
             </div>
             <h5 class="mb-3" id="restaurantModalTitle">Request New Restaurant</h5>
 
-            <form onsubmit="event.preventDefault(); submitRestaurantForm();">
-                <input type="hidden" id="restaurantId"> <!-- Hidden for edit mode -->
+            <form id="restaurantForm">
+                <input type="hidden" id="restaurantId">
 
                 <div class="mb-3">
                     <label for="storeName" class="form-label">Store Name</label>
@@ -139,6 +155,8 @@
                         <option value="$">$</option>
                         <option value="$$">$$</option>
                         <option value="$$$">$$$</option>
+                        <option value="$$$$">$$$$</option>
+                        <option value="$$$$$">$$$$$</option>
                     </select>
                 </div>
                 <div class="mb-3">

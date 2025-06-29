@@ -8,7 +8,9 @@
   <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="/static/styles/bootstrap/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles/style.css">
+  <link rel="stylesheet" href="/static/styles/user.css">
   <div id="head-placeholder"></div>
+</head>
 
 <body>
   <!-- Header Include -->
@@ -32,9 +34,9 @@
               <i class="bi bi-pencil"></i>
             </button>
           </p>
-          <div id="editNameContainer" class="d-none mt-2">
+          <div id="editNameContainer" class="edit-container hidden mt-2">
             <div class="d-flex align-items-center">
-              <input type="text" id="editNameInput" class="form-control w-auto ms-2" style="max-width: 250px;"
+              <input type="text" id="editNameInput" class="form-control edit-input ms-2"
                 placeholder="Enter new name" />
               <button class="btn btn-success ms-2" id="saveNameBtn">Save</button>
               <button class="btn btn-secondary" id="cancelNameBtn">Cancel</button>
@@ -49,9 +51,9 @@
               <i class="bi bi-pencil"></i>
             </button>
           </p>
-          <div id="editFirstNameContainer" class="d-none mt-2">
+          <div id="editFirstNameContainer" class="edit-container hidden mt-2">
             <div class="d-flex align-items-center">
-              <input type="text" id="editFirstNameInput" class="form-control w-auto ms-2" style="max-width: 250px;"
+              <input type="text" id="editFirstNameInput" class="form-control edit-input ms-2"
                 placeholder="Enter new first name" />
               <button class="btn btn-success ms-2" id="saveFirstNameBtn">Save</button>
               <button class="btn btn-secondary" id="cancelFirstNameBtn">Cancel</button>
@@ -66,33 +68,16 @@
               <i class="bi bi-pencil"></i>
             </button>
           </p>
-          <div id="editLastNameContainer" class="d-none mt-2">
+          <div id="editLastNameContainer" class="edit-container hidden mt-2">
             <div class="d-flex align-items-center">
-              <input type="text" id="editLastNameInput" class="form-control w-auto ms-2" style="max-width: 250px;"
+              <input type="text" id="editLastNameInput" class="form-control edit-input ms-2"
                 placeholder="Enter new name" />
               <button class="btn btn-success ms-2" id="saveLastNameBtn">Save</button>
               <button class="btn btn-secondary" id="cancelLastNameBtn">Cancel</button>
             </div>
           </div>
 
-          <!-- Error Modal -->
-          <div class="modal fade" id="nameErrorModal" tabindex="-1" aria-labelledby="nameErrorModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="nameErrorModalLabel">Error</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="nameErrorModalBody"></div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
-                </div>
-              </div>
-            </div>
-        </div>
-
-
-          <!-- Display Emaill-->
+          <!-- Display Email-->
           <p><strong>Email:</strong> <span id="profileEmail">Loading...</span></p>
 
           <!-- Trigger Button for password reset-->
@@ -109,22 +94,24 @@
           Your Reservations
         </div>
         <div class="card-body">
-          <table class="table table-bordered" id="reservationTable">
-            <thead>
-              <tr>
-                <th>Restaurant</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Guests</th>
-                <th>Status</th>
-                <th>Special Request</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Populated via user.js -->
-            </tbody>
-          </table>
+          <div class="table-responsive">
+            <table class="table table-bordered" id="reservationTable">
+              <thead>
+                <tr>
+                  <th>Restaurant</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Guests</th>
+                  <th>Status</th>
+                  <th>Special Request</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated via user.js -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -134,18 +121,20 @@
           Your Reviews
         </div>
         <div class="card-body">
-          <table class="table table-bordered" id="reviewTable">
-            <thead>
-              <tr>
-                <th>Restaurant</th>
-                <th>Rating</th>
-                <th>Comment</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Populated via user.js -->
-            </tbody>
-          </table>
+          <div class="table-responsive">
+            <table class="table table-bordered" id="reviewTable">
+              <thead>
+                <tr>
+                  <th>Restaurant</th>
+                  <th>Rating</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated via user.js -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -153,16 +142,29 @@
 
     </div>
   </section>
-  <!-- Reset Password Modal -->
+
+  <div class="modal fade" id="nameErrorModal" tabindex="-1" aria-labelledby="nameErrorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="nameErrorModalLabel">Error</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="nameErrorModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-
         <div class="modal-header">
           <h5 class="modal-title" id="resetPasswordLabel">Change Password</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-
         <div class="modal-body">
           <form id="resetPasswordForm">
             <div class="mb-3">
@@ -173,18 +175,16 @@
               <label for="confirmPassword" class="form-label">Confirm New Password</label>
               <input type="password" class="form-control" id="confirmPassword" required>
             </div>
-            <div id="resetMessage" class="mb-3 text-center"></div>
+            <div id="resetMessage" class="mb-3 text-center message-area"></div>
             <div class="d-grid">
               <button type="submit" class="btn btn-primary">Change Password</button>
             </div>
           </form>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- JS -->
   <script src="/common/common_js/include.js"></script>
   <script src="/js/user.js"></script>
   <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>

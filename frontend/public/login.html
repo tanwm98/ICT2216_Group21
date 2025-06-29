@@ -71,30 +71,9 @@
             </div>
         </div>
     </div>
-
+    <script src = "js/login.js"></script>
     <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
     <script src="/common/common_js/include.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            console.log('Login page loaded. error param:', urlParams.get('error'), 'success param:', urlParams.get('success'));
-
-            // Show error modal if error parameter exists
-            if (urlParams.has('error')) {
-                const errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
-                errorModal.show();
-            }
-
-            // Show success modal if success parameter exists
-            if (urlParams.has('success')) {
-                const successModal = new bootstrap.Modal(document.getElementById('registrationSuccessModal'));
-                successModal.show();
-
-                const cleanURL = window.location.origin + window.location.pathname;
-                window.history.replaceState({}, document.title, cleanURL);
-            }
-        });
-    </script>
 </body>
 
 </html>
