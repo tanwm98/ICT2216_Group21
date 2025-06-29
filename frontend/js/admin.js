@@ -1,599 +1,567 @@
+function escapeHtml(unsafe) {
+    if (!unsafe || typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('hidden');
+}
+
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.add('hidden');
+}
+
 function showSection(id) {
-  document.querySelectorAll('.section').forEach(section => {
-    section.classList.remove('active');
-  });
-  document.getElementById(id).classList.add('active');
-
-  if (id === 'restaurants') {
-    fetchRestaurants();
-  } else if (id === 'users') {
-    fetchUsers();
-  } else if (id === 'dashboard') {
-    loadDashboardStats();
-  } else if (id === 'reservations') {
-    fetchReservations();
-  }
-}
-
-function decodeHtmlEntities(str) {
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&#x2F;/g, '/')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'");
-}
-
-// =================  DASHBOARD ==============
-// load dashboard
-function loadDashboardStats() {
-  fetch('/api/admin/dashboard-stats')
-    .then(res => {
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      return res.json();
-    })
-    .then(stats => {
-      document.getElementById('totalUsers').textContent = stats.totalUsers ?? 'N/A';
-      document.getElementById('totalRestaurants').textContent = stats.totalRestaurants ?? 'N/A';
-      document.getElementById('totalReservations').textContent = stats.totalReservations ?? 'N/A';
-
-      // Display top-rated restaurant by average rating
-      if (stats.topRatedRestaurant && stats.topAverageRating !== undefined) {
-        document.getElementById('topReviewCount').textContent = stats.topAverageRating;
-        document.getElementById('topRestaurantName').textContent = stats.topRatedRestaurant;
-      } else {
-        document.getElementById('topReviewCount').textContent = '0';
-        document.getElementById('topRestaurantName').textContent = 'N/A';
-      }
-    })
-    .catch(err => {
-      console.error('Failed to load dashboard stats:', err);
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(section => {
+        section.classList.remove('active');
     });
-}
-
-
-// =============== RESTAURANTS ==============
-// fetch restaurant info
-function fetchRestaurants() {
-  fetch('/api/admin/restaurants')
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.querySelector('#restaurantList tbody');
-      tbody.innerHTML = '';
-      data.forEach(r => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${r.storeName}</td>
-          <td>${r.location}</td>
-          <td>${r.ownerName}</td>
-          <td>
-            <button class="btn btn-sm btn-warning" onclick="editRestaurant(${r.store_id})">
-              <i class="bi bi-pencil"></i> Edit
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteRestaurant(${r.store_id})">
-              <i class="bi bi-trash"></i> Delete
-            </button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to fetch restaurants:', err);
+    
+    // Remove active class from all nav links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
     });
-}
 
-// submit restaurant form
-function submitRestaurantForm() {
-  const restaurantId = document.getElementById("restaurantId").value;
-  if (restaurantId) {
-    updateRestaurant(restaurantId);
-  } else {
-    addRestaurant();
-  }
-}
+    // Show selected section
+    document.getElementById(id).classList.add('active');
+    document.querySelector(`[data-section="${id}"]`).classList.add('active');
 
-// add restaurant
-function addRestaurant() {
-  const form = document.getElementById('restaurantForm');
-  const formData = new FormData(form);
-
-  // Manually add owner_id from the <select>
-  const ownerId = document.getElementById('ownerSelect').value;
-  formData.set('owner_id', ownerId);
-
-  const file = formData.get('image');
-  console.log('Attached image:', file); // Should be a File object
-
-  fetch('/api/admin/restaurants', {
-    method: 'POST',
-    body: formData, // Don't set Content-Type!
-  })
-  .then(res => {
-    if (!res.ok) throw new Error('Failed to add restaurant');
-    return res.json();
-  })
-  .then(() => {
-    closeModal();
-    fetchRestaurants();
-    clearRestaurantForm();
-  })
-  .catch(err => console.error('Error adding restaurant:', err));
-}
-
-// update restaurant
-function updateRestaurant(id) {
-  const form = document.getElementById('restaurantForm');
-  const formData = new FormData(form);
-
-  const ownerId = document.getElementById('ownerSelect').value;
-  formData.set('owner_id', ownerId);
-
-  fetch(`/api/admin/restaurants/${id}`, {
-    method: 'PUT',
-    body: formData
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to update restaurant');
-      return res.json();
-    })
-    .then(() => {
-      closeModal();
-      fetchRestaurants();
-      clearRestaurantForm();
-    })
-    .catch(err => console.error('Error updating restaurant:', err));
-}
-
-
-/// edit restaurant
-function editRestaurant(id) {
-  fetch(`/api/admin/restaurants/${id}`)
-    .then(res => res.json())
-    .then(r => {
-      document.getElementById("restaurantId").value = r.store_id;
-      document.getElementById("storeName").value = r.storeName;
-      document.getElementById("address").value = decodeHtmlEntities(r.address);
-      document.getElementById("postalCode").value = r.postalCode;
-      document.getElementById("cuisine").value = r.cuisine;
-      document.getElementById("location").value = r.location;
-      document.getElementById("priceRange").value = r.priceRange;
-      document.getElementById("totalCapacity").value = r.totalCapacity;
-      document.getElementById("opening").value = r.opening;
-      document.getElementById("closing").value = r.closing;
-
-      document.getElementById("restaurantModalBtn").textContent = "Update Restaurant";
-      openModal();
-    })
-    .catch(err => console.error('Error loading restaurant:', err));
-}
-
-
-// clear restaurant form
-function clearRestaurantForm() {
-  document.getElementById("restaurantId").value = '';
-  document.getElementById("storeName").value = '';
-  document.getElementById("address").value = '';
-  document.getElementById("postalCode").value = '';
-  document.getElementById("cuisine").value = '';
-  document.getElementById("location").value = '';
-  document.getElementById("priceRange").value = '';
-  document.getElementById("totalCapacity").value = '';
-  document.getElementById("opening").value = '';
-  document.getElementById("closing").value = '';
-  document.getElementById("previewImage").src = '';
-
-  document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
-}
-
-
-// get restaurant form
-function getRestaurantFormData() {
-  return {
-    storeName: document.getElementById("storeName").value,
-    address: document.getElementById("address").value,
-    postalCode: document.getElementById("postalCode").value,
-    cuisine: document.getElementById("cuisine").value,
-    location: document.getElementById("location").value,
-    priceRange: document.getElementById("priceRange").value,
-    totalCapacity: parseInt(document.getElementById("totalCapacity").value),
-    opening: document.getElementById("opening").value,
-    closing: document.getElementById("closing").value
-  };
-}
-
-
-// load owner dashboard
-function loadOwnersDropdown(selectedId = '') {
-  fetch('/api/admin/owners')
-    .then(res => res.json())
-    .then(owners => {
-      const ownerSelect = document.getElementById('ownerSelect');
-      ownerSelect.innerHTML = '<option value="">Select Owner</option>';
-      owners.forEach(owner => {
-        const option = document.createElement('option');
-        option.value = owner.user_id;
-        option.textContent = owner.name;
-        if (owner.user_id == selectedId) option.selected = true;
-        ownerSelect.appendChild(option);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to load owners:', err);
-    });
-}
-
-
-/// get restaurant form
-function getRestaurantFormData() {
-  return {
-    storeName: document.getElementById("storeName").value,
-    address: document.getElementById("address").value,
-    postalCode: document.getElementById("postalCode").value,
-    location: document.getElementById("location").value,
-    cuisine: document.getElementById("cuisine").value,
-    priceRange: document.getElementById("priceRange").value,
-    totalCapacity: parseInt(document.getElementById("totalCapacity").value),
-    opening: document.getElementById("opening").value,
-    closing: document.getElementById("closing").value,
-    owner_id: document.getElementById("ownerSelect").value
-
-  };
-}
-
-
-// clear restaurant form
-function clearRestaurantForm() {
-  document.getElementById("restaurantId").value = '';
-  document.getElementById("storeName").value = '';
-  document.getElementById("address").value = '';
-  document.getElementById("postalCode").value = '';
-  document.getElementById("location").value = '';
-  document.getElementById("cuisine").value = '';
-  document.getElementById("priceRange").value = '';
-  document.getElementById("totalCapacity").value = '';
-  document.getElementById("opening").value = '';
-  document.getElementById("closing").value = '';
-  document.getElementById("ownerSelect").value = '';
-
-  document.getElementById("restaurantModalTitle").textContent = "Add New Restaurant";
-  document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
-}
-
-// edit restaurant
-function editRestaurant(id) {
-  fetch(`/api/admin/restaurants/${id}`)
-    .then(res => res.json())
-    .then(r => {
-      document.getElementById("restaurantId").value = r.store_id;
-      document.getElementById("storeName").value = r.storeName;
-      document.getElementById("address").value = decodeHtmlEntities(r.address);
-      document.getElementById("postalCode").value = r.postalCode;
-      document.getElementById("location").value = r.location;
-      document.getElementById("cuisine").value = r.cuisine;
-      document.getElementById("priceRange").value = r.priceRange;
-      document.getElementById("totalCapacity").value = r.totalCapacity;
-      document.getElementById("opening").value = r.opening;
-      document.getElementById("closing").value = r.closing;
-
-
-      document.getElementById("restaurantModalTitle").textContent = "Edit Restaurant";
-      document.getElementById("restaurantModalBtn").textContent = "Update Restaurant";
-
-      loadOwnersDropdown(r.owner_id);
-      openModal(true);
-    })
-    .catch(err => console.error('Error loading restaurant:', err));
-}
-
-
-// delete restaurant
-function deleteRestaurant(storeId) {
-  if (!confirm("Are you sure you want to delete this restaurant?")) return;
-
-  fetch(`/api/admin/restaurants/${storeId}`, {
-    method: 'DELETE'
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to delete restaurant');
-      return res.json();
-    })
-    .then(data => {
-      console.log(data.message || 'Deleted successfully');
-      fetchRestaurants(); // refresh list
-    })
-    .catch(err => {
-      console.error('Error deleting restaurant:', err);
-    });
-}
-
-
-
-
-// ============== USERS ==================
-// fetch user info
-function fetchUsers() {
-  fetch('/api/admin/users')
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.querySelector('#userList tbody');
-      tbody.innerHTML = '';
-      data.forEach(user => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${user.name}</td>
-          <td>${user.firstname}</td>
-          <td>${user.lastname}</td>
-          <td>${user.email}</td>
-          <td>${user.role}</td>
-          <td>
-            <button class="btn btn-sm btn-warning" onclick="editUser(${user.user_id})">
-              <i class="bi bi-pencil"></i> Edit
-            </button>
-            <button class="btn btn-sm btn-secondary" onclick="resetUserPassword(${user.user_id})">
-              <i class="bi bi-key"></i> Reset
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.user_id})">
-              <i class="bi bi-trash"></i> Delete
-            </button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to fetch users:', err);
-    });
-}
-
-// submit user form
-function submitUserForm() {
-  const userId = document.getElementById("userId").value;
-  if (userId) {
-    updateUser(userId);
-  } else {
-    addUser();
-  }
-}
-
-// add user
-function addUser() {
-  const nameInput = document.getElementById("name");
-  const firstname = document.getElementById("firstname");
-  const lastname = document.getElementById("lastname");
-  const emailInput = document.getElementById("email");
-  const roleSelect = document.getElementById("role");
-
-  const name = nameInput.value;
-  const fname = firstname.value;
-  const lname = lastname.value;
-  const email = emailInput.value;
-  const role = roleSelect.value;
-
-  fetch('/api/admin/users', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ name, email, role, fname, lname })
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to add user');
-      return res.json();
-    })
-    .then(data => {
-      console.log(data.message);
-
-      // Clear the input fields
-      nameInput.value = '';
-      firstname.value = '';
-      lastname.value = '';
-      emailInput.value = '';
-      roleSelect.value = '';
-
-      closeUserModal();
-      fetchUsers();
-    })
-    .catch(err => {
-      console.error('Error adding user:', err);
-    });
-}
-
-// update user details
-function updateUser(userId) {
-  const name = document.getElementById("name").value;
-  const firstname = document.getElementById("firstname").value;
-  const lastname = document.getElementById("lastname").value;
-  const email = document.getElementById("email").value;
-  const role = document.getElementById("role").value;
-
-  fetch(`/api/admin/users/${userId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, role, firstname, lastname })
-  })
-    .then(res => res.json())
-    .then(() => {
-      closeUserModal();
-      fetchUsers();
-      clearUserForm();
-    })
-    .catch(err => console.error('Error updating user:', err));
-}
-
-// clear user form
-function clearUserForm() {
-  document.getElementById("userId").value = '';
-  document.getElementById("name").value = '';
-  document.getElementById("firstname").value = '';
-  document.getElementById("lastname").value = '';
-  document.getElementById("email").value = '';
-  document.getElementById("role").value = '';
-
-  document.getElementById("userModalTitle").textContent = "Add New User";
-  document.getElementById("userModalBtn").textContent = "Add User";
-}
-
-// edit user
-function editUser(userId) {
-  fetch(`/api/admin/users/${userId}`)
-    .then(res => res.json())
-    .then(user => {
-      document.getElementById("userId").value = user.user_id;
-      document.getElementById("name").value = user.name;
-      document.getElementById("firstname").value = user.firstname;
-      document.getElementById("lastname").value = user.lastname;
-      document.getElementById("email").value = user.email;
-      document.getElementById("role").value = user.role;
-
-      document.getElementById("userModalTitle").textContent = "Edit User";
-      document.getElementById("userModalBtn").textContent = "Update User";
-
-      openUserModal();
-    })
-    .catch(err => console.error('Error loading user:', err));
-}
-
-// delete user
-function deleteUser(userId) {
-  if (!confirm("Are you sure you want to delete this user?")) return;
-
-  fetch(`/api/admin/users/${userId}`, {
-    method: 'DELETE',
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to delete user');
-      return res.json();
-    })
-    .then(data => {
-      console.log(data.message);
-      fetchUsers(); // refresh the list
-    })
-    .catch(err => {
-      console.error('Error deleting user:', err);
-    });
-}
-
-// reset user password
-function resetUserPassword(userId) {
-  if (!confirm('Reset this user\'s password?')) return;
-
-  fetch(`/api/admin/users/${userId}/reset-password`, {
-    method: 'POST'
-  })
-    .then(res => res.json())
-    .then(data => {
-      alert(data.message || 'Password reset');
-    })
-    .catch(err => {
-      console.error('Failed to reset password:', err);
-    });
-}
-
-
-
-// ================= RESERVATIONS ==================
-function fetchReservations() {
-  fetch('/api/admin/reservations')
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.querySelector('#reservationList tbody');
-      tbody.innerHTML = '';
-      data.forEach(resv => {
-        const date = new Date(resv.reservationDate).toISOString().split('T')[0]; // YYYY-MM-DD
-        const time = resv.reservationTime.slice(0, 5); // HH:MM
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${resv.userName}</td>
-          <td>${resv.restaurantName}</td>
-          <td>${resv.noOfGuest}</td>
-          <td>${resv.reservationDate}</td>
-          <td>${time}</td>
-          <td>${resv.status}</td>
-          <td>${resv.specialRequest || '-'}</td>
-          <td>
-            ${resv.status === 'Confirmed'
-            ? `<button data-id="${resv.reservation_id}" class="confirm-btn">cancel</button>`
-            : '-'
-          }
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      // Attach event listeners to the confirm buttons
-      document.querySelectorAll('.confirm-btn').forEach(button => {
-        button.addEventListener('click', () => {
-          const id = button.getAttribute('data-id');
-          cancelReservation(id);
-        });
-      });
-    })
-    .catch(err => {
-      console.error('Failed to fetch reservations:', err);
-    });
-}
-
-function cancelReservation(id) {
-  fetch(`/api/admin/reservations/${id}/cancel`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json'
+    // Load data for the section
+    switch(id) {
+        case 'dashboard':
+            loadDashboardStats();
+            break;
+        case 'restaurants':
+            loadRestaurants();
+            break;
+        case 'users':
+            loadUsers();
+            break;
+        case 'reservations':
+            loadReservations();
+            break;
     }
-  })
-    .then(res => res.json())
-    .then(data => {
-      fetchReservations(); // Refresh the table
-    })
-    .catch(err => {
-      console.error('Error cancelling reservation:', err);
-    });
 }
 
+async function loadDashboardStats() {
+    try {
+        const response = await fetch('/api/admin/dashboard-stats');
+        const data = await response.json();
+        
+        document.getElementById('totalUsers').textContent = data.totalUsers;
+        document.getElementById('totalRestaurants').textContent = data.totalRestaurants;
+        document.getElementById('totalReservations').textContent = data.totalReservations;
+        document.getElementById('topReviewCount').textContent = data.topAverageRating;
+        document.getElementById('topRestaurantName').textContent = data.topRatedRestaurant;
+    } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        showError('Failed to load dashboard statistics');
+    }
+}
 
-// ====================== MODALS ======================
-// Restaurant Modal
-var restaurantModal = document.getElementById("myModal");
+async function loadRestaurants() {
+    try {
+        const response = await fetch('/api/admin/restaurants');
+        const restaurants = await response.json();
+        
+        const tbody = document.querySelector('#restaurants tbody');
+        tbody.textContent = '';
 
-function openModal(isEdit = false) {
-  if (!isEdit) {
-    clearRestaurantForm();
-    document.getElementById("restaurantModalTitle").textContent = "Add New Restaurant";
-    document.getElementById("restaurantModalBtn").textContent = "Add Restaurant";
-    loadOwnersDropdown(); // no pre-selection
-  }
+        restaurants.forEach(restaurant => {
+            const row = document.createElement('tr');
+            
+            // Create cells with escaped content
+            const nameCell = document.createElement('td');
+            nameCell.textContent = restaurant.storeName;
+            row.appendChild(nameCell);
+            
+            const locationCell = document.createElement('td');
+            locationCell.textContent = restaurant.location;
+            row.appendChild(locationCell);
+            
+            const ownerCell = document.createElement('td');
+            ownerCell.textContent = restaurant.ownerName;
+            row.appendChild(ownerCell);
+            
+            // Actions cell
+            const actionsCell = document.createElement('td');
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm btn-warning me-2';
+            editBtn.textContent = 'Edit';
+            editBtn.dataset.id = restaurant.store_id;
+            editBtn.addEventListener('click', () => editRestaurant(restaurant.store_id));
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => deleteRestaurant(restaurant.store_id));
+            
+            actionsCell.appendChild(editBtn);
+            actionsCell.appendChild(deleteBtn);
+            row.appendChild(actionsCell);
+            
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading restaurants:', error);
+        showError('Failed to load restaurants');
+    }
+}
 
-  restaurantModal.style.display = "block";
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/admin/users');
+        const users = await response.json();
+        
+        const tbody = document.querySelector('#users tbody');
+        tbody.textContent = '';
+
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            
+            const cells = [
+                user.name,
+                user.firstname,
+                user.lastname,
+                user.email,
+                user.role
+            ];
+
+            cells.forEach(cellContent => {
+                const td = document.createElement('td');
+                td.textContent = escapeHtml(cellContent);
+                row.appendChild(td);
+            });
+            
+            // Actions cell
+            const actionsCell = document.createElement('td');
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm btn-warning me-2';
+            editBtn.textContent = 'Edit';
+            editBtn.addEventListener('click', () => editUser(user.user_id));
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-danger me-2';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => deleteUser(user.user_id));
+            
+            const resetBtn = document.createElement('button');
+            resetBtn.className = 'btn btn-sm btn-info';
+            resetBtn.textContent = 'Reset Pass';
+            resetBtn.addEventListener('click', () => resetUserPassword(user.user_id));
+            
+            actionsCell.appendChild(editBtn);
+            actionsCell.appendChild(deleteBtn);
+            actionsCell.appendChild(resetBtn);
+            row.appendChild(actionsCell);
+            
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading users:', error);
+        showError('Failed to load users');
+    }
+}
+
+async function loadReservations() {
+    try {
+        const response = await fetch('/api/admin/reservations');
+        const reservations = await response.json();
+        
+        const tbody = document.querySelector('#reservations tbody');
+        tbody.textContent = '';
+
+        reservations.forEach(reservation => {
+            const row = document.createElement('tr');
+            
+            const cells = [
+                reservation.userName,
+                reservation.restaurantName,
+                reservation.noOfGuest?.toString(),
+                new Date(reservation.reservationDate).toLocaleDateString(),
+                reservation.reservationTime,
+                reservation.status,
+                reservation.specialRequest || ''
+            ];
+
+            cells.forEach(cellContent => {
+                const td = document.createElement('td');
+                td.textContent = escapeHtml(cellContent);
+                row.appendChild(td);
+            });
+            
+            // Actions cell
+            const actionsCell = document.createElement('td');
+            
+            if (reservation.status === 'Confirmed') {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn btn-sm btn-danger';
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.addEventListener('click', () => cancelReservation(reservation.reservation_id));
+                actionsCell.appendChild(cancelBtn);
+            } else {
+                actionsCell.textContent = '-';
+            }
+            
+            row.appendChild(actionsCell);
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading reservations:', error);
+        showError('Failed to load reservations');
+    }
+}
+
+async function loadOwners() {
+    try {
+        const response = await fetch('/api/admin/owners');
+        const owners = await response.json();
+        
+        const select = document.getElementById('ownerSelect');
+        select.innerHTML = '<option value="">Select Owner</option>';
+        
+        owners.forEach(owner => {
+            const option = document.createElement('option');
+            option.value = owner.user_id;
+            option.textContent = escapeHtml(owner.name);
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading owners:', error);
+        showError('Failed to load owners');
+    }
+}
+
+function openModal() {
+    loadOwners();
+    resetRestaurantForm();
+    document.getElementById('restaurantModalTitle').textContent = 'Add New Restaurant';
+    document.getElementById('restaurantModalBtn').textContent = 'Add Restaurant';
+    showModal('myModal');
+}
+
+function openUserModal() {
+    resetUserForm();
+    document.getElementById('userModalTitle').textContent = 'Add New User';
+    document.getElementById('userModalBtn').textContent = 'Add User';
+    showModal('userModal');
 }
 
 function closeModal() {
-  restaurantModal.style.display = "none";
-}
-
-// User Modal
-var userModal = document.getElementById("userModal");
-
-function openUserModal() {
-  userModal.style.display = "block";
-
+    hideModal('myModal');
+    resetRestaurantForm();
 }
 
 function closeUserModal() {
-  userModal.style.display = "none";
+    hideModal('userModal');
+    resetUserForm();
 }
 
-// Close modals if clicked outside
-window.onclick = function (event) {
-  if (event.target == restaurantModal) {
-    closeModal();
-  }
-  if (event.target == userModal) {
-    closeUserModal();
-  }
+function resetRestaurantForm() {
+    document.getElementById('restaurantForm').reset();
+    document.getElementById('restaurantId').value = '';
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  loadDashboardStats();
+function resetUserForm() {
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+}
+
+async function submitRestaurantForm() {
+    const form = document.getElementById('restaurantForm');
+    const formData = new FormData(form);
+    const restaurantId = document.getElementById('restaurantId').value;
+    
+    // Add owner_id to formData
+    formData.append('owner_id', document.getElementById('ownerSelect').value);
+    
+    try {
+        const url = restaurantId ? `/api/admin/restaurants/${restaurantId}` : '/api/admin/restaurants';
+        const method = restaurantId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save restaurant');
+        }
+        
+        const result = await response.json();
+        alert(result.message || 'Restaurant saved successfully!');
+        closeModal();
+        loadRestaurants();
+    } catch (error) {
+        console.error('Error saving restaurant:', error);
+        alert('Failed to save restaurant');
+    }
+}
+
+async function submitUserForm() {
+    const form = document.getElementById('userForm');
+    const formData = new FormData(form);
+    const userId = document.getElementById('userId').value;
+    
+    const userData = {
+        name: formData.get('name'),
+        firstname: formData.get('firstname'),
+        lastname: formData.get('lastname'),
+        email: formData.get('email'),
+        role: formData.get('role'),
+        fname: formData.get('firstname'), // Backend expects fname
+        lname: formData.get('lastname')   // Backend expects lname
+    };
+    
+    try {
+        const url = userId ? `/api/admin/users/${userId}` : '/api/admin/users';
+        const method = userId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save user');
+        }
+        
+        const result = await response.json();
+        alert(result.message || 'User saved successfully!');
+        closeUserModal();
+        loadUsers();
+    } catch (error) {
+        console.error('Error saving user:', error);
+        alert('Failed to save user');
+    }
+}
+
+async function editRestaurant(id) {
+    try {
+        const response = await fetch(`/api/admin/restaurants/${id}`);
+        const restaurant = await response.json();
+        
+        // Load owners first
+        await loadOwners();
+        
+        // Populate form
+        document.getElementById('restaurantId').value = restaurant.store_id;
+        document.getElementById('storeName').value = restaurant.storeName;
+        document.getElementById('ownerSelect').value = restaurant.owner_id;
+        document.getElementById('address').value = restaurant.address;
+        document.getElementById('postalCode').value = restaurant.postalCode;
+        document.getElementById('cuisine').value = restaurant.cuisine;
+        document.getElementById('location').value = restaurant.location;
+        document.getElementById('priceRange').value = restaurant.priceRange;
+        document.getElementById('totalCapacity').value = restaurant.totalCapacity;
+        document.getElementById('opening').value = restaurant.opening;
+        document.getElementById('closing').value = restaurant.closing;
+        
+        document.getElementById('restaurantModalTitle').textContent = 'Edit Restaurant';
+        document.getElementById('restaurantModalBtn').textContent = 'Update Restaurant';
+        showModal('myModal');
+    } catch (error) {
+        console.error('Error loading restaurant for edit:', error);
+        alert('Failed to load restaurant details');
+    }
+}
+
+async function editUser(id) {
+    try {
+        const response = await fetch(`/api/admin/users/${id}`);
+        const user = await response.json();
+        
+        // Populate form
+        document.getElementById('userId').value = user.user_id;
+        document.getElementById('name').value = user.name;
+        document.getElementById('firstname').value = user.firstname;
+        document.getElementById('lastname').value = user.lastname;
+        document.getElementById('email').value = user.email;
+        document.getElementById('role').value = user.role;
+        
+        document.getElementById('userModalTitle').textContent = 'Edit User';
+        document.getElementById('userModalBtn').textContent = 'Update User';
+        showModal('userModal');
+    } catch (error) {
+        console.error('Error loading user for edit:', error);
+        alert('Failed to load user details');
+    }
+}
+
+async function deleteRestaurant(id) {
+    if (!confirm('Are you sure you want to delete this restaurant? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/restaurants/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete restaurant');
+        }
+        
+        const result = await response.json();
+        alert(result.message || 'Restaurant deleted successfully!');
+        loadRestaurants();
+    } catch (error) {
+        console.error('Error deleting restaurant:', error);
+        alert('Failed to delete restaurant');
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm('Are you sure you want to delete this user? This will also delete all their reservations and reviews.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete user');
+        }
+        
+        const result = await response.json();
+        alert(result.message || 'User deleted successfully!');
+        loadUsers();
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user');
+    }
+}
+
+async function resetUserPassword(id) {
+    if (!confirm('Reset user password to default (Pass123)?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${id}/reset-password`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to reset password');
+        }
+        
+        const result = await response.json();
+        alert(result.message || 'Password reset successfully!');
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        alert('Failed to reset password');
+    }
+}
+
+async function cancelReservation(id) {
+    if (!confirm('Are you sure you want to cancel this reservation?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/reservations/${id}/cancel`, {
+            method: 'PUT'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to cancel reservation');
+        }
+        
+        const result = await response.json();
+        alert(result.message || 'Reservation cancelled successfully!');
+        loadReservations();
+    } catch (error) {
+        console.error('Error cancelling reservation:', error);
+        alert('Failed to cancel reservation');
+    }
+}
+
+function showError(message) {
+    console.error(message);
+    alert(message); // You might want to replace this with a more elegant error display
+}
+
+function setupEventListeners() {
+    // Navigation links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = e.target.closest('[data-section]').dataset.section;
+            showSection(section);
+        });
+    });
+
+    // Modal buttons
+    const addRestaurantBtn = document.getElementById('addRestaurantBtn');
+    if (addRestaurantBtn) {
+        addRestaurantBtn.addEventListener('click', openModal);
+    }
+
+    const addUserBtn = document.getElementById('addUserBtn');
+    if (addUserBtn) {
+        addUserBtn.addEventListener('click', openUserModal);
+    }
+
+    // Close modal buttons
+    const closeRestaurantModalBtn = document.getElementById('closeRestaurantModalBtn');
+    if (closeRestaurantModalBtn) {
+        closeRestaurantModalBtn.addEventListener('click', closeModal);
+    }
+
+    const closeUserModalBtn = document.getElementById('closeUserModalBtn');
+    if (closeUserModalBtn) {
+        closeUserModalBtn.addEventListener('click', closeUserModal);
+    }
+
+    // Form submissions
+    const restaurantForm = document.getElementById('restaurantForm');
+    if (restaurantForm) {
+        restaurantForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            submitRestaurantForm();
+        });
+    }
+
+    const userForm = document.getElementById('userForm');
+    if (userForm) {
+        userForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            submitUserForm();
+        });
+    }
+
+    // Close modals when clicking outside
+    const modals = document.querySelectorAll('.modal-overlay');
+    modals.forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                if (modal.id === 'myModal') {
+                    closeModal();
+                } else if (modal.id === 'userModal') {
+                    closeUserModal();
+                }
+            }
+        });
+    });
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    showSection('dashboard');
 });

@@ -21,14 +21,14 @@
   </div>
 
   <!-- Enhanced Error Display Section -->
-  <div id="errorAlert" class="alert alert-danger alert-dismissible fade" role="alert" style="display: none;">
+  <div id="errorAlert" class="alert alert-danger alert-dismissible fade hidden" role="alert">
     <strong>❌ Registration Failed!</strong>
     <span id="errorMessage"></span>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
   <!-- Success Alert -->
-  <div id="successAlert" class="alert alert-success alert-dismissible fade" role="alert" style="display: none;">
+  <div id="successAlert" class="alert alert-success alert-dismissible fade hidden" role="alert">
     <strong>✅ Success!</strong> Your restaurant registration has been submitted successfully!
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
@@ -98,7 +98,7 @@
       <div class="mb-3">
         <label for="confirmPassword" class="form-label">Confirm Password</label>
         <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
-        <div id="passwordError" class="text-danger small" style="display: none;">
+        <div id="passwordError" class="password-error-msg hidden">
           Passwords do not match
         </div>
         <div class="invalid-feedback">
@@ -123,7 +123,7 @@
       <div class="mb-3">
         <label for="address" class="form-label">Address</label>
         <input type="text" class="form-control" id="address" name="address" required
-               pattern="^[a-zA-Z0-9\s,.-#]{10,100}$" title="10-100 characters">
+       pattern="^[a-zA-Z0-9\s,.#\-]{10,100}$" title="10-100 characters">
         <div class="invalid-feedback">
           Please provide a valid address (10-100 characters)
         </div>
@@ -278,7 +278,7 @@
       </div>
 
       <div class="text-center">
-        <button type="submit" class="btn btn-primary btn-lg">
+        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
           🚀 Submit Application
         </button>
       </div>
@@ -286,260 +286,8 @@
   </form>
 </div>
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('ownerSignupForm');
-      const password = document.getElementById('password');
-      const confirmPassword = document.getElementById('confirmPassword');
-      const passwordError = document.getElementById('passwordError');
-      const capacity = document.getElementById('capacity');
-      const totalCapacity = document.getElementById('totalCapacity');
-
-      // ENHANCED: Security-focused error handling from URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const errorAlert = document.getElementById('errorAlert');
-      const errorMessage = document.getElementById('errorMessage');
-      const successAlert = document.getElementById('successAlert');
-
-      // Handle error parameter with XSS protection
-      if (urlParams.has('error')) {
-          const errorText = urlParams.get('error');
-          if (errorText && errorText !== '1') {
-              // XSS protection: escape HTML characters
-              const escapeHtml = (unsafe) => {
-                  return unsafe
-                      .replace(/&/g, "&amp;")
-                      .replace(/</g, "&lt;")
-                      .replace(/>/g, "&gt;")
-                      .replace(/"/g, "&quot;")
-                      .replace(/'/g, "&#039;");
-              };
-              errorMessage.innerHTML = ` ${escapeHtml(errorText)}`;
-          } else {
-              errorMessage.textContent = ' Please check your information and try again.';
-          }
-          errorAlert.style.display = 'block';
-          errorAlert.classList.add('show');
-
-          // Scroll to top to show error
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-
-          // Remove error parameter from URL to prevent refresh issues
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, newUrl);
-      }
-
-      // Handle success parameter
-      if (urlParams.has('success')) {
-          successAlert.style.display = 'block';
-          successAlert.classList.add('show');
-
-          // Redirect to login after 3 seconds
-          setTimeout(() => {
-              window.location.href = '/login';
-          }, 3000);
-
-          // Remove success parameter from URL
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, newUrl);
-      }
-
-      // Enhanced password validation with security requirements
-      function validatePasswords() {
-          if (password.value && confirmPassword.value) {
-              if (password.value !== confirmPassword.value) {
-                  passwordError.style.display = 'block';
-                  confirmPassword.setCustomValidity('Passwords do not match');
-                  confirmPassword.classList.add('is-invalid');
-                  return false;
-              } else {
-                  passwordError.style.display = 'none';
-                  confirmPassword.setCustomValidity('');
-                  confirmPassword.classList.remove('is-invalid');
-                  confirmPassword.classList.add('is-valid');
-                  return true;
-              }
-          }
-          return true;
-      }
-
-      // Enhanced capacity validation
-      function validateCapacity() {
-          const cap = parseInt(capacity.value);
-          const totalCap = parseInt(totalCapacity.value);
-
-          if (cap && totalCap && cap > totalCap) {
-              totalCapacity.setCustomValidity('Total capacity must be greater than or equal to seating capacity');
-              totalCapacity.classList.add('is-invalid');
-              return false;
-          } else {
-              totalCapacity.setCustomValidity('');
-              totalCapacity.classList.remove('is-invalid');
-              if (totalCap >= 10) {
-                  totalCapacity.classList.add('is-valid');
-              }
-              return true;
-          }
-      }
-
-      // Enhanced file validation with security checks
-      function validateFile() {
-          const fileInput = document.getElementById('image');
-          const file = fileInput.files[0];
-
-          if (!file) {
-              fileInput.classList.add('is-invalid');
-              return false;
-          }
-
-          // Security: Check file size (5MB limit)
-          if (file.size > 5 * 1024 * 1024) {
-              showError('File size must be less than 5MB.');
-              fileInput.classList.add('is-invalid');
-              return false;
-          }
-
-          // Security: Strict file type validation
-          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-          if (!allowedTypes.includes(file.type)) {
-              showError('Please upload a valid image file (JPG, JPEG or PNG only).');
-              fileInput.classList.add('is-invalid');
-              return false;
-          }
-
-          // Security: Check file extension
-          const fileName = file.name.toLowerCase();
-          const allowedExtensions = ['.jpg', '.jpeg', '.png'];
-          const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
-
-          if (!hasValidExtension) {
-              showError('Invalid file extension. Only .jpg, .jpeg, .png files are allowed.');
-              fileInput.classList.add('is-invalid');
-              return false;
-          }
-
-          fileInput.classList.remove('is-invalid');
-          fileInput.classList.add('is-valid');
-          return true;
-      }
-
-      // Real-time validation with enhanced feedback
-      confirmPassword.addEventListener('input', validatePasswords);
-      password.addEventListener('input', () => {
-          validatePasswords();
-          // Clear invalid state when user starts typing
-          if (password.classList.contains('is-invalid')) {
-              password.classList.remove('is-invalid');
-          }
-      });
-
-      capacity.addEventListener('input', validateCapacity);
-      totalCapacity.addEventListener('input', validateCapacity);
-
-      // File input validation
-      document.getElementById('image').addEventListener('change', validateFile);
-
-      // Enhanced form submission with comprehensive validation
-      form.addEventListener('submit', function(e) {
-          e.preventDefault(); // Always prevent default, then validate
-
-          // Clear any existing errors
-          errorAlert.style.display = 'none';
-          errorAlert.classList.remove('show');
-
-          let isValid = true;
-
-          // Validate all required fields
-          const requiredFields = form.querySelectorAll('[required]');
-          requiredFields.forEach(field => {
-              if (!field.checkValidity()) {
-                  field.classList.add('is-invalid');
-                  isValid = false;
-              } else {
-                  field.classList.remove('is-invalid');
-                  field.classList.add('is-valid');
-              }
-          });
-
-          // Validate passwords
-          if (!validatePasswords()) {
-              isValid = false;
-          }
-
-          // Validate capacity
-          if (!validateCapacity()) {
-              isValid = false;
-          }
-
-          // Validate file
-          if (!validateFile()) {
-              isValid = false;
-          }
-
-          // Security: Additional time validation
-          const opening = document.getElementById('opening').value;
-          const closing = document.getElementById('closing').value;
-
-          if (opening && closing && opening >= closing) {
-              showError('Closing time must be after opening time.');
-              isValid = false;
-          }
-
-          if (!isValid) {
-              // Focus on first invalid field
-              const firstInvalid = form.querySelector('.is-invalid');
-              if (firstInvalid) {
-                  firstInvalid.focus();
-                  firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-              return false;
-          }
-
-          // Show loading state
-          const submitBtn = form.querySelector('button[type="submit"]');
-          const originalText = submitBtn.innerHTML;
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
-
-          // Re-enable button after timeout in case of slow response
-          setTimeout(() => {
-              if (submitBtn.disabled) {
-                  submitBtn.disabled = false;
-                  submitBtn.innerHTML = originalText;
-              }
-          }, 30000); // 30 second timeout
-
-          // Submit the form
-          form.submit();
-      });
-
-      // Helper function to show errors with XSS protection
-      function showError(message) {
-          const escapeHtml = (unsafe) => {
-              return unsafe
-                  .replace(/&/g, "&amp;")
-                  .replace(/</g, "&lt;")
-                  .replace(/>/g, "&gt;")
-                  .replace(/"/g, "&quot;")
-                  .replace(/'/g, "&#039;");
-          };
-
-          errorMessage.innerHTML = ` ${escapeHtml(message)}`;
-          errorAlert.style.display = 'block';
-          errorAlert.classList.add('show');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-
-      // Enhanced Bootstrap validation styling
-      form.addEventListener('input', (e) => {
-          if (e.target.checkValidity()) {
-              e.target.classList.remove('is-invalid');
-              e.target.classList.add('is-valid');
-          }
-      });
-  });
-</script>
 <script src="/common/common_js/include.js"></script>
+<script src="/js/ownerSignup.js"></script>
 <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
 </html>

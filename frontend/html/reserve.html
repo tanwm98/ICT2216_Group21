@@ -14,14 +14,14 @@
 <div id="header-placeholder"></div>
     <section class="reserve-area">
         <div class="container-reserve">
-            <h2 style="color: #4D5565; font-weight: bold;" id="storename"></h2>
+            <h2 class="store-title" id="storename"></h2>
 
             <div class="reservation-details mt-3">
                 <span id="totalpax">👥 2 people</span>
                 <span id="date">📅 21 May</span>
                 <span id="time">🕑 2:30 PM</span>
             </div>
-            <hr class="border-top border-2 border-secondary my-4"> <!-- line seperator -->
+            <hr class="border-top border-2 border-secondary my-4">
 
             <form id="completeReservation">
                 <div class="row">
@@ -41,38 +41,25 @@
                 </div>
 
                 <button class="submit-btn" type="submit">Complete Reservation</button>
-                <p id="reserveError" style="display: none; font-weight: bold;"></p>
+                <p id="reserveError" class="hidden"></p>
 
             </form>
         </div>
     </section>
 
     <!-- confirmation/error popup modal -->
-    <div id="popupModal" class="popup-modal" style="display: none;">
+    <div id="popupModal" class="popup-modal hidden">
         <div class="popup-box">
             <div class="popup-icon">🎉</div>
             <p id="popupMessage" class="popup-text"></p>
-            <button class="popup-ok-btn" onclick="closePopup()">OK</button>
+            <button class="popup-ok-btn">OK</button>
         </div>
     </div>
 
-    <!-- Footer Include -->
     <div id="footer-placeholder"></div>
-
-    <!-- Load include.js FIRST -->
     <script src="/common/common_js/include.js"></script>
-
-    <!-- Then page-specific JS TO CHANGE***-->
     <script src="/js/reserve.js"></script>
 
 </body>
 
 </html>
-
-<script>
-    // Hide popup
-function closePopup() {
-    document.getElementById('popupModal').style.display = 'none';
-    window.location.href = '/'
-}
-</script>

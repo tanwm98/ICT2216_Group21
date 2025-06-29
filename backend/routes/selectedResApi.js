@@ -506,8 +506,7 @@ cron.schedule('0 * * * *', async () => {
       if (r.is_reminded == false) {
         await transporter.sendMail({
           from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-          // to: `${user[0].email}`, // this should be the legitimate flow, but will jus use our own email
-          to: 'chuaxinjing03@gmail.com',
+          to: '${user[0].email}',
           subject: `Reservation Reminder at ${store[0].storeName}`,
           html: `
               <p>Hello ${user[0].name},</p>

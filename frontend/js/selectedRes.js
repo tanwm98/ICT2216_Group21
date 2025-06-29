@@ -352,7 +352,7 @@ async function displayTimingOptions() {
         if (hiddenPart.children.length > 0) {
             const showmore = document.createElement('button');
             showmore.className = "btn btn-link px-0 text-primary";
-            showmore.textContent = "Show less ▲";
+            showmore.textContent = "Show more ▼";
             showmore.type = "button";
             showmore.id = 'showMoreBtn';
 

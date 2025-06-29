@@ -1,6 +1,70 @@
-
-
 let userid;
+
+function escapeHtml(unsafe) {
+    if (!unsafe || typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function decodeHtmlEntities(str) {
+    if (typeof str !== 'string') return str;
+
+    const htmlMap = {
+        '&amp;': '&',
+        '&#x2F;': '/',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#039;': "'"
+    };
+
+    const decodeOnce = s =>
+        s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
+
+    let last = str;
+    for (let i = 0; i < 10; i++) {
+        const decoded = decodeOnce(last);
+        if (decoded === last) break;
+        last = decoded;
+    }
+
+    return last;
+}
+
+function closePopup() {
+    const modal = document.getElementById('popupModal');
+    modal.classList.add('hidden');
+    window.location.href = '/';
+}
+
+function showError(message) {
+    const errorMsg = document.getElementById('reserveError');
+    if (errorMsg) {
+        errorMsg.textContent = message;
+        errorMsg.classList.remove('hidden');
+        errorMsg.classList.add('error-message');
+    }
+}
+
+function hideError() {
+    const errorMsg = document.getElementById('reserveError');
+    if (errorMsg) {
+        errorMsg.classList.add('hidden');
+        errorMsg.classList.remove('error-message');
+    }
+}
+
+function showSuccessPopup(message) {
+    document.getElementById('popupMessage').textContent = message;
+    document.querySelector('.popup-icon').textContent = "✅";
+    const modal = document.getElementById('popupModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('popup-show');
+}
 
 window.onload = async function () {
     const data = JSON.parse(sessionStorage.getItem('reservationData'));
@@ -16,17 +80,17 @@ window.onload = async function () {
 
     // get reservation id from query param
     const urlParams = new URLSearchParams(window.location.search);
-    reservationid = urlParams.get("rid");
+    const reservationid = urlParams.get("rid");
     console.log(reservationid);
 
     try {
         const response = await fetch('/api/session');
-        const data = await response.json();
+        const sessionData = await response.json();
 
-        if (!data.loggedIn) {
+        if (!sessionData.loggedIn) {
             window.location.href = './login';
         } else {
-            userid = data.userId;
+            userid = sessionData.userId;
             if (reservationid) {
                 await populateFields(reservationid);
             }
@@ -34,94 +98,86 @@ window.onload = async function () {
         }
     } catch (error) {
         console.error('Error checking session:', error);
-
     }
+};
 
-}
-
-function decodeHtmlEntities(str) {
-  if (typeof str !== 'string') return str;
-
-  const htmlMap = {
-    '&amp;': '&',
-    '&#x2F;': '/',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#039;': "'"
-  };
-
-  const decodeOnce = s =>
-    s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
-
-  let last = str;
-  for (let i = 0; i < 10; i++) {
-    const decoded = decodeOnce(last);
-    if (decoded === last) break;
-    last = decoded;
-  }
-
-  return last;
-}
-
-async function populateFields() {
+async function populateFields(reservationid) {
     console.log("running populateField");
-    const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch data');
-    }
-    reservationDetails = await response.json();
-    const details = reservationDetails[0];
-    console.log("[DEBUG] Raw special request from backend:", details.specialRequest);
-    console.log("[DEBUG] Decoded special request:", decodeHtmlEntities(details.specialRequest));
+    try {
+        const response = await fetch(`/get_reservation_by_id?reservationid=${encodeURIComponent(reservationid)}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        const reservationDetails = await response.json();
+        const details = reservationDetails[0];
+        console.log("[DEBUG] Raw special request from backend:", details.specialRequest);
+        console.log("[DEBUG] Decoded special request:", decodeHtmlEntities(details.specialRequest));
 
-    document.getElementById('firstname').value = details.first_name;
-    document.getElementById('lastname').value = details.last_name;
-    document.getElementById('specialrequest').value = decodeHtmlEntities(details.specialRequest);
+        document.getElementById('firstname').value = escapeHtml(details.first_name);
+        document.getElementById('lastname').value = escapeHtml(details.last_name);
+        document.getElementById('specialrequest').value = decodeHtmlEntities(details.specialRequest);
+    } catch (error) {
+        console.error('Error populating fields:', error);
+        showError('Failed to load reservation details');
+    }
 }
 
 async function makeReservation(totalpeople, date, time, userid, storeid, storename, adultpax, childpax, reservationid) {
     try {
-        // console.log("userid: " + userid);
-        // console.log("Pax: " + totalpeople);
-        // console.log("time: " + time);
-        // console.log("date: " + date);
-        // console.log("storeid: " + storeid);
-        // console.log("storename: " + storename);
-
-        document.getElementById("storename").innerHTML = storename;
-        document.getElementById("totalpax").innerHTML = `👤 ${totalpeople}`;
-        document.getElementById("date").innerHTML = `📅 ${date}`;
-        document.getElementById("time").innerHTML = `🕑 ${time}`;
+        // Set reservation details with escaped content
+        document.getElementById("storename").textContent = storename;
+        document.getElementById("totalpax").textContent = `👤 ${totalpeople}`;
+        document.getElementById("date").textContent = `📅 ${date}`;
+        document.getElementById("time").textContent = `🕑 ${time}`;
 
         // load first name and last name with db values
-        const response = await fetch(`/get_name?userid=${userid}`);
+        const response = await fetch(`/get_name?userid=${encodeURIComponent(userid)}`);
         if (!response.ok) {
-            throw new Error('Failed to fetch data');
-        };
+            throw new Error('Failed to fetch user data');
+        }
         const name = await response.json();
         console.log(name);
-        document.getElementById('firstname').value = name[0].firstname;
-        document.getElementById('lastname').value = name[0].lastname;
+        
+        // Only populate if not already populated (for edit case)
+        if (!document.getElementById('firstname').value) {
+            document.getElementById('firstname').value = escapeHtml(name[0].firstname);
+            document.getElementById('lastname').value = escapeHtml(name[0].lastname);
+        }
 
         const form = document.getElementById("completeReservation");
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
+            hideError(); // Clear any previous errors
 
-            const firstname = document.getElementById('firstname').value;
+            const firstname = document.getElementById('firstname').value.trim();
+            const lastname = document.getElementById('lastname').value.trim();
+            const specialrequest = document.getElementById('specialrequest').value.trim();
+
+            // Validate inputs
+            if (!firstname || !lastname) {
+                showError('First name and last name are required');
+                return;
+            }
+
+            if (firstname.length > 100 || lastname.length > 100) {
+                showError('Names must be less than 100 characters');
+                return;
+            }
+
+            if (specialrequest.length > 500) {
+                showError('Special request must be less than 500 characters');
+                return;
+            }
+
             console.log("firstname: " + firstname);
-
-            const lastname = document.getElementById('lastname').value;
             console.log("lastname: " + lastname);
-
-            const specialrequest = document.getElementById('specialrequest').value;
             console.log("specialrequest: " + specialrequest);
 
             let response;
 
             try {
                 if (reservationid) {
-                    console.log('running this');
+                    console.log('updating reservation');
                     response = await fetch('/update_reservation', {
                         method: 'POST',
                         headers: {
@@ -141,41 +197,57 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                             reservationid
                         })
                     });
-
                 } else {
-                    response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}&storename=${storename}&adultpax=${adultpax}&childpax=${childpax}`);
+                    // Use POST for new reservations as well for better security
+                    response = await fetch('/reserve', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            pax: totalpeople,
+                            date,
+                            time,
+                            userid,
+                            storeid,
+                            firstname,
+                            lastname,
+                            specialrequest,
+                            storename,
+                            adultpax,
+                            childpax
+                        })
+                    });
                 }
 
                 const result = await response.json();
 
-                // need to throw error, then the catch work
                 if (!response.ok) {
                     throw new Error(result.message || 'Reservation failed');
                 } else {
                     // reservation successful
-                    document.getElementById('popupMessage').textContent =
-                        reservationid ? "Reservation updated successfully!" : "Reservation completed successfully!";
-                    document.querySelector('.popup-icon').textContent = "✅";
-                    document.getElementById('popupModal').style.display = 'flex';
+                    const successMessage = reservationid ? 
+                        "Reservation updated successfully!" : 
+                        "Reservation completed successfully!";
+                    showSuccessPopup(successMessage);
                 }
-
 
             } catch (error) {
-                const errorMsg = document.getElementById('reserveError');
-                if (errorMsg) {
-                    errorMsg.textContent = error.message;
-                    errorMsg.style.display = 'unset';
-                    errorMsg.style.color = 'red';
-                }
+                console.error('Reservation error:', error);
+                showError(error.message || 'An error occurred while processing your reservation');
             }
-
-        })
-
-
+        });
 
     } catch (err) {
         console.error('Error making reservation:', err);
-        throw err;
+        showError('Failed to load reservation form');
     }
 }
 
+// Setup popup close button event listener when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const okButton = document.querySelector('.popup-ok-btn');
+    if (okButton) {
+        okButton.addEventListener('click', closePopup);
+    }
+});

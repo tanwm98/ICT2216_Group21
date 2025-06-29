@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Restaurant Admin Dashboard</title>
   <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="/static/styles/bootstrap/bootstrap-icons.css" rel="stylesheet">
@@ -15,14 +16,24 @@
       <!-- Sidebar -->
       <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column p-3">
         <h4 class="text-white">Admin Panel</h4>
-        <a onclick="showSection('dashboard')"><i class="bi bi-speedometer2"></i> Dashboard</a>
-        <a onclick="showSection('restaurants')"><i class="bi bi-shop"></i> Restaurants</a>
-        <a onclick="showSection('users')"><i class="bi bi-people"></i> Users</a>
-        <a onclick="showSection('reservations')"><i class="bi bi-calendar-check"></i> Reservations</a>
+        <a href="#" data-section="dashboard" class="nav-link active">
+          <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+        <a href="#" data-section="restaurants" class="nav-link">
+          <i class="bi bi-shop"></i> Restaurants
+        </a>
+        <a href="#" data-section="users" class="nav-link">
+          <i class="bi bi-people"></i> Users
+        </a>
+        <a href="#" data-section="reservations" class="nav-link">
+          <i class="bi bi-calendar-check"></i> Reservations
+        </a>
 
         <div class="mt-auto">
           <hr class="text-secondary">
-          <a href="/logout" class="text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+          <a href="/logout" class="text-danger">
+            <i class="bi bi-box-arrow-right"></i> Logout
+          </a>
         </div>
       </nav>
 
@@ -74,26 +85,28 @@
         <div id="restaurants" class="section">
           <h2>Manage Restaurants</h2>
           <p class="d-flex justify-content-end">
-            <button class="btn btn-primary btn-sm" onclick="openModal()">
+            <button class="btn btn-primary btn-sm" id="addRestaurantBtn">
               <i class="bi bi-plus-circle"></i> Add Restaurant
             </button>
           </p>
 
           <!-- Restaurant List -->
           <div id="restaurantList">
-            <table class="table table-bordered">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Location</th>
-                  <th>Owner</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Will be populated by JS -->
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Location</th>
+                    <th>Owner</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Will be populated by JS -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -101,28 +114,30 @@
         <div id="users" class="section">
           <h2>Manage Users</h2>
           <p class="d-flex justify-content-end">
-            <button class="btn btn-primary btn-sm" onclick="openUserModal()">
+            <button class="btn btn-primary btn-sm" id="addUserBtn">
               <i class="bi bi-plus-circle"></i> Add User
             </button>
           </p>
 
           <!-- User List -->
           <div id="userList">
-            <table class="table table-bordered">
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>First Name</th>
-                  <th>Last Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Will be populated by JS -->
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Will be populated by JS -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -132,21 +147,23 @@
 
           <!-- Reservation List -->
           <div id="reservationList">
-            <table id="reservationList" class="table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Restaurant</th>
-                  <th>Guests</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
-                  <th>Request</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Restaurant</th>
+                    <th>Guests</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Request</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </main>
@@ -154,22 +171,22 @@
   </div>
 
   <!-- Restaurant Modal -->
-  <div id="myModal" class="modal">
+  <div id="myModal" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="d-flex justify-content-end">
-        <button type="button" class="btn-close" aria-label="Close" onclick="closeModal()"></button>
+        <button type="button" class="btn-close" aria-label="Close" id="closeRestaurantModalBtn"></button>
       </div>
       <h5 class="mb-3" id="restaurantModalTitle">Add New Restaurant</h5>
 
-      <form action="/api/restaurants" method="POST" id="restaurantForm" enctype="multipart/form-data" onsubmit="event.preventDefault(); submitRestaurantForm();" >
-        <input type="hidden" id="restaurantId"> <!-- Hidden for edit mode -->
+      <form id="restaurantForm" enctype="multipart/form-data">
+        <input type="hidden" id="restaurantId">
 
         <div class="mb-3">
           <label for="storeName" class="form-label">Store Name</label>
           <input class="form-control" id="storeName" name="storeName" required>
         </div>
-        <div>
-          <label for="ownerSelect">Owner:</label>
+        <div class="mb-3">
+          <label for="ownerSelect" class="form-label">Owner</label>
           <select id="ownerSelect" class="form-control" required>
             <option value="">Select Owner</option>
           </select>
@@ -197,6 +214,8 @@
             <option value="$">$</option>
             <option value="$$">$$</option>
             <option value="$$$">$$$</option>
+            <option value="$$$$">$$$$</option>
+            <option value="$$$$$">$$$$$</option>
           </select>
         </div>
         <div class="mb-3">
@@ -214,6 +233,7 @@
         <div class="mb-3">
           <label for="image" class="form-label">Upload Image</label>
           <input type="file" class="form-control" id="image" name="image" accept="image/*">
+          <div class="form-text">Optional: Upload a restaurant image</div>
         </div>
 
         <div class="d-flex justify-content-end">
@@ -224,14 +244,14 @@
   </div>
 
   <!-- User Modal -->
-  <div id="userModal" class="modal">
+  <div id="userModal" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="d-flex justify-content-end">
-        <button type="button" class="btn-close" aria-label="Close" onclick="closeUserModal()"></button>
+        <button type="button" class="btn-close" aria-label="Close" id="closeUserModalBtn"></button>
       </div>
       <h5 class="mb-3" id="userModalTitle">Add New User</h5>
-      <form onsubmit="event.preventDefault(); submitUserForm();">
-        <input type="hidden" id="userId"> <!-- hidden input for edit -->
+      <form id="userForm">
+        <input type="hidden" id="userId">
 
         <div class="mb-3">
           <label for="name" class="form-label">Username</label>
@@ -242,7 +262,7 @@
           <input class="form-control" id="firstname" name="firstname" required>
         </div>
         <div class="mb-3">
-          <label for="lastname" class="form-label">last Name</label>
+          <label for="lastname" class="form-label">Last Name</label>
           <input class="form-control" id="lastname" name="lastname" required>
         </div>
         <div class="mb-3">

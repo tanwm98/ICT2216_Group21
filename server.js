@@ -98,9 +98,9 @@ app.get('/api/session/validation-errors', (req, res) => {
 });
 
 // PROTECTED API ROUTES (AFTER SESSION ROUTES)
-app.use('/api/admin', adminDash);  // Admin routes are protected inside the router
-app.use('/api/owner', ownerApi);   // Owner routes are protected inside the router
-app.use('/api/user', loggedUser);  // User routes are protected inside the router
+app.use('/api/admin', adminDash);
+app.use('/api/owner', ownerApi);  
+app.use('/api/user', loggedUser); 
 
 // ======== PUBLIC ROUTES ========
 
