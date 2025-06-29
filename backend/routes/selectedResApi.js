@@ -38,6 +38,33 @@ function validateAndGenerateImageUrl(imageFilename) {
     return `/static/img/restaurants/${imageFilename}`;
 }
 
+function getCurrentSGTDate() {
+  const now = new Date();
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(now);
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+
+  // Manually construct the date in local time
+  return new Date(
+    parseInt(map.year),
+    parseInt(map.month) - 1,
+    parseInt(map.day),
+    parseInt(map.hour) - 8,
+    parseInt(map.minute),
+    parseInt(map.second)
+  );
+}
 // SECURITY: Sanitize alt text to prevent XSS
 function sanitizeAltText(altText, storeName) {
     if (!altText || typeof altText !== 'string') {
@@ -228,83 +255,126 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
     const adultpax = req.query.adultpax;
     const childpax = req.query.childpax;
 
-    // console.log("userid: " + userid);
-    // console.log("Pax: " + pax);
-    // console.log("time: " + time);
-    // console.log("date: " + date);
-    // console.log("storeid: " + storeid);
-    // console.log("firstname: " + firstname);
-    // console.log("lastname: " + lastname);
-    // console.log("specialreq: " + specialreq);
+    const [year, month, day] = date.split('-'); // e.g. "2025-06-30"
+    const [hour, minute] = time.split(':');     // e.g. "11:30"
 
-    // check if reservation exist alr by same person, time and shop
-    const checkExistingReservation = await pool.query(`SELECT * FROM reservations WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`, [storeid, userid, time, date]);
-    console.log(checkExistingReservation.rows);
+    const reservationDateTimeSGT = new Date(Date.UTC(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      parseInt(hour) - 8, // convert to UTC equivalent
+      parseInt(minute)
+    ));
 
-    const storeDetails = await pool.query('SELECT "currentCapacity" FROM stores WHERE store_id = $1', [storeid]);
-    const currentCapacity = storeDetails.rows[0].currentCapacity;
+    // Current time in SGT
+    const nowSGT = getCurrentSGTDate();
 
-    if (parseInt(pax) > currentCapacity) {
-      return res.status(400).json({ message: `Reservation exceeds remaining capacity of ${currentCapacity}.` });
+    console.log("[DEBUG] Reservation DateTime (SGT):", reservationDateTimeSGT.toISOString());
+    console.log("[DEBUG] Current DateTime (SGT):", nowSGT.toLocaleString("en-SG", { timeZone: "Asia/Singapore" }))
+
+    if (reservationDateTimeSGT < nowSGT) {
+      return res.status(400).json({ message: "Cannot make a reservation in the past." });
     }
 
-    // get store details
-    const store_details = await pool.query(`SELECT * FROM stores WHERE store_id = $1`, [storeid]);
-    const store = store_details.rows;
+    // 1. Enforce 1-hour cooldown since last reservation creation
+    const cooldownCheck = await pool.query(`
+      SELECT 1 FROM reservations 
+      WHERE "user_id" = $1 
+      AND created_at > (NOW() - INTERVAL '1 hour')`, 
+      [userid]);
+
+    if (cooldownCheck.rowCount > 0) {
+      return res.status(429).json({ message: 'You can only make one reservation per hour. Please try again later.' });
+    }
+
+    // 2. Check for existing reservation at same time/store
+    const checkExistingReservation = await pool.query(`
+      SELECT * FROM reservations 
+      WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'
+    `, [storeid, userid, time, date]);
 
     if (checkExistingReservation.rows.length > 0) {
       return res.status(400).json({ message: "You already have a reservation for that time." });
-    } else {
-
-      // insert into reservation
-      const reserveresult = await pool.query('INSERT INTO reservations ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", "specialRequest", "first_name", "last_name", "childPax", "adultPax") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)', [userid, storeid, pax, time, date, specialreq, firstname, lastname, childpax, adultpax]);
-
-      // // update current capacity of stores table
-      await pool.query('UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE "store_id" = $2', [pax, storeid]);
-
-      // get current username 
-      const usernameResult = await pool.query('SELECT name FROM users WHERE "user_id" = $1', [userid]);
-
-      const username = usernameResult.rows[0]?.name;
-      
-      // upon successful reservation, send email to user
-      await transporter.sendMail({
-        from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-        to: 'dx8153@gmail.com',
-        subject: `Reservation Confirmed at ${storename} `,
-        html: `
-              <p>Hello ${username},</p>
-              <p>Your reservation with ${storename} is <strong>confirmed</strong>. See below for more details.</p>
-              <h4>Reservation Details:</h4>
-              <ul>
-                  <li><strong>👤 First Name:</strong> ${firstname}</li>
-                  <li><strong>👤 Last Name:</strong> ${lastname}</li>
-                  <li><strong>🏪 Restaurant:</strong> ${storename}</li>
-                  <li><strong>📍 Location:</strong> ${store[0].address}</li>
-                  <li><strong>📅 Date:</strong> ${date}</li>
-                  <li><strong>🕒 Time:</strong> ${time}</li>
-                  <li><strong>👥 Number of Guests:</strong> ${pax}
-                    <ul>
-                      <li><strong>Number of Adults:</strong> ${adultpax}</li>
-                      <li><strong>Number of Child:</strong> ${childpax}</li>
-                    </ul>
-                  </li>
-                  ${specialreq ? `<li><strong>📢 Special Request:</strong> ${specialreq}</li>` : ''}
-              </ul>
-              <p>Thank you!</p>
-              <p>Kirby Chope</p>
-            `
-      })
-
-      res.json(reserveresult.rows); // send data back as json
     }
+
+    // 3. Check capacity
+    const storeDetails = await pool.query(`
+      SELECT "currentCapacity" FROM stores WHERE "store_id" = $1
+    `, [storeid]);
+
+    const currentCapacity = storeDetails.rows[0].currentCapacity;
+
+    if (parseInt(pax) > currentCapacity) {
+      return res.status(400).json({
+        message: `Reservation exceeds remaining capacity of ${currentCapacity}.`
+      });
+    }
+
+    // 4. Get store details (for address)
+    const storeResult = await pool.query(`
+      SELECT * FROM stores WHERE "store_id" = $1
+    `, [storeid]);
+
+    const store = storeResult.rows;
+
+    // 5. Insert reservation
+    const reserveresult = await pool.query(`
+      INSERT INTO reservations 
+      ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", 
+      "specialRequest", "first_name", "last_name", "childPax", "adultPax", "created_at")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`, 
+      [userid, storeid, pax, time, date, specialreq, firstname, lastname, childpax, adultpax]);
+
+    // 6. Update capacity
+    await pool.query(`
+      UPDATE stores 
+      SET "currentCapacity" = "currentCapacity" - $1 
+      WHERE "store_id" = $2
+    `, [pax, storeid]);
+
+    // 7. Get user name
+    const usernameResult = await pool.query(`
+      SELECT name FROM users WHERE "user_id" = $1
+    `, [userid]);
+
+    const username = usernameResult.rows[0]?.name;
+
+    // 8. Send confirmation email
+    await transporter.sendMail({
+      from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+      to: 'dx8153@gmail.com',
+      subject: `Reservation Confirmed at ${storename}`,
+      html: `
+        <p>Hello ${username},</p>
+        <p>Your reservation with ${storename} is <strong>confirmed</strong>. See below for more details.</p>
+        <h4>Reservation Details:</h4>
+        <ul>
+          <li><strong>👤 First Name:</strong> ${firstname}</li>
+          <li><strong>👤 Last Name:</strong> ${lastname}</li>
+          <li><strong>🏪 Restaurant:</strong> ${storename}</li>
+          <li><strong>📍 Location:</strong> ${store[0].address}</li>
+          <li><strong>📅 Date:</strong> ${date}</li>
+          <li><strong>🕒 Time:</strong> ${time}</li>
+          <li><strong>👥 Number of Guests:</strong> ${pax}
+            <ul>
+              <li><strong>Number of Adults:</strong> ${adultpax}</li>
+              <li><strong>Number of Child:</strong> ${childpax}</li>
+            </ul>
+          </li>
+          ${specialreq ? `<li><strong>📢 Special Request:</strong> ${specialreq}</li>` : ''}
+        </ul>
+        <p>Thank you!</p>
+        <p>Kirby Chope</p>
+      `
+    });
+
+    res.json(reserveresult.rows);
 
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to insert data' });
   }
-})
-
+});
 
 // Update reservation
 router.post('/update_reservation', updateReservationValidator, handleValidation, async (req, res) => {
@@ -313,13 +383,17 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
 
     // Step 1: Get original reservation to restore its pax
     const originalRes = await pool.query(
-      `SELECT "store_id", "noOfGuest", "reservationDate", "reservationTime", "specialRequest"
+      `SELECT "store_id", "noOfGuest", "reservationDate", "reservationTime", "specialRequest", "status"
       FROM reservations WHERE reservation_id = $1`,
       [reservationid]
     );
 
     if (originalRes.rows.length === 0) {
       return res.status(404).json({ message: 'Reservation not found' });
+    }
+
+    if (originalRes.rows[0].status === 'Cancelled') {
+      return res.status(400).json({ message: 'Cannot update a cancelled reservation.' });
     }
 
     const storeId = originalRes.rows[0].store_id;
@@ -349,11 +423,28 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
     }
 
     console.log('Compare original vs new:', {
-    pax: [original.noOfGuest, pax],
-    date: [original.reservationDate?.toISOString().split('T')[0], date],
-    time: [original.reservationTime, time],
-    specialrequest: [original.specialRequest, specialrequest]
-});
+      pax: [original.noOfGuest, pax],
+      date: [original.reservationDate?.toISOString().split('T')[0], date],
+      time: [original.reservationTime, time],
+      specialrequest: [original.specialRequest, specialrequest]
+    });
+
+    // Step 1.5: Enforce 3 edits/day/user/reservation
+    const nowSGT = getCurrentSGTDate();
+    const today = nowSGT.toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' });
+
+    const editLimitCheck = await pool.query(
+      `SELECT COUNT(*) FROM reservation_edits 
+      WHERE user_id = $1 AND reservation_id = $2 
+      AND DATE(edited_at AT TIME ZONE 'Asia/Singapore') = $3`,
+      [userid, reservationid, today]
+    );
+
+    if (parseInt(editLimitCheck.rows[0].count) >= 3) {
+      return res.status(429).json({
+        message: "Edit limit reached. You can only update this reservation 3 times per day."
+      });
+    }
 
     // Step 2: Restore old pax to currentCapacity
     await pool.query(
@@ -392,6 +483,13 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
           "last_name" = $8
       WHERE reservation_id = $9
     `, [pax, date, time, specialrequest, adultpax, childpax, firstname, lastname, reservationid]);
+    
+    // Step 6.5: Record this edit in the reservation_edits log
+    await pool.query(
+      `INSERT INTO reservation_edits (user_id, reservation_id, edited_at)
+      VALUES ($1, $2, NOW())`,
+      [userid, reservationid]
+    );
 
     // Step 7: Fetch user name
     const usernameResult = await pool.query("SELECT name FROM users WHERE user_id = $1", [userid]);
@@ -694,21 +792,27 @@ router.post('/add-review', reviewValidator, handleValidation, async (req, res) =
   }
 
   try {
-    const insertQuery = `
-      INSERT INTO reviews ("user_id", "store_id", rating, description)
-      VALUES ($1, $2, $3, $4)
-    `;
+    const nowSGT = getCurrentSGTDate();
+    const todaySGTString = nowSGT.toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' });
 
-    const values = [userid, storeid, rating, review];
+    const existingReview = await pool.query(`
+      SELECT created_at FROM reviews 
+      WHERE user_id = $1 AND store_id = $2 
+      AND DATE(created_at AT TIME ZONE 'Asia/Singapore') = $3
+    `, [userid, storeid, todaySGTString]);
 
-    const result = await pool.query(insertQuery, values);
+    if (existingReview.rowCount > 0) {
+      return res.status(400).json({ error: 'You have already submitted a review for this restaurant today.' });
+    }
 
-    // console.log("Insert successful. Review ID:", result.rows[0].review_id);
+    const insertResult = await pool.query(`
+      INSERT INTO reviews (user_id, store_id, rating, description, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING created_at
+    `, [userid, storeid, rating, review]);
 
-    res.status(201).json({
-      message: 'Review submitted successfully.',
-      // review_id: result.rows[0].review_id
-    });
+    res.status(201).json({ message: 'Review submitted successfully.' });
+
   } catch (err) {
     console.error('Error inserting review:', err);
     res.status(500).json({ error: 'Failed to submit review.' });
