@@ -198,26 +198,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                         })
                     });
                 } else {
-                    // Use POST for new reservations as well for better security
-                    response = await fetch('/reserve', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            pax: totalpeople,
-                            date,
-                            time,
-                            userid,
-                            storeid,
-                            firstname,
-                            lastname,
-                            specialrequest,
-                            storename,
-                            adultpax,
-                            childpax
-                        })
-                    });
+                    response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}&storename=${storename}&adultpax=${adultpax}&childpax=${childpax}`);
                 }
 
                 const result = await response.json();

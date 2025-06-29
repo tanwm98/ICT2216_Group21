@@ -100,7 +100,7 @@ kirbychope.xyz {
 	        Cross-Origin-Opener-Policy "same-origin"
 	        Cross-Origin-Resource-Policy "same-origin"
 	        Referrer-Policy "strict-origin-when-cross-origin"
-			Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"	        
+    		Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
 	        Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), vr=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
 	        X-Permitted-Cross-Domain-Policies "none"
 	        -Server
