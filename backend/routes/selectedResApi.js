@@ -61,6 +61,8 @@ function sanitizeString(str) {
 
 const { reserveValidator, updateReservationValidator, reviewValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
+const { decodeHtmlEntities } = require('../middleware/htmlDecoder');
+const { debugDecode } = require('../middleware/htmlDecoder');
 
 // Route to display data
 router.get('/display_specific_store', async (req, res) => {
@@ -191,15 +193,25 @@ router.get('/display_specific_store', async (req, res) => {
 // Route to get reviews for the selected shop
 router.get('/display_reviews', async (req, res) => {
   try {
-    // get store name from the request
     const storeid = req.query.storeid;
     const result = await pool.query('SELECT * FROM reviews WHERE "store_id" = $1', [storeid]);
-    res.json(result.rows); // send data back as json
+
+    // Decode review descriptions recursively
+    const decoded = result.rows.map(r => {
+      console.log('[RAW FROM DB]', r.description);
+      const clean = debugDecode(r.description || '');
+      return {
+        ...r,
+        description: clean
+      };
+    });
+
+    res.json(decoded);
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to fetch data' });
   }
-})
+});
 
 // add reservation into reserve table
 router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
@@ -301,7 +313,8 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
 
     // Step 1: Get original reservation to restore its pax
     const originalRes = await pool.query(
-      'SELECT "store_id", "noOfGuest" FROM reservations WHERE reservation_id = $1',
+      `SELECT "store_id", "noOfGuest", "reservationDate", "reservationTime", "specialRequest"
+      FROM reservations WHERE reservation_id = $1`,
       [reservationid]
     );
 
@@ -311,6 +324,36 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
 
     const storeId = originalRes.rows[0].store_id;
     const originalPax = originalRes.rows[0].noOfGuest;
+
+    const original = originalRes.rows[0];
+    const formatTime = t => (t ? t.slice(0, 5) : ''); // Extract HH:MM from both "12:30:00" or "12:30"
+    const originalSpecial = decodeHtmlEntities(original.specialRequest || '');
+    const decodedRequestSpecial = decodeHtmlEntities(specialrequest || '');
+
+    // Final comparison
+    const isSame =
+      parseInt(pax) === original.noOfGuest &&
+      date === original.reservationDate.toISOString().split('T')[0] &&
+      formatTime(time) === formatTime(original.reservationTime) &&
+      decodedRequestSpecial === originalSpecial;
+
+    console.log('Compare original vs new:', {
+      pax: [original.noOfGuest, pax],
+      date: [original.reservationDate.toISOString().split('T')[0], date],
+      time: [formatTime(original.reservationTime), formatTime(time)],
+      specialrequest: [originalSpecial, decodedRequestSpecial]
+    });
+
+    if (isSame) {
+      return res.status(400).json({ message: 'No changes detected in reservation.' });
+    }
+
+    console.log('Compare original vs new:', {
+    pax: [original.noOfGuest, pax],
+    date: [original.reservationDate?.toISOString().split('T')[0], date],
+    time: [original.reservationTime, time],
+    specialrequest: [original.specialRequest, specialrequest]
+});
 
     // Step 2: Restore old pax to currentCapacity
     await pool.query(
@@ -535,13 +578,23 @@ router.get('/get_reservation_by_id', async (req, res) => {
       [reservationid]
     );
 
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
 
-    res.json(result.rows); // send data back as json
+    const reservation = result.rows[0];
+
+    console.log('[RAW SPECIAL REQUEST]', reservation.specialRequest);
+
+    // Decode specialRequest safely for display
+    reservation.specialRequest = debugDecode(reservation.specialRequest || '');
+
+    res.json([reservation]); // Wrap in array as expected by frontend
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to fetch data' });
   }
-})
+});
 
 // query to get max capacity of store 
 router.get('/maxcapacity', async (req, res) => {

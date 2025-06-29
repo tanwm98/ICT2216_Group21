@@ -6,6 +6,32 @@ window.addEventListener('DOMContentLoaded', () => {
   setupNameEditHandlers();
 });
 
+function decodeHtmlEntities(str) {
+  if (typeof str !== 'string') return str;
+
+  const htmlMap = {
+    '&amp;': '&',
+    '&#x2F;': '/',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#039;': "'"
+  };
+
+  const decodeOnce = s =>
+    s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
+
+  let last = str;
+  for (let i = 0; i < 10; i++) {
+    const decoded = decodeOnce(last);
+    if (decoded === last) break;
+    last = decoded;
+  }
+
+  return last;
+}
+
+
 // ======== Fetch user details ======== 
 function fetchUser() {
   fetch('/api/user/getUser')
@@ -30,34 +56,49 @@ function fetchReservations() {
       const tableBody = document.querySelector('#reservationTable tbody');
       tableBody.innerHTML = '';
       data.forEach(reservation => {
-        // Check if reservation date/time has passed
         const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
         const now = new Date();
         const isPastReservation = now >= reservationDateTime;
 
+        console.log("[DEBUG] Encoded specialRequest from backend:", reservation.specialRequest);
+        console.log("[DEBUG] Decoded specialRequest for rendering:", decodeHtmlEntities(reservation.specialRequest || ''));
+
         const row = document.createElement('tr');
+
         row.innerHTML = `
           <td>${reservation.storeName}</td>
           <td>${reservation.reservationDate}</td>
           <td>${reservation.reservationTime}</td>
           <td>${reservation.noOfGuest}</td>
-
           <td>
             ${(reservation.status === 'Confirmed' && !isPastReservation)
-            ? `<button class="btn btn-sm btn-warning" onclick="cancelUserReservation(${reservation.reservation_id})">Cancel</button>`
-            : (reservation.status === 'Confirmed' && isPastReservation)
-              ? 'Completed'
-              : reservation.status}
-          </td>
-
-          <td>${reservation.specialRequest || ''}</td>
-
-          <td>
-            ${(reservation.status === 'Confirmed' && !isPastReservation)
-            ? `<button class="btn btn-sm" style="background-color: #fc6c3f; color: white;" onclick="editReservation(${reservation.store_id}, ${reservation.reservation_id})">Edit Reservation</button>`
-            : "-"}
+              ? `<button class="btn btn-sm btn-warning" onclick="cancelUserReservation(${reservation.reservation_id})">Cancel</button>`
+              : (reservation.status === 'Confirmed' && isPastReservation)
+                ? 'Completed'
+                : reservation.status}
           </td>
         `;
+
+        // Safely add specialRequest cell
+        const specialRequestCell = document.createElement('td');
+        specialRequestCell.textContent = decodeHtmlEntities(reservation.specialRequest || '');
+        row.appendChild(specialRequestCell);
+
+        // Append edit button or dash
+        const editCell = document.createElement('td');
+        if (reservation.status === 'Confirmed' && !isPastReservation) {
+          const editBtn = document.createElement('button');
+          editBtn.className = 'btn btn-sm';
+          editBtn.style.backgroundColor = '#fc6c3f';
+          editBtn.style.color = 'white';
+          editBtn.textContent = 'Edit Reservation';
+          editBtn.onclick = () => editReservation(reservation.store_id, reservation.reservation_id);
+          editCell.appendChild(editBtn);
+        } else {
+          editCell.textContent = '-';
+        }
+        row.appendChild(editCell);
+
         tableBody.appendChild(row);
       });
     })
@@ -86,13 +127,26 @@ function fetchReviews() {
     .then(data => {
       const tableBody = document.querySelector('#reviewTable tbody');
       tableBody.innerHTML = '';
+
       data.forEach(review => {
+        console.log("[DEBUG] Encoded review.description from backend:", review.description);
+        console.log("[DEBUG] Decoded review.description for rendering:", decodeHtmlEntities(review.description));
+
         const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${review.storeName}</td>
-          <td>${review.rating}</td>
-          <td>${review.description}</td>
-        `;
+
+        const storeNameCell = document.createElement('td');
+        storeNameCell.textContent = review.storeName;
+
+        const ratingCell = document.createElement('td');
+        ratingCell.textContent = review.rating;
+
+        const descriptionCell = document.createElement('td');
+        descriptionCell.textContent = decodeHtmlEntities(review.description);
+
+        row.appendChild(storeNameCell);
+        row.appendChild(ratingCell);
+        row.appendChild(descriptionCell);
+
         tableBody.appendChild(row);
       });
     })

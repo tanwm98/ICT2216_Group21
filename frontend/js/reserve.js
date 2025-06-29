@@ -39,6 +39,31 @@ window.onload = async function () {
 
 }
 
+function decodeHtmlEntities(str) {
+  if (typeof str !== 'string') return str;
+
+  const htmlMap = {
+    '&amp;': '&',
+    '&#x2F;': '/',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#039;': "'"
+  };
+
+  const decodeOnce = s =>
+    s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
+
+  let last = str;
+  for (let i = 0; i < 10; i++) {
+    const decoded = decodeOnce(last);
+    if (decoded === last) break;
+    last = decoded;
+  }
+
+  return last;
+}
+
 async function populateFields() {
     console.log("running populateField");
     const response = await fetch(`/get_reservation_by_id?reservationid=${reservationid}`);
@@ -47,10 +72,12 @@ async function populateFields() {
     }
     reservationDetails = await response.json();
     const details = reservationDetails[0];
+    console.log("[DEBUG] Raw special request from backend:", details.specialRequest);
+    console.log("[DEBUG] Decoded special request:", decodeHtmlEntities(details.specialRequest));
 
     document.getElementById('firstname').value = details.first_name;
     document.getElementById('lastname').value = details.last_name;
-    document.getElementById('specialrequest').value = details.specialRequest;
+    document.getElementById('specialrequest').value = decodeHtmlEntities(details.specialRequest);
 }
 
 async function makeReservation(totalpeople, date, time, userid, storeid, storename, adultpax, childpax, reservationid) {

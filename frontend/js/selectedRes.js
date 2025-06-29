@@ -14,6 +14,31 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
+function decodeHtmlEntities(str) {
+    if (typeof str !== 'string') return str;
+
+    const htmlMap = {
+        '&amp;': '&',
+        '&#x2F;': '/',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#039;': "'"
+    };
+
+    const decodeOnce = s => s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
+
+    let last = str;
+    for (let i = 0; i < 10; i++) {
+        const decoded = decodeOnce(last);
+        if (decoded === last) break;
+        last = decoded;
+    }
+
+    return last;
+}
+
+
 // SECURITY: Create secure image element
 function createSecureImageElement(imageUrl, altText, fallbackText = 'Restaurant image') {
     const img = document.createElement('img');
@@ -489,18 +514,15 @@ async function displaySpecificStore() {
 }
 
 async function navTabs(stores) {
-    // about content
     const title = document.getElementById("aboutTitle");
-    title.textContent = `About ${stores[0].storeName}`; // SECURITY: Use textContent
+    title.textContent = `About ${stores[0].storeName}`;
 
     const address = document.getElementById("address");
-    // SECURITY: Escape user data in innerHTML
     address.innerHTML = `<i style="color:#FC6C3F" class="bi bi-geo-alt-fill mr-3"></i> ${escapeHtml(stores[0].address)}, Singapore ${escapeHtml(stores[0].postalCode)}`;
 
     const openinghours = document.getElementById("openinghours");
     openinghours.innerHTML = `<i style="color:#FC6C3F" class="bi bi-clock mr-3"></i> ${escapeHtml(stores[0].opening.slice(0, 5))} - ${escapeHtml(stores[0].closing.slice(0, 5))}`;
 
-    // review content
     const reviewContent = document.getElementById("reviewContent");
     const response = await fetch(`/display_reviews?storeid=${encodeURIComponent(stores[0].store_id)}`);
     if (!response.ok) {
@@ -508,6 +530,8 @@ async function navTabs(stores) {
     }
 
     const reviews = await response.json();
+    reviewContent.innerHTML = ''; // Clear existing content
+
     reviews.forEach(r => {
         const eachReview = document.createElement("div");
         eachReview.style.backgroundColor = "#F9FAFB";
@@ -517,16 +541,17 @@ async function navTabs(stores) {
         eachReview.style.borderRadius = "6px";
 
         const ratingContent = document.createElement("p");
-        // SECURITY: Escape user content
-        ratingContent.innerHTML = `<strong>Rating:</strong> ${escapeHtml(r.rating.toString())}`;
+        ratingContent.textContent = `Rating: ${r.rating}`;
 
         const descriptionContent = document.createElement("p");
-        descriptionContent.innerHTML = `<strong>Description:</strong> ${escapeHtml(r.description)}`;
+        descriptionContent.textContent = `Description: ${decodeHtmlEntities(r.description)}`;
+
 
         eachReview.append(ratingContent, descriptionContent);
         reviewContent.append(eachReview);
     });
 }
+
 
 async function reservationForm(stores) {
     const reservationForm = document.getElementById("makeReservationForm");
