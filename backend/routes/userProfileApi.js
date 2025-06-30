@@ -6,6 +6,7 @@ const { authenticateToken, requireUser } = require('../../frontend/js/token');
 
 const { userPasswordValidator, userNameValidator, userFirstNameValidator, userLastNameValidator, cancelReservationValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
+const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 router.use(authenticateToken, requireUser);
 

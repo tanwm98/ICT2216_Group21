@@ -5,6 +5,7 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const { authenticateToken, requireUser } = require('../../frontend/js/token');
 const { createRateLimiter } = require('../middleware/sanitization');
+const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 // Configure email 
 const transporter = nodemailer.createTransport({
@@ -397,7 +398,10 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
 });
 
 // Update reservation
-router.post('/update_reservation', updateReservationValidator, handleValidation, async (req, res) => {
+router.post('/update_reservation', fieldLevelAccess([
+  'pax', 'time', 'date', 'firstname', 'lastname', 'specialrequest',
+  'reservationid', 'adultpax', 'childpax', 'storename', 'userid'
+]), updateReservationValidator, handleValidation, async (req, res) => {
   try {
     const { pax, time, date, firstname, lastname, specialrequest, reservationid, adultpax, childpax, storename, userid } = req.body;
 
@@ -812,7 +816,7 @@ router.get('/check-reservation', async (req, res) => {
 });
 
 // add review
-router.post('/add-review', reviewValidator, handleValidation, async (req, res) => {
+router.post('/add-review', fieldLevelAccess(['userid', 'storeid', 'rating', 'review']), reviewValidator, handleValidation, async (req, res) => {
   const { userid, storeid, rating, review } = req.body;
 
   console.log("Received review submission:");
