@@ -112,7 +112,7 @@ router.get(
                COUNT(rv.rating) AS "review_count"
         FROM stores s
         LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
-        WHERE s."currentCapacity" >= $1
+        WHERE s.status = 'approved' AND s."currentCapacity" >= $1
           AND NOT EXISTS (
                 SELECT 1 FROM reservations r
                 WHERE r.store_id = s.store_id

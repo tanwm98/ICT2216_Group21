@@ -372,6 +372,7 @@ function showMessage(message, type = 'info') {
   }
 }
 
+
 function showLoading() {
   const foodList = document.getElementById('res-content');
   if (foodList) {

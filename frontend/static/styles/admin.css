@@ -2,6 +2,37 @@
     display: none !important;
 }
 
+#pendingCount, #rejectionSection
+{
+    display: none;
+}
+#reviewImage{
+    max-height: 200px;
+}
+
+#reviewModalContent{
+    max-width: 800px;
+}
+
+img.rounded {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+.hidden {
+  display: none !important;
+}
+
+/* Show as block */
+.visible-block {
+  display: block !important;
+}
+
+/* Show as inline (for badges, etc.) */
+.visible-inline {
+  display: inline !important;
+}
 .modal-overlay {
     position: fixed;
     top: 0;

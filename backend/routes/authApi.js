@@ -16,22 +16,13 @@ const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
 const { sanitizeInput } = require('../middleware/sanitization');
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
-//const AppError = require('../AppError'); 
 
-// ======================================
-// SECURE FILE UPLOAD CONFIGURATION
-// ======================================
+//const AppError = require('../AppError'); 
 
 // Secure file storage configuration for restaurant images
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        // SIMPLE: Use the same folder where existing images are
         const uploadDir = path.join(__dirname, '../../frontend/static/img/restaurants');
-
-        console.log('🔍 DEBUG - Upload directory path:', uploadDir);
-        console.log('🔍 DEBUG - Directory exists:', fs.existsSync(uploadDir));
-
-        // Ensure directory exists (it should, since you have existing images)
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
             console.log('📁 Created directory:', uploadDir);
@@ -260,10 +251,6 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
     }
 });
 
-// ======================================
-// SECURE RESTAURANT OWNER SIGNUP - FIXED COLUMN NAMES
-// ======================================
-
 router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
         let {
@@ -375,8 +362,8 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             // 2. Create the restaurant/store entry - FIXED COLUMN NAMES TO MATCH SCHEMA
             const storeResult = await pool.query(
                 `INSERT INTO stores
-                ("storeName", location, cuisine, "priceRange", address, "postalCode", "totalCapacity", "currentCapacity", opening, closing, owner_id, image_filename, image_alt_text)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                ("storeName", location, cuisine, "priceRange", address, "postalCode", "totalCapacity", "currentCapacity", opening, closing, owner_id, image_filename, image_alt_text, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 RETURNING store_id`,
                 [
                     storeName,
@@ -384,25 +371,23 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                     cuisine,
                     priceRange,
                     address,
-                    postalCode,  // Fixed: using postalCode to match schema
+                    postalCode,
                     totalCapacityNum,
-                    capacityNum,  // Using capacity as currentCapacity
+                    capacityNum,
                     opening,
                     closing,
                     ownerId,
                     imageFile ? imageFile.filename : null,
-                    imageFile ? `${storeName} restaurant image` : null
+                    imageFile ? `${storeName} restaurant image` : null,
+                    'pending'
                 ]
             );
-
             const storeId = storeResult.rows[0].store_id;
-
-            // 3. Commit the transaction
             await pool.query('COMMIT');
 
             // 4. Send notification email to admin
             const adminMessage = `
-                New Restaurant Owner Registration:
+                New Restaurant Owner Registration - PENDING APPROVAL:
 
                 👤 Owner Details:
                 Name: ${ownerName} (${firstname} ${lastname})
@@ -422,37 +407,45 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 Opening Hours: ${opening} - ${closing}
                 Image: ${imageFile ? `Uploaded (${imageFile.filename})` : 'Not provided'}
 
-                Status: ACTIVE - Owner can now log in and manage their restaurant.
+                ⏳ Status: PENDING APPROVAL
+
+                🔗 Admin Action Required:
+                Please log into the admin dashboard to review and approve/reject this restaurant.
             `;
 
             await transporter.sendMail({
                 from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
-                to: 'dx8153@gmail.com',
+                to: `<${process.env.EMAIL_USER}>`,
                 subject: `New Restaurant Registered: ${storeName}`,
                 text: adminMessage,
             });
 
             // 5. Send welcome email to owner
             const ownerMessage = `
-                Welcome to Kirby Chope, ${firstname}!
+                Thank you for submitting your restaurant to Kirby Chope, ${firstname}!
 
-                Your restaurant has been successfully registered and is now live on our platform!
+                Your restaurant application has been received and is currently under review.
 
-                🎉 Your Restaurant Details:
+                🏪 Your Restaurant Details:
                 Restaurant Name: ${storeName}
                 Location: ${location}
                 Cuisine: ${cuisine}
                 Address: ${address}
 
-                You can now log in to your owner dashboard to:
-                - Manage your restaurant profile
-                - View and handle reservations
-                - Update your restaurant information
-                - Monitor customer reviews
+                ⏳ Current Status: PENDING APPROVAL
 
-                Login at: ${req.protocol}://${req.get('host')}/login
+                📋 Next Steps:
+                - Our admin team will review your application within 2-3 business days
+                - You'll receive an email notification once your restaurant is approved
+                - After approval, customers can find and book your restaurant on our platform
 
-                Thank you for joining Kirby Chope!
+                📊 In the meantime:
+                - You can log into your owner dashboard to view your application status
+                - Prepare for managing reservations once approved
+
+                Login at: https://www.kirbychope.xyz/login
+
+                Thank you for choosing Kirby Chope!
 
                 Best regards,
                 The Kirby Chope Team
@@ -518,10 +511,6 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     }
 });
 
-// ======================================
-// LOGOUT ROUTES
-// ======================================
-
 // POST /logout (preferred)
 router.post('/logout', (req, res) => {
     res.clearCookie('token');
@@ -559,7 +548,6 @@ router.use((err, req, res, next) => {
 
     console.error('Unexpected error:', err);
 
-    // FIXED: Provide specific error messages instead of generic error=1
     if (req.originalUrl.includes('/signup-owner')) {
         return res.redirect(`/rOwnerReg?error=${encodeURIComponent('Registration failed. Please try again.')}`);
     } else if (req.originalUrl.includes('/register')) {

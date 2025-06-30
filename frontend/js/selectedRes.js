@@ -85,6 +85,12 @@ window.onload = async function () {
             reserveBtn.disabled = true;
             reserveBtn.textContent = "Login to Reserve";
             reserveBtn.classList.add('btn-disabled');
+
+            reserveBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const currentUrl = window.location.href;
+                window.location.href = `/login?redirect=${encodeURIComponent(currentUrl)}`;
+            });
         } else {
             userid = data.userId;
             // Initially disable until pax and time are selected

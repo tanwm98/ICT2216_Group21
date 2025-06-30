@@ -202,4 +202,28 @@ router.get('/reviews/:ownerId', async (req, res) => {
   }
 });
 
+router.get('/restaurant-status', authenticateToken, requireOwner, async (req, res) => {
+    try {
+        const ownerId = req.user.userId;
+
+        const result = await pool.query(`
+            SELECT
+                store_id,
+                "storeName",
+                status,
+                submitted_at,
+                approved_at,
+                rejection_reason
+            FROM stores
+            WHERE owner_id = $1
+            ORDER BY submitted_at DESC
+        `, [ownerId]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching restaurant status:', error);
+        res.status(500).json({ error: 'Failed to fetch restaurant status' });
+    }
+});
+
 module.exports = router;

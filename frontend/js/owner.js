@@ -120,16 +120,52 @@ function fetchRestaurants() {
                 });
 
                 // Actions cell
+                const statusTd = document.createElement('td');
+                const status = store.status || 'pending';
+                const statusBadge = document.createElement('span');
+
+                switch(status) {
+                    case 'approved':
+                        statusBadge.className = 'badge bg-success';
+                        statusBadge.textContent = 'Live';
+                        break;
+                    case 'pending':
+                        statusBadge.className = 'badge bg-warning';
+                        statusBadge.textContent = 'Under Review';
+                        break;
+                    case 'rejected':
+                        statusBadge.className = 'badge bg-danger';
+                        statusBadge.textContent = 'Rejected';
+                        if (store.rejection_reason) {
+                            statusBadge.title = `Reason: ${store.rejection_reason}`;
+                        }
+                        break;
+                    default:
+                        statusBadge.className = 'badge bg-secondary';
+                        statusBadge.textContent = status;
+                }
+
+                statusTd.appendChild(statusBadge);
+                row.appendChild(statusTd);
+
+                // Actions cell
                 const actionTd = document.createElement('td');
                 const editBtn = document.createElement('button');
                 editBtn.className = 'btn btn-sm btn-primary';
                 editBtn.textContent = 'Edit';
                 editBtn.dataset.storeId = store.id || store.store_id;
                 editBtn.dataset.storeData = JSON.stringify(store);
-                editBtn.addEventListener('click', (e) => {
-                    const storeData = JSON.parse(e.target.dataset.storeData);
-                    editRestaurant(storeData);
-                });
+
+                // Only allow editing if approved
+                if (status === 'approved') {
+                    editBtn.addEventListener('click', (e) => {
+                        const storeData = JSON.parse(e.target.dataset.storeData);
+                        editRestaurant(storeData);
+                    });
+                } else {
+                    editBtn.disabled = true;
+                    editBtn.title = 'Can only edit approved restaurants';
+                }
                 
                 actionTd.appendChild(editBtn);
                 row.appendChild(actionTd);

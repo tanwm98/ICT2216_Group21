@@ -1,11 +1,10 @@
-const pool = require('../../db');  // import connection string from db.js
+const pool = require('../../db');
 const express = require('express');
-
-// const app = express();
 const router = express.Router();
 const cron = require('node-cron');
-
 const nodemailer = require('nodemailer');
+const { authenticateToken, requireUser } = require('../../frontend/js/token');
+const { createRateLimiter } = require('../middleware/sanitization');
 
 // Configure email 
 const transporter = nodemailer.createTransport({
@@ -146,6 +145,7 @@ router.get('/display_specific_store', async (req, res) => {
             FROM stores s
             INNER JOIN reservations r ON r.store_id = s.store_id
             WHERE s."storeName" = $1 AND s.location = $2 AND r.reservation_id = $3
+            AND s.status = 'approved'
         `, [name, location, reservationIdNum]);
     } else {
         // UPDATED: Select image_filename and image_alt_text instead of image
@@ -221,7 +221,27 @@ router.get('/display_specific_store', async (req, res) => {
 router.get('/display_reviews', async (req, res) => {
   try {
     const storeid = req.query.storeid;
-    const result = await pool.query('SELECT * FROM reviews WHERE "store_id" = $1', [storeid]);
+
+    // Input validation
+    const storeIdNum = parseInt(storeid);
+    if (isNaN(storeIdNum) || storeIdNum <= 0) {
+      return res.status(400).json({ error: 'Invalid store ID' });
+    }
+
+    const storeCheck = await pool.query(
+      'SELECT 1 FROM stores WHERE store_id = $1 AND status = $2',
+      [storeIdNum, 'approved']
+    );
+
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Restaurant not found or not available' });
+    }
+
+    // Only show reviews for approved restaurants
+    const result = await pool.query(
+      'SELECT * FROM reviews WHERE "store_id" = $1',
+      [storeIdNum]
+    );
 
     // Decode review descriptions recursively
     const decoded = result.rows.map(r => {
@@ -334,15 +354,15 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
 
     // 7. Get user name
     const usernameResult = await pool.query(`
-      SELECT name FROM users WHERE "user_id" = $1
+      SELECT name, email FROM users WHERE "user_id" = $1
     `, [userid]);
-
+    const userEmail = usernameResult.rows[0]?.email;
     const username = usernameResult.rows[0]?.name;
 
     // 8. Send confirmation email
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      to: 'dx8153@gmail.com',
+      to: userEmail,
       subject: `Reservation Confirmed at ${storename}`,
       html: `
         <p>Hello ${username},</p>
@@ -492,13 +512,13 @@ router.post('/update_reservation', updateReservationValidator, handleValidation,
     );
 
     // Step 7: Fetch user name
-    const usernameResult = await pool.query("SELECT name FROM users WHERE user_id = $1", [userid]);
+    const usernameResult = await pool.query("SELECT name, email FROM users WHERE user_id = $1", [userid]);
     const username = usernameResult.rows[0]?.name || '';
-
+    const userEmail = usernameResult.rows[0]?.email || '';
     // Step 8: Send email notification
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-      to: 'ict2216kirby@gmail.com',
+      to: userEmail,
       subject: `Modification of Reservation at ${storename}`,
       html: `
         <p>Hello ${username},</p>
@@ -604,7 +624,7 @@ cron.schedule('0 * * * *', async () => {
       if (r.is_reminded == false) {
         await transporter.sendMail({
           from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-          to: '${user[0].email}',
+          to: user[0].email,
           subject: `Reservation Reminder at ${store[0].storeName}`,
           html: `
               <p>Hello ${user[0].name},</p>
@@ -699,7 +719,7 @@ router.get('/maxcapacity', async (req, res) => {
     const storeid = req.query.storeid;
     const result = await pool.query(
       `
-        SELECT * FROM stores WHERE "store_id" = $1
+        SELECT * FROM stores WHERE "store_id" = $1 AND status = 'approved'
       `,
       [storeid]
     );
@@ -712,19 +732,34 @@ router.get('/maxcapacity', async (req, res) => {
 })
 
 // get first and last name of user
-router.get('/get_name', async (req, res) => {
+router.get('/get_name', authenticateToken, requireUser, async (req, res) => {
   try {
-    const userid = req.query.userid;
-    console.log(userid);
+    const requestedUserId = parseInt(req.query.userid);
+    const loggedInUserId = req.user.userId;
+
+    // Authorization check - users can only access their own data
+    if (requestedUserId !== loggedInUserId) {
+      return res.status(403).json({
+        error: 'Access denied. You can only access your own information.'
+      });
+    }
+
+    // Only return necessary fields instead of ALL user data
     const result = await pool.query(
-      `SELECT * FROM users WHERE "user_id" = $1`, [userid]
-    )
+      'SELECT firstname, lastname FROM users WHERE user_id = $1',
+      [requestedUserId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     res.json(result.rows);
   } catch (err) {
     console.error('Error querying database:', err);
     res.status(500).json({ error: 'Failed to fetch data' });
   }
-})
+});
 
 // Get user profile
 router.get('/getUser', async (req, res) => {

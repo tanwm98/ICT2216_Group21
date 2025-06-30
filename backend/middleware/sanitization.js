@@ -169,7 +169,7 @@ function sanitizeFieldByType(fieldName, value) {
 /**
  * Rate limiting middleware for sensitive operations
  */
-function createRateLimiter(maxAttempts = 5, timeWindow = 300000) { // 5 attempts per 5 minutes
+function createRateLimiter(maxAttempts = 10, timeWindow = 60000) { // 10 attempts per minute
     const attempts = new Map();
 
     return (req, res, next) => {
