@@ -5,6 +5,7 @@ const { authenticateToken, requireOwner } = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
 const { updateRestaurantValidator, cancelReservationValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
+const { decodeHtmlEntities, debugDecode } = require('../middleware/htmlDecoder');
 const session = require('express-session');
 const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
@@ -43,7 +44,7 @@ router.get('/restaurants', async (req, res) => {
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
 router.get('/reservations/:ownerId', async (req, res) => {
     const ownerId = req.user.userId;
-    
+
     try {
         const result = await pool.query(`
             SELECT r.reservation_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
@@ -54,7 +55,13 @@ router.get('/reservations/:ownerId', async (req, res) => {
             WHERE s.owner_id = $1
             ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
         `, [ownerId]);
-        res.json(result.rows);
+
+        const decodedResults = result.rows.map(r => ({
+            ...r,
+            specialRequest: debugDecode(r.specialRequest || '')
+        }));
+
+        res.json(decodedResults);
     } catch (err) {
         console.error('Error fetching owner reservations:', err);
         res.status(500).json({ error: 'Failed to fetch reservations' });
@@ -181,23 +188,29 @@ router.put('/restaurants/:id',   fieldLevelAccess([
 
 // ========== GET REVIEWS FOR OWNER'S RESTAURANTS ==========
 router.get('/reviews/:ownerId', async (req, res) => {
-    const ownerId = req.user.userId;
+  const ownerId = req.user.userId;
 
-    try {
-        const result = await pool.query(`
-            SELECT rv.review_id, rv.rating, rv.description, u.name AS "userName", s."storeName"
-            FROM reviews rv
-            JOIN users u ON rv.user_id = u.user_id
-            JOIN stores s ON rv.store_id = s.store_id
-            WHERE s.owner_id = $1
-            ORDER BY rv.review_id DESC
-        `, [ownerId]);
+  try {
+    const result = await pool.query(`
+      SELECT rv.review_id, rv.rating, rv.description, u.name AS "userName", s."storeName"
+      FROM reviews rv
+      JOIN users u ON rv.user_id = u.user_id
+      JOIN stores s ON rv.store_id = s.store_id
+      WHERE s.owner_id = $1
+      ORDER BY rv.review_id DESC
+    `, [ownerId]);
 
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Error fetching owner reviews:', err);
-        res.status(500).json({ error: 'Failed to fetch reviews' });
-    }
+    // Decode HTML entities
+    const decodedRows = result.rows.map(review => ({
+      ...review,
+      description: debugDecode(review.description)
+    }));
+
+    res.json(decodedRows);
+  } catch (err) {
+    console.error('Error fetching owner reviews:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
 });
 
 router.get('/restaurant-status', authenticateToken, requireOwner, async (req, res) => {
