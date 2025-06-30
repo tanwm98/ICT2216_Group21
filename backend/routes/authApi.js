@@ -437,7 +437,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 - Update your restaurant information
                 - Monitor customer reviews
 
-                Login at: ${req.protocol}://${req.get('host')}/login
+                Login at: https://kirbychope.xyz/login
 
                 Thank you for joining Kirby Chope!
 
