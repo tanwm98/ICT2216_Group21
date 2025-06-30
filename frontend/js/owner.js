@@ -39,6 +39,30 @@ function showSection(id) {
     }
 }
 
+function decodeHtmlEntities(str) {
+    if (typeof str !== 'string') return str;
+
+    const htmlMap = {
+        '&amp;': '&',
+        '&#x2F;': '/',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#039;': "'"
+    };
+
+    const decodeOnce = s => s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
+
+    let last = str;
+    for (let i = 0; i < 10; i++) {
+        const decoded = decodeOnce(last);
+        if (decoded === last) break;
+        last = decoded;
+    }
+
+    return last;
+}
+
 function exportReservationsToCSV() {
     const table = document.getElementById("reservationTable");
     let csv = [];
@@ -220,7 +244,6 @@ function fetchReservations() {
                 const dateOnly = reservation.reservationDate.split('T')[0];
                 const row = document.createElement('tr');
 
-                // Create cells with escaped content
                 const cells = [
                     escapeHtml(reservation.userName),
                     escapeHtml(reservation.first_name),
@@ -252,9 +275,9 @@ function fetchReservations() {
                 }
                 row.appendChild(statusTd);
 
-                // Special request cell
+                // Special request cell (decoded only)
                 const requestTd = document.createElement('td');
-                requestTd.textContent = escapeHtml(reservation.specialRequest || '');
+                requestTd.textContent = decodeHtmlEntities(reservation.specialRequest || '');
                 row.appendChild(requestTd);
 
                 tableBody.appendChild(row);
@@ -297,12 +320,12 @@ function fetchReviews() {
 
             data.forEach(review => {
                 const row = document.createElement('tr');
-                
+
                 const cells = [
                     escapeHtml(review.storeName),
                     escapeHtml(review.userName),
                     escapeHtml(review.rating?.toString()),
-                    escapeHtml(review.description)
+                    decodeHtmlEntities(review.description) // intentionally decoded
                 ];
 
                 cells.forEach(cellContent => {
