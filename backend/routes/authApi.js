@@ -16,22 +16,13 @@ const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
 const { sanitizeInput } = require('../middleware/sanitization');
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
-//const AppError = require('../AppError'); 
 
-// ======================================
-// SECURE FILE UPLOAD CONFIGURATION
-// ======================================
+//const AppError = require('../AppError'); 
 
 // Secure file storage configuration for restaurant images
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        // SIMPLE: Use the same folder where existing images are
         const uploadDir = path.join(__dirname, '../../frontend/static/img/restaurants');
-
-        console.log('🔍 DEBUG - Upload directory path:', uploadDir);
-        console.log('🔍 DEBUG - Directory exists:', fs.existsSync(uploadDir));
-
-        // Ensure directory exists (it should, since you have existing images)
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
             console.log('📁 Created directory:', uploadDir);
@@ -260,10 +251,6 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
     }
 });
 
-// ======================================
-// SECURE RESTAURANT OWNER SIGNUP - FIXED COLUMN NAMES
-// ======================================
-
 router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
         let {
@@ -427,7 +414,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
 
             await transporter.sendMail({
                 from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
-                to: 'dx8153@gmail.com',
+                to: `<${process.env.EMAIL_USER}>`,
                 subject: `New Restaurant Registered: ${storeName}`,
                 text: adminMessage,
             });
@@ -518,10 +505,6 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     }
 });
 
-// ======================================
-// LOGOUT ROUTES
-// ======================================
-
 // POST /logout (preferred)
 router.post('/logout', (req, res) => {
     res.clearCookie('token');
@@ -559,7 +542,6 @@ router.use((err, req, res, next) => {
 
     console.error('Unexpected error:', err);
 
-    // FIXED: Provide specific error messages instead of generic error=1
     if (req.originalUrl.includes('/signup-owner')) {
         return res.redirect(`/rOwnerReg?error=${encodeURIComponent('Registration failed. Please try again.')}`);
     } else if (req.originalUrl.includes('/register')) {
