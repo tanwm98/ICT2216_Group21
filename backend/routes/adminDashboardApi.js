@@ -10,6 +10,8 @@ const { upload, validateUploadedImage } = require('../middleware/fileUploadValid
 const mime = require('mime-types');
 const argon2 = require('argon2');
 const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
+const crypto = require('crypto');
+
 
 function generateImageUrl(imageFilename) {
     if (!imageFilename || typeof imageFilename !== 'string') {
@@ -243,6 +245,70 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, async (re
     } catch (error) {
         console.error('Error rejecting restaurant:', error);
         res.status(500).json({ error: 'Failed to reject restaurant' });
+    }
+});
+router.post('/users/:id/send-reset-email', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Get user details
+        const userResult = await pool.query(
+            'SELECT email, name, firstname FROM users WHERE user_id = $1',
+            [id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = userResult.rows[0];
+
+        // Generate secure reset token (same as regular reset)
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 3600_000); // 1 hour
+
+        // Store reset token in database
+        await pool.query(
+            'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE user_id = $3',
+            [token, expires, id]
+        );
+
+        // Create reset link
+        const resetLink = `https://kirbychope.xyz/reset-password?token=${token}`;
+
+        // Send email to user (not admin)
+        await transporter.sendMail({
+            from: `"Kirby Chope Admin" <${process.env.EMAIL_USER}>`,
+            to: user.email,
+            subject: 'Password Reset Request - Initiated by Administrator',
+            html: `
+                <h2>Password Reset Request</h2>
+                <p>Hello ${user.firstname || user.name},</p>
+                <p>An administrator has initiated a password reset for your Kirby Chope account.</p>
+                <p>Click the link below to set a new password:</p>
+                <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+                <p><strong>This link will expire in 1 hour.</strong></p>
+                <p>If you did not expect this, please contact support immediately.</p>
+                <hr>
+                <p>Best regards,<br>The Kirby Chope Team</p>
+            `,
+        });
+
+        // Log the admin action
+        logBusiness('admin_password_reset_initiated', 'user', {
+            target_user_id: id,
+            target_user_email: user.email,
+            admin_id: req.user.userId,
+            admin_name: req.user.name
+        }, req);
+
+        res.json({
+            message: `Password reset email sent to ${user.email}`
+        });
+
+    } catch (err) {
+        console.error('Error sending admin reset email:', err);
+        res.status(500).json({ error: 'Failed to send reset email' });
     }
 });
 

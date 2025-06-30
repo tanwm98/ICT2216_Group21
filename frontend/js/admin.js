@@ -685,24 +685,24 @@ async function deleteUser(id) {
 }
 
 async function resetUserPassword(id) {
-    if (!confirm('Reset user password to default (Pass123)?')) {
+    if (!confirm('Send password reset email to this user? They will receive a secure reset link.')) {
         return;
     }
-    
+
     try {
-        const response = await fetch(`/api/admin/users/${id}/reset-password`, {
+        const response = await fetch(`/api/admin/users/${id}/send-reset-email`, {
             method: 'POST'
         });
-        
+
         if (!response.ok) {
-            throw new Error('Failed to reset password');
+            throw new Error('Failed to send reset email');
         }
-        
+
         const result = await response.json();
-        alert(result.message || 'Password reset successfully!');
+        alert(result.message || 'Password reset email sent to user!');
     } catch (error) {
-        console.error('Error resetting password:', error);
-        alert('Failed to reset password');
+        console.error('Error sending reset email:', error);
+        alert('Failed to send reset email');
     }
 }
 
