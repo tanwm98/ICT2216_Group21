@@ -47,9 +47,97 @@ function showSection(id) {
         case 'reservations':
             loadReservations();
             break;
+        case 'pending':
+            loadPendingRestaurants();
+            break;
     }
 }
+async function loadPendingRestaurants() {
+    try {
+        const response = await fetch('/api/admin/pending-restaurants');
+        const pendingRestaurants = await response.json();
 
+        const tbody = document.querySelector('#pending tbody');
+        tbody.textContent = '';
+
+        // Update badge count
+        const badge = document.getElementById('pendingCount');
+        if (pendingRestaurants.length > 0) {
+            badge.textContent = pendingRestaurants.length;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        if (pendingRestaurants.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="7" class="text-center text-muted">No pending applications</td>';
+            tbody.appendChild(row);
+            return;
+        }
+
+        pendingRestaurants.forEach(restaurant => {
+            const row = document.createElement('tr');
+
+            // Image cell
+            const imageCell = document.createElement('td');
+            const img = document.createElement('img');
+            img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
+            img.alt = 'Restaurant image';
+            img.className = 'rounded';
+            imageCell.appendChild(img);
+            row.appendChild(imageCell);
+
+            // Restaurant name
+            const nameCell = document.createElement('td');
+            const nameStrong = document.createElement('strong');
+            nameStrong.textContent = restaurant.storeName;  // textContent auto-escapes
+            nameCell.appendChild(nameStrong);
+            row.appendChild(nameCell);
+
+            // Owner
+            const ownerCell = document.createElement('td');
+            ownerCell.textContent = `${restaurant.firstname} ${restaurant.lastname}`;
+            row.appendChild(ownerCell);
+
+            // Location
+            const locationCell = document.createElement('td');
+            locationCell.textContent = restaurant.location;
+            row.appendChild(locationCell);
+
+            // Cuisine
+            const cuisineCell = document.createElement('td');
+            const cuisineBadge = document.createElement('span');
+            cuisineBadge.className = 'badge bg-secondary';
+            cuisineBadge.textContent = restaurant.cuisine;  // textContent auto-escapes
+            cuisineCell.appendChild(cuisineBadge);
+            row.appendChild(cuisineCell);
+
+            // Submitted date
+            const submittedCell = document.createElement('td');
+            const submittedDate = new Date(restaurant.submitted_at);
+            submittedCell.textContent = submittedDate.toLocaleDateString();
+            submittedCell.title = submittedDate.toLocaleString();
+            row.appendChild(submittedCell);
+
+            // Actions
+            const actionsCell = document.createElement('td');
+
+            const reviewBtn = document.createElement('button');
+            reviewBtn.className = 'btn btn-sm btn-primary me-1';
+            reviewBtn.innerHTML = '<i class="bi bi-eye"></i> Review';
+            reviewBtn.addEventListener('click', () => reviewRestaurant(restaurant));
+
+            actionsCell.appendChild(reviewBtn);
+            row.appendChild(actionsCell);
+
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading pending restaurants:', error);
+        showError('Failed to load pending restaurants');
+    }
+}
 async function loadDashboardStats() {
     try {
         const response = await fetch('/api/admin/dashboard-stats');
@@ -239,6 +327,156 @@ async function loadOwners() {
         console.error('Error loading owners:', error);
         showError('Failed to load owners');
     }
+}
+function reviewRestaurant(restaurant) {
+    // Populate modal with restaurant details
+    document.getElementById('reviewStoreName').textContent = restaurant.storeName;
+    document.getElementById('reviewAddress').textContent = restaurant.address;
+    document.getElementById('reviewPostalCode').textContent = restaurant.postalCode;
+    document.getElementById('reviewLocation').textContent = restaurant.location;
+    document.getElementById('reviewCuisine').textContent = restaurant.cuisine;
+    document.getElementById('reviewPriceRange').textContent = restaurant.priceRange;
+    document.getElementById('reviewCapacity').textContent = restaurant.totalCapacity;
+    document.getElementById('reviewHours').textContent = `${restaurant.opening} - ${restaurant.closing}`;
+
+    document.getElementById('reviewOwnerName').textContent = `${restaurant.firstname} ${restaurant.lastname}`;
+    document.getElementById('reviewOwnerEmail').textContent = restaurant.owner_email;
+    document.getElementById('reviewSubmitted').textContent = new Date(restaurant.submitted_at).toLocaleString();
+
+    const img = document.getElementById('reviewImage');
+    img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
+    img.alt = `${restaurant.storeName} image`;
+
+    // Setup action buttons
+    document.getElementById('approveBtn').onclick = () => approveRestaurant(restaurant.store_id);
+    document.getElementById('rejectBtn').onclick = () => showRejectSection();
+    document.getElementById('cancelReviewBtn').onclick = closeReviewModal;
+
+    // Store restaurant ID for rejection
+    document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
+
+    // Reset rejection section
+    const rej = document.getElementById('rejectionSection');
+    rej.classList.add('hidden');
+    rej.classList.remove('visible-block');
+
+    document.getElementById('rejectionReason').value = '';
+
+    showModal('reviewModal');
+}
+
+function reviewRestaurant(restaurant) {
+    // Populate modal with restaurant details
+    document.getElementById('reviewStoreName').textContent   = restaurant.storeName;
+    document.getElementById('reviewAddress').textContent     = restaurant.address;
+    document.getElementById('reviewPostalCode').textContent  = restaurant.postalCode;
+    document.getElementById('reviewLocation').textContent    = restaurant.location;
+    document.getElementById('reviewCuisine').textContent     = restaurant.cuisine;
+    document.getElementById('reviewPriceRange').textContent  = restaurant.priceRange;
+    document.getElementById('reviewCapacity').textContent    = restaurant.totalCapacity;
+    document.getElementById('reviewHours').textContent       = `${restaurant.opening} - ${restaurant.closing}`;
+
+    document.getElementById('reviewOwnerName').textContent   = `${restaurant.firstname} ${restaurant.lastname}`;
+    document.getElementById('reviewOwnerEmail').textContent  = restaurant.owner_email;
+    document.getElementById('reviewSubmitted').textContent   = new Date(restaurant.submitted_at).toLocaleString();
+
+    const img = document.getElementById('reviewImage');
+    img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
+    img.alt = `${restaurant.storeName} image`;
+
+    // Setup action buttons
+    document.getElementById('approveBtn').onclick      = () => approveRestaurant(restaurant.store_id);
+    document.getElementById('rejectBtn').onclick       = () => showRejectSection();
+    document.getElementById('cancelReviewBtn').onclick = closeReviewModal;
+
+    // Store restaurant ID for rejection
+    document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
+
+    // Reset (hide) rejection section via CSS classes
+    const rej = document.getElementById('rejectionSection');
+    rej.classList.add('hidden');
+    rej.classList.remove('visible-block');
+
+    // Clear textarea
+    document.getElementById('rejectionReason').value = '';
+
+    showModal('reviewModal');
+}
+
+function showRejectSection() {
+    const rej = document.getElementById('rejectionSection');
+
+    // Reveal it
+    rej.classList.remove('hidden');
+    rej.classList.add('visible-block');
+
+    // Focus the textarea
+    document.getElementById('rejectionReason').focus();
+
+    // Wire up the actual rejection handler
+    document.getElementById('rejectBtn').onclick = () => {
+        const reason = document.getElementById('rejectionReason').value.trim();
+        if (reason.length < 10) {
+            alert('Please provide a detailed rejection reason (at least 10 characters)');
+            return;
+        }
+        const restaurantId = document.getElementById('reviewModal').dataset.restaurantId;
+        rejectRestaurant(restaurantId, reason);
+    };
+
+    document.getElementById('rejectBtn').innerHTML = '<i class="bi bi-x-circle"></i> Confirm Rejection';
+}
+
+async function approveRestaurant(restaurantId) {
+    if (!confirm('Are you sure you want to approve this restaurant? It will go live immediately.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/approve-restaurant/${restaurantId}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to approve restaurant');
+        }
+
+        const result = await response.json();
+        alert('Restaurant approved successfully! The owner has been notified.');
+        closeReviewModal();
+        loadPendingRestaurants();
+    } catch (error) {
+        console.error('Error approving restaurant:', error);
+        alert('Failed to approve restaurant');
+    }
+}
+
+async function rejectRestaurant(restaurantId, reason) {
+    try {
+        const response = await fetch(`/api/admin/reject-restaurant/${restaurantId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ rejection_reason: reason })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to reject restaurant');
+        }
+
+        const result = await response.json();
+        alert('Restaurant rejected. The owner has been notified with the feedback.');
+        closeReviewModal();
+        loadPendingRestaurants();
+    } catch (error) {
+        console.error('Error rejecting restaurant:', error);
+        alert('Failed to reject restaurant');
+    }
+}
+
+function closeReviewModal() {
+    hideModal('reviewModal');
 }
 
 function openModal() {
@@ -558,10 +796,24 @@ function setupEventListeners() {
             }
         });
     });
-}
+    const closeReviewModalBtn = document.getElementById('closeReviewModalBtn');
+    if (closeReviewModalBtn) {
+        closeReviewModalBtn.addEventListener('click', closeReviewModal);
+    }
 
+    // Close review modal when clicking outside
+    const reviewModal = document.getElementById('reviewModal');
+    if (reviewModal) {
+        reviewModal.addEventListener('click', (e) => {
+            if (e.target === reviewModal) {
+                closeReviewModal();
+            }
+        });
+    }
+}
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     showSection('dashboard');
+    loadPendingRestaurants();
 });

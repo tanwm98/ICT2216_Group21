@@ -8,6 +8,8 @@ const path = require('path');
 const { sanitizeInput, sanitizeSpecificFields } = require('../middleware/sanitization');
 const { upload, validateUploadedImage } = require('../middleware/fileUploadValidation');
 const mime = require('mime-types');
+const argon2 = require('argon2');
+const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
 
 function generateImageUrl(imageFilename) {
     if (!imageFilename || typeof imageFilename !== 'string') {
@@ -39,6 +41,210 @@ const handleValidation = require('../middleware/handleHybridValidation');
 
 router.use(authenticateToken, requireAdmin);
 
+router.get('/pending-restaurants', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                s.*,
+                u.name as owner_name,
+                u.firstname,
+                u.lastname,
+                u.email as owner_email,
+                s.submitted_at::TEXT as submitted_at
+            FROM stores s
+            JOIN users u ON s.owner_id = u.user_id
+            WHERE s.status = 'pending'
+            ORDER BY s.submitted_at ASC
+        `);
+
+        const pendingRestaurants = result.rows.map(restaurant => ({
+            ...restaurant,
+            imageUrl: restaurant.image_filename
+                ? `static/img/restaurants/${restaurant.image_filename}`
+                : 'static/img/restaurants/no-image.png'
+        }));
+
+        res.json(pendingRestaurants);
+    } catch (error) {
+        console.error('Error fetching pending restaurants:', error);
+        res.status(500).json({ error: 'Failed to fetch pending restaurants' });
+    }
+});
+
+router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const storeId = parseInt(req.params.id);
+        const adminId = req.user.userId;
+
+        if (isNaN(storeId)) {
+            return res.status(400).json({ error: 'Invalid store ID' });
+        }
+
+        // Get restaurant details for notification
+        const restaurantResult = await pool.query(`
+            SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
+            FROM stores s
+            JOIN users u ON s.owner_id = u.user_id
+            WHERE s.store_id = $1 AND s.status = 'pending'
+        `, [storeId]);
+
+        if (restaurantResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Pending restaurant not found' });
+        }
+
+        const restaurant = restaurantResult.rows[0];
+
+        // Update restaurant status to approved
+        await pool.query(`
+            UPDATE stores
+            SET status = 'approved', approved_at = NOW(), approved_by = $1
+            WHERE store_id = $2
+        `, [adminId, storeId]);
+
+        // Send approval email to owner
+        const approvalEmail = `
+            Congratulations ${restaurant.firstname}!
+
+            🎉 Your restaurant "${restaurant.storeName}" has been APPROVED and is now live on Kirby Chope!
+
+            📊 Your Restaurant is Now:
+            ✅ Visible to customers on our platform
+            ✅ Available for reservations
+            ✅ Listed in search results
+
+            🚀 Next Steps:
+            1. Log into your owner dashboard to start managing reservations
+            2. Monitor your restaurant's performance and reviews
+            3. Update your restaurant information as needed
+
+            🔗 Your Restaurant Page: https://kirbychope.xyz/selectedRes?name=${encodeURIComponent(restaurant.storeName)}&location=${encodeURIComponent(restaurant.location)}
+
+            Welcome to the Kirby Chope family!
+
+            Best regards,
+            The Kirby Chope Team
+        `;
+
+        await transporter.sendMail({
+            from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+            to: restaurant.owner_email,
+            subject: `🎉 Restaurant Approved - ${restaurant.storeName} is now live!`,
+            text: approvalEmail
+        });
+
+        // Log the approval
+        logBusiness('restaurant_approved', 'restaurant', {
+            store_id: storeId,
+            store_name: restaurant.storeName,
+            owner_id: restaurant.owner_id,
+            approved_by: adminId,
+            admin_name: req.user.name
+        }, req);
+
+        res.json({
+            message: 'Restaurant approved successfully',
+            restaurant: {
+                store_id: storeId,
+                storeName: restaurant.storeName,
+                status: 'approved'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error approving restaurant:', error);
+        res.status(500).json({ error: 'Failed to approve restaurant' });
+    }
+});
+
+router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const storeId = parseInt(req.params.id);
+        const adminId = req.user.userId;
+        const { rejection_reason } = req.body;
+
+        if (isNaN(storeId)) {
+            return res.status(400).json({ error: 'Invalid store ID' });
+        }
+
+        if (!rejection_reason || rejection_reason.trim().length < 10) {
+            return res.status(400).json({ error: 'Rejection reason must be at least 10 characters' });
+        }
+
+        // Get restaurant details for notification
+        const restaurantResult = await pool.query(`
+            SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
+            FROM stores s
+            JOIN users u ON s.owner_id = u.user_id
+            WHERE s.store_id = $1 AND s.status = 'pending'
+        `, [storeId]);
+
+        if (restaurantResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Pending restaurant not found' });
+        }
+
+        const restaurant = restaurantResult.rows[0];
+
+        // Update restaurant status to rejected
+        await pool.query(`
+            UPDATE stores
+            SET status = 'rejected', rejection_reason = $1, approved_by = $2
+            WHERE store_id = $3
+        `, [rejection_reason.trim(), adminId, storeId]);
+
+        // Send rejection email to owner
+        const rejectionEmail = `
+            Dear ${restaurant.firstname},
+
+            Thank you for your interest in joining Kirby Chope.
+
+            Unfortunately, we cannot approve your restaurant "${restaurant.storeName}" at this time.
+
+            📋 Reason for Rejection:
+            ${rejection_reason}
+
+            🔄 Next Steps:
+            - Please review the feedback above
+            - You may resubmit your application after addressing the concerns
+            - Contact our support team if you have questions: ${process.env.EMAIL_USER}
+
+            We appreciate your understanding and look forward to potentially working with you in the future.
+
+            Best regards,
+            The Kirby Chope Team
+        `;
+
+        await transporter.sendMail({
+            from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+            to: restaurant.owner_email,
+            subject: `Application Update - ${restaurant.storeName}`,
+            text: rejectionEmail
+        });
+
+        // Log the rejection
+        logBusiness('restaurant_rejected', 'restaurant', {
+            store_id: storeId,
+            store_name: restaurant.storeName,
+            owner_id: restaurant.owner_id,
+            rejected_by: adminId,
+            admin_name: req.user.name,
+            rejection_reason: rejection_reason
+        }, req);
+
+        res.json({
+            message: 'Restaurant rejected successfully',
+            restaurant: {
+                store_id: storeId,
+                storeName: restaurant.storeName,
+                status: 'rejected',
+                rejection_reason: rejection_reason
+            }
+        });
+
+    } catch (error) {
+        console.error('Error rejecting restaurant:', error);
+        res.status(500).json({ error: 'Failed to reject restaurant' });
+    }
+});
 
 // ======== ADMIN DASHBOARD ========
 router.get('/dashboard-stats', async (req, res) => {
@@ -231,7 +437,7 @@ router.get('/download/:filename', (req, res) => {
 router.get('/restaurants', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT 
+            SELECT
                 s.store_id, s."storeName", s.location,
                 u.name AS "ownerName"
             FROM stores s
@@ -463,7 +669,7 @@ router.delete('/restaurants/:id', async (req, res) => {
 router.get('/reviews', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT 
+            SELECT
                 rv.review_id, rv.rating, rv.description,
                 u.name AS userName,
                 s."storeName"

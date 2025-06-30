@@ -4,6 +4,7 @@ const router = express.Router();
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const { authenticateToken, requireUser } = require('../../frontend/js/token');
+const { createRateLimiter } = require('../middleware/sanitization');
 
 // Configure email 
 const transporter = nodemailer.createTransport({
@@ -144,6 +145,7 @@ router.get('/display_specific_store', async (req, res) => {
             FROM stores s
             INNER JOIN reservations r ON r.store_id = s.store_id
             WHERE s."storeName" = $1 AND s.location = $2 AND r.reservation_id = $3
+            AND s.status = 'approved'
         `, [name, location, reservationIdNum]);
     } else {
         // UPDATED: Select image_filename and image_alt_text instead of image
@@ -219,7 +221,27 @@ router.get('/display_specific_store', async (req, res) => {
 router.get('/display_reviews', async (req, res) => {
   try {
     const storeid = req.query.storeid;
-    const result = await pool.query('SELECT * FROM reviews WHERE "store_id" = $1', [storeid]);
+
+    // Input validation
+    const storeIdNum = parseInt(storeid);
+    if (isNaN(storeIdNum) || storeIdNum <= 0) {
+      return res.status(400).json({ error: 'Invalid store ID' });
+    }
+
+    const storeCheck = await pool.query(
+      'SELECT 1 FROM stores WHERE store_id = $1 AND status = $2',
+      [storeIdNum, 'approved']
+    );
+
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Restaurant not found or not available' });
+    }
+
+    // Only show reviews for approved restaurants
+    const result = await pool.query(
+      'SELECT * FROM reviews WHERE "store_id" = $1',
+      [storeIdNum]
+    );
 
     // Decode review descriptions recursively
     const decoded = result.rows.map(r => {
@@ -697,7 +719,7 @@ router.get('/maxcapacity', async (req, res) => {
     const storeid = req.query.storeid;
     const result = await pool.query(
       `
-        SELECT * FROM stores WHERE "store_id" = $1
+        SELECT * FROM stores WHERE "store_id" = $1 AND status = 'approved'
       `,
       [storeid]
     );
