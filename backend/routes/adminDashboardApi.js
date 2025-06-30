@@ -381,18 +381,43 @@ router.delete('/users/:id', async (req, res) => {
         // Start a transaction
         await pool.query('BEGIN');
 
-        // Delete related records first (in order of dependencies)
+        // Delete related records in proper dependency order
 
-        // 1. Delete user's reviews
+        // 1. Delete from pending_actions where user is the requester
+        await pool.query('DELETE FROM pending_actions WHERE requested_by = $1', [id]);
+
+        // 2. Delete reservation_edits that directly reference this user
+        await pool.query('DELETE FROM reservation_edits WHERE user_id = $1', [id]);
+
+        // 3. Delete reservation_edits for user's reservations (different constraint)
+        await pool.query(`
+            DELETE FROM reservation_edits
+            WHERE reservation_id IN (
+                SELECT reservation_id FROM reservations WHERE user_id = $1
+            )
+        `, [id]);
+
+        // 4. Delete user's reviews
         await pool.query('DELETE FROM reviews WHERE user_id = $1', [id]);
 
-        // 2. Delete user's reservations
+        // 5. Delete user's reservations (now safe to delete)
         await pool.query('DELETE FROM reservations WHERE user_id = $1', [id]);
 
-        // 3. If user is an owner, handle their restaurants
+        // 6. Handle stores.approved_by references (don't delete stores, just nullify)
+        await pool.query('UPDATE stores SET approved_by = NULL WHERE approved_by = $1', [id]);
+
+        // 7. If user is an owner, handle their restaurants
         const storesResult = await pool.query('SELECT store_id FROM stores WHERE owner_id = $1', [id]);
         if (storesResult.rows.length > 0) {
             const storeIds = storesResult.rows.map(row => row.store_id);
+
+            // Delete reservation_edits for reservations at their restaurants
+            await pool.query(`
+                DELETE FROM reservation_edits
+                WHERE reservation_id IN (
+                    SELECT reservation_id FROM reservations WHERE store_id = ANY($1)
+                )
+            `, [storeIds]);
 
             // Delete reviews for these restaurants
             await pool.query('DELETE FROM reviews WHERE store_id = ANY($1)', [storeIds]);
@@ -404,7 +429,7 @@ router.delete('/users/:id', async (req, res) => {
             await pool.query('DELETE FROM stores WHERE owner_id = $1', [id]);
         }
 
-        // 4. Finally delete the user
+        // 8. Finally delete the user
         const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING *', [id]);
 
         if (result.rowCount === 0) {
