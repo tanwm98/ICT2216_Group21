@@ -298,7 +298,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         // Validate password strength (throws if invalid)
         validatePassword(password);
 
-        // Check if email already exists
+        // Check if email already exists BEFORE starting transaction
         const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
             logAuth('owner_registration', false, {
@@ -340,7 +340,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             has_image: !!imageFile
         }, req);
 
-        // Start a database transaction
+        // Start a database transaction - FIXED: Include ALL database operations
         await pool.query('BEGIN');
 
         try {
@@ -359,7 +359,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
 
             const ownerId = userResult.rows[0].user_id;
 
-            // 2. Create the restaurant/store entry - FIXED COLUMN NAMES TO MATCH SCHEMA
+            // 2. Create the restaurant/store entry
             const storeResult = await pool.query(
                 `INSERT INTO stores
                 ("storeName", location, cuisine, "priceRange", address, "postalCode", "totalCapacity", "currentCapacity", opening, closing, owner_id, image_filename, image_alt_text, status)
@@ -382,81 +382,94 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                     'pending'
                 ]
             );
+
             const storeId = storeResult.rows[0].store_id;
+
+            // COMMIT only after ALL operations succeed
             await pool.query('COMMIT');
 
-            // 4. Send notification email to admin
-            const adminMessage = `
-                New Restaurant Owner Registration - PENDING APPROVAL:
+            // 3. Send notification emails (after successful DB commit)
+            try {
+                // Admin notification email
+                const adminMessage = `
+                    New Restaurant Owner Registration - PENDING APPROVAL:
 
-                👤 Owner Details:
-                Name: ${ownerName} (${firstname} ${lastname})
-                Email: ${email}
-                User ID: ${ownerId}
+                    👤 Owner Details:
+                    Name: ${ownerName} (${firstname} ${lastname})
+                    Email: ${email}
+                    User ID: ${ownerId}
 
-                🏪 Restaurant Details:
-                Store Name: ${storeName}
-                Store ID: ${storeId}
-                Address: ${address}
-                Postal Code: ${postalCode}
-                Cuisine: ${cuisine}
-                Location: ${location}
-                Price Range: ${priceRange}
-                Seating Capacity: ${capacityNum}
-                Total Capacity: ${totalCapacityNum}
-                Opening Hours: ${opening} - ${closing}
-                Image: ${imageFile ? `Uploaded (${imageFile.filename})` : 'Not provided'}
+                    🏪 Restaurant Details:
+                    Store Name: ${storeName}
+                    Store ID: ${storeId}
+                    Address: ${address}
+                    Postal Code: ${postalCode}
+                    Cuisine: ${cuisine}
+                    Location: ${location}
+                    Price Range: ${priceRange}
+                    Seating Capacity: ${capacityNum}
+                    Total Capacity: ${totalCapacityNum}
+                    Opening Hours: ${opening} - ${closing}
+                    Image: ${imageFile ? `Uploaded (${imageFile.filename})` : 'Not provided'}
 
-                ⏳ Status: PENDING APPROVAL
+                    ⏳ Status: PENDING APPROVAL
 
-                🔗 Admin Action Required:
-                Please log into the admin dashboard to review and approve/reject this restaurant.
-            `;
+                    🔗 Admin Action Required:
+                    Please log into the admin dashboard to review and approve/reject this restaurant.
+                `;
 
-            await transporter.sendMail({
-                from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
-                to: `<${process.env.EMAIL_USER}>`,
-                subject: `New Restaurant Registered: ${storeName}`,
-                text: adminMessage,
-            });
+                await transporter.sendMail({
+                    from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
+                    to: `<${process.env.EMAIL_USER}>`,
+                    subject: `New Restaurant Registered: ${storeName}`,
+                    text: adminMessage,
+                });
 
-            // 5. Send welcome email to owner
-            const ownerMessage = `
-                Thank you for submitting your restaurant to Kirby Chope, ${firstname}!
+                // Owner welcome email
+                const ownerMessage = `
+                    Thank you for submitting your restaurant to Kirby Chope, ${firstname}!
 
-                Your restaurant application has been received and is currently under review.
+                    Your restaurant application has been received and is currently under review.
 
-                🏪 Your Restaurant Details:
-                Restaurant Name: ${storeName}
-                Location: ${location}
-                Cuisine: ${cuisine}
-                Address: ${address}
+                    🏪 Your Restaurant Details:
+                    Restaurant Name: ${storeName}
+                    Location: ${location}
+                    Cuisine: ${cuisine}
+                    Address: ${address}
 
-                ⏳ Current Status: PENDING APPROVAL
+                    ⏳ Current Status: PENDING APPROVAL
 
-                📋 Next Steps:
-                - Our admin team will review your application within 2-3 business days
-                - You'll receive an email notification once your restaurant is approved
-                - After approval, customers can find and book your restaurant on our platform
+                    📋 Next Steps:
+                    - Our admin team will review your application within 2-3 business days
+                    - You'll receive an email notification once your restaurant is approved
+                    - After approval, customers can find and book your restaurant on our platform
 
-                📊 In the meantime:
-                - You can log into your owner dashboard to view your application status
-                - Prepare for managing reservations once approved
+                    📊 In the meantime:
+                    - You can log into your owner dashboard to view your application status
+                    - Prepare for managing reservations once approved
 
-                Login at: https://www.kirbychope.xyz/login
+                    Login at: https://www.kirbychope.xyz/login
 
-                Thank you for choosing Kirby Chope!
+                    Thank you for choosing Kirby Chope!
 
-                Best regards,
-                The Kirby Chope Team
-            `;
+                    Best regards,
+                    The Kirby Chope Team
+                `;
 
-            await transporter.sendMail({
-                from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-                to: email,
-                subject: 'Welcome to Kirby Chope - Restaurant Registration Complete',
-                text: ownerMessage,
-            });
+                await transporter.sendMail({
+                    from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+                    to: email,
+                    subject: 'Welcome to Kirby Chope - Restaurant Registration Complete',
+                    text: ownerMessage,
+                });
+            } catch (emailError) {
+                // Log email errors but don't fail the registration
+                logSystem('warning', 'Email notification failed but registration succeeded', {
+                    owner_id: ownerId,
+                    store_id: storeId,
+                    email_error: emailError.message
+                });
+            }
 
             logAuth('owner_registration', true, {
                 user_id: ownerId,
@@ -470,7 +483,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 store_id: storeId,
                 owner_id: ownerId,
                 store_name: storeName,
-                status: 'active'
+                status: 'pending'
             }, req);
 
             logSystem('info', 'Owner application processed successfully', {
@@ -484,7 +497,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             res.redirect('/rOwnerReg?success=1');
 
         } catch (dbError) {
-            // Rollback transaction on database error
+            // Rollback transaction on any database error
             await pool.query('ROLLBACK');
             throw dbError;
         }

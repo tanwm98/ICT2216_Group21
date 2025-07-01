@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsIm5hbWUiOiJhZG1pbiIsImlhdCI6MTc1MTM5MTg2OSwiZXhwIjoxNzUxMzk1NDY5fQ.XXAEx6BFTrAkw3mB26YEnkqsCj13-6vOJWoqd84Fd5Q",
+      "domain": "kirbychope.xyz",
+      "path": "/",
+      "expires": 1751395468.891727,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": []
+}
