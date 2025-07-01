@@ -126,7 +126,7 @@ jobs:
       - name: 🐳 Start Docker Compose test environment
         run: |
           echo "🚀 Starting test environment with staging config..."
-          docker-compose -f docker/test.yml up -d --build
+          docker compose -f docker/test.yml up -d --build
           
           # Wait for backend to be healthy
           timeout 60 bash -c 'until curl -k -f https://localhost/api/health >/dev/null 2>&1; do sleep 2; done'
@@ -167,12 +167,12 @@ jobs:
         if: failure()
         run: |
           echo "🐳 Docker Compose Logs:"
-          docker-compose -f docker/test.yml logs --tail=50
+          docker compose -f docker/test.yml logs --tail=50
 
       - name: 🧹 Cleanup Docker environment
         if: always()
         run: |
-          docker-compose -f docker/test.yml down -v
+          docker compose -f docker/test.yml down -v
           docker system prune -f
 
   # ========================================
