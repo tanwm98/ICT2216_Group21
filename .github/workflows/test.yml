@@ -1,11 +1,13 @@
-
-name: 🧪 Test & Deploy
+name: Test, Lint & Deploy
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  schedule:
+    # Optional: Run linting on a schedule to catch any lingering issues
+    - cron: '36 5 * * 5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,12 +17,49 @@ env:
   NODE_VERSION: 'lts/*'
 
 jobs:
+  # ========================================
+  # JOB 1: LINTING (Code Quality Check)
+  # ========================================
+  eslint:
+    name: 🔬 Lint Code
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
+      - name: ⚡ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔬 Run ESLint
+        # This step is allowed to fail while you fix the initial 219 errors.
+        # Once fixed, you should remove 'continue-on-error: true' to enforce code quality.
+        run: |
+          npx eslint . --config eslint.config.mjs --ext .js,.jsx,.ts,.tsx --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif
+        continue-on-error: true 
+
+      - name: 📊 Upload ESLint results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: eslint-results.sarif
+          wait-for-processing: true
+
+  # ========================================
+  # JOB 2: UNIT TESTS (Runs in parallel with linting)
+  # ========================================
   jest-tests:
-    name: 🧪 Jest Unit Tests
+    name: 🧪 Run Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -35,10 +74,16 @@ jobs:
         run: npm ci
 
       - name: 🧪 Run Jest unit tests
-        run: |
-          npm run test:coverage
+        run: npm run test:coverage
         env:
           NODE_ENV: test
+
+      - name: 📊 Upload Jest Test Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-test-report
+          path: ./jest-report/
+          retention-days: 7
 
       - name: 📊 Upload coverage reports
         uses: codecov/codecov-action@v4
@@ -47,13 +92,16 @@ jobs:
           flags: unit-tests
           fail_ci_if_error: false
 
+  # ========================================
+  # JOB 3: INTEGRATION TESTS (Waits for linting and unit tests)
+  # ========================================
   integration-tests:
-    name: 🎭 Integration Tests (Docker + Playwright)
+    name: 🎭 Run Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: jest-tests
-    environment: staging  # Use your staging environment
-
+    # This is the quality gate: it will only run if both previous jobs succeed.
+    needs: [jest-tests, eslint]
+    environment: staging
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -72,21 +120,15 @@ jobs:
 
       - name: 📝 Update Playwright config for localhost
         run: |
-          # Create test-specific Playwright config
           cat > playwright.config.test.js << EOF
           import { defineConfig, devices } from '@playwright/test';
-
           export default defineConfig({
             testDir: './tests/integration',
             fullyParallel: false,
             forbidOnly: true,
             retries: 2,
             workers: 1,
-            reporter: [
-              ['html', { outputDir: 'playwright-report' }],
-              ['json', { outputFile: 'test-results.json' }],
-              ['github']
-            ],
+            reporter: [['html', { outputDir: 'playwright-report' }], ['json', { outputFile: 'test-results.json' }], ['github']],
             use: {
               baseURL: 'https://localhost',
               ignoreHTTPSErrors: true,
@@ -95,24 +137,14 @@ jobs:
               video: 'retain-on-failure'
             },
             projects: [
-              { 
-                name: 'setup', 
-                testMatch: /.*\.setup\.js/,
-                use: { ...devices['Desktop Chrome'] }
-              },
-              {
-                name: 'chromium',
-                use: { ...devices['Desktop Chrome'] },
-                dependencies: ['setup']
-              }
+              { name: 'setup', testMatch: /.*\.setup\.js/, use: { ...devices['Desktop Chrome'] } },
+              { name: 'chromium', use: { ...devices['Desktop Chrome'] }, dependencies: ['setup'] }
             ]
           });
           EOF
 
       - name: 🔧 Create .env.test for Docker
         run: |
-          echo "📝 Creating .env.test from GitHub secrets..."
-          
           cat > .env.test << EOF
           DB_URL=${{ secrets.DB_URL }}
           SESSION_SECRET=${{ secrets.SESSION_SECRET }}
@@ -125,25 +157,17 @@ jobs:
 
       - name: 🐳 Start Docker Compose test environment
         run: |
-          echo "🚀 Starting test environment with staging config..."
           docker compose -f docker/test.yml up -d --build
-          
-          # Wait for backend to be healthy
           timeout 60 bash -c 'until curl -k -f https://localhost/api/health >/dev/null 2>&1; do sleep 2; done'
-          
-          echo "✅ Services are ready!"
           docker compose -f docker/test.yml ps
 
       - name: 🏥 Health check
         run: |
-          echo "🔍 Testing basic endpoints..."
           curl -k -f https://localhost/ || exit 1
           curl -k -f https://localhost/login || exit 1
-          echo "✅ Basic endpoints working!"
 
       - name: 🎭 Run Playwright integration tests
-        run: |
-          npx playwright test --config=playwright.config.test.js
+        run: npx playwright test --config=playwright.config.test.js
         env:
           CI: true
 
@@ -158,16 +182,13 @@ jobs:
       - name: 📋 Show test results
         if: always()
         run: |
-          echo "🎭 Playwright Test Results:"
           if [ -f test-results.json ]; then
             cat test-results.json | jq '.stats'
           fi
 
       - name: 🗂️ Show Docker logs on failure
         if: failure()
-        run: |
-          echo "🐳 Docker Compose Logs:"
-          docker compose -f docker/test.yml logs --tail=50
+        run: docker compose -f docker/test.yml logs --tail=50
 
       - name: 🧹 Cleanup Docker environment
         if: always()
@@ -176,32 +197,23 @@ jobs:
           docker system prune -f
 
   # ========================================
-  # TRIGGER EXISTING DEPLOYMENT
+  # JOB 4: DEPLOYMENT (Waits for integration tests)
   # ========================================
   trigger-deploy:
     name: 🚀 Trigger Production Deployment
     runs-on: ubuntu-latest
     needs: integration-tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
       - name: 🚀 Trigger deploy.yml workflow
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            console.log('✅ All tests passed! Triggering production deployment...');
-            
-            const result = await github.rest.actions.createWorkflowDispatch({
+            await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'deploy.yml',
               ref: 'main'
             });
-            
             console.log('🎉 Production deployment triggered successfully!');
-            console.log('Workflow dispatch result:', result.status);
-
