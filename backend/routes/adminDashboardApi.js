@@ -247,69 +247,88 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, async (re
         res.status(500).json({ error: 'Failed to reject restaurant' });
     }
 });
-router.post('/users/:id/send-reset-email', async (req, res) => {
-    const { id } = req.params;
 
-    try {
-        // Get user details
-        const userResult = await pool.query(
-            'SELECT email, name, firstname FROM users WHERE user_id = $1',
-            [id]
-        );
+router.post('/users/:id/send-reset-email', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
 
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+  try {
+    // Get user details
+    const userResult = await pool.query(
+      'SELECT email, name, firstname, role FROM users WHERE user_id = $1',
+      [id]
+    );
 
-        const user = userResult.rows[0];
-
-        // Generate secure reset token (same as regular reset)
-        const token = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 3600_000); // 1 hour
-
-        // Store reset token in database
-        await pool.query(
-            'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE user_id = $3',
-            [token, expires, id]
-        );
-
-        // Create reset link
-        const resetLink = `https://kirbychope.xyz/reset-password?token=${token}`;
-
-        // Send email to user (not admin)
-        await transporter.sendMail({
-            from: `"Kirby Chope Admin" <${process.env.EMAIL_USER}>`,
-            to: user.email,
-            subject: 'Password Reset Request - Initiated by Administrator',
-            html: `
-                <h2>Password Reset Request</h2>
-                <p>Hello ${user.firstname || user.name},</p>
-                <p>An administrator has initiated a password reset for your Kirby Chope account.</p>
-                <p>Click the link below to set a new password:</p>
-                <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-                <p><strong>This link will expire in 1 hour.</strong></p>
-                <p>If you did not expect this, please contact support immediately.</p>
-                <hr>
-                <p>Best regards,<br>The Kirby Chope Team</p>
-            `,
-        });
-
-        // Log the admin action
-        logBusiness('admin_password_reset_initiated', 'user', {
-            target_user_id: id,
-            target_user_email: user.email,
-            admin_id: req.user.userId,
-            admin_name: req.user.name
-        }, req);
-
-        res.json({
-            message: `Password reset email sent to ${user.email}`
-        });
-
-    } catch (err) {
-        console.error('Error sending admin reset email:', err);
-        res.status(500).json({ error: 'Failed to send reset email' });
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
+
+    const user = userResult.rows[0];
+
+    // If user is admin/owner, check that reset_password action is already approved
+    if (user.role === 'owner') {
+      console.log('[SEND RESET EMAIL] User is sensitive role:', user.role);
+      console.log('[SEND RESET EMAIL] Checking for approved action...');
+      const pending = await pool.query(`
+        SELECT * FROM pending_actions
+        WHERE action_type = 'reset_password'
+          AND target_id = $1
+          AND target_type = 'user'
+          AND status = 'approved'
+      `, [id]);
+
+      if (pending.rowCount === 0) {
+        console.warn('[SEND RESET EMAIL] Not approved yet, aborting send');
+        return res.status(403).json({
+          error: 'Password reset request is not yet approved by 2 admins. Email will be sent only after approval.'
+        });
+      }
+    }
+
+    // Generate secure reset token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 3600_000); // 1 hour
+
+    // Store reset token in database
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE user_id = $3',
+      [token, expires, id]
+    );
+
+    // Create reset link
+    const resetLink = `https://kirbychope.xyz/reset-password?token=${token}`;
+
+    // Send email
+    await transporter.sendMail({
+      from: `"Kirby Chope Admin" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Password Reset Request - Initiated by Administrator',
+      html: `
+        <h2>Password Reset Request</h2>
+        <p>Hello ${user.firstname || user.name},</p>
+        <p>An administrator has initiated a password reset for your Kirby Chope account.</p>
+        <p>Click the link below to set a new password:</p>
+        <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        <p><strong>This link will expire in 1 hour.</strong></p>
+        <p>If you did not expect this, please contact support immediately.</p>
+        <hr>
+        <p>Best regards,<br>The Kirby Chope Team</p>
+      `,
+    });
+
+    // Log the action
+    logBusiness('admin_password_reset_initiated', 'user', {
+      target_user_id: id,
+      target_user_email: user.email,
+      admin_id: req.user.userId,
+      admin_name: req.user.name
+    }, req);
+
+    res.json({ message: `Password reset email sent to ${user.email}` });
+
+  } catch (err) {
+    console.error('Error sending admin reset email:', err);
+    res.status(500).json({ error: 'Failed to send reset email' });
+  }
 });
 
 // ======== ADMIN DASHBOARD ========
@@ -375,78 +394,131 @@ router.post('/users', addUserValidator, handleValidation, async (req, res) => {
 
 // Delete user by id
 // Replace the existing deleteUser route with this:
-router.delete('/users/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        // Start a transaction
-        await pool.query('BEGIN');
+router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.user.userId;
+  let inTransaction = false;
 
-        // Delete related records in proper dependency order
+  try {
+    console.log(`[DELETE USER] Attempt by admin ${adminId} to delete user ${id}`);
 
-        // 1. Delete from pending_actions where user is the requester
-        await pool.query('DELETE FROM pending_actions WHERE requested_by = $1', [id]);
+    const pending = await pool.query(`
+      SELECT * FROM pending_actions 
+      WHERE action_type = 'delete_user' AND target_id = $1 AND target_type = 'user' AND status = 'pending'
+    `, [id]);
 
-        // 2. Delete reservation_edits that directly reference this user
-        await pool.query('DELETE FROM reservation_edits WHERE user_id = $1', [id]);
+    if (pending.rowCount === 0) {
+      console.warn(`[DELETE USER] No pending action found for user ${id}, creating new one`);
 
-        // 3. Delete reservation_edits for user's reservations (different constraint)
-        await pool.query(`
-            DELETE FROM reservation_edits
-            WHERE reservation_id IN (
-                SELECT reservation_id FROM reservations WHERE user_id = $1
-            )
-        `, [id]);
+      await pool.query(`
+        INSERT INTO pending_actions (
+          action_type, target_id, target_type, requested_by, approved_by, rejected_by, status
+        ) VALUES (
+          'delete_user', $1, 'user', $2, ARRAY[]::INTEGER[], ARRAY[]::INTEGER[], 'pending'
+        )
+      `, [id, adminId]);
 
-        // 4. Delete user's reviews
-        await pool.query('DELETE FROM reviews WHERE user_id = $1', [id]);
-
-        // 5. Delete user's reservations (now safe to delete)
-        await pool.query('DELETE FROM reservations WHERE user_id = $1', [id]);
-
-        // 6. Handle stores.approved_by references (don't delete stores, just nullify)
-        await pool.query('UPDATE stores SET approved_by = NULL WHERE approved_by = $1', [id]);
-
-        // 7. If user is an owner, handle their restaurants
-        const storesResult = await pool.query('SELECT store_id FROM stores WHERE owner_id = $1', [id]);
-        if (storesResult.rows.length > 0) {
-            const storeIds = storesResult.rows.map(row => row.store_id);
-
-            // Delete reservation_edits for reservations at their restaurants
-            await pool.query(`
-                DELETE FROM reservation_edits
-                WHERE reservation_id IN (
-                    SELECT reservation_id FROM reservations WHERE store_id = ANY($1)
-                )
-            `, [storeIds]);
-
-            // Delete reviews for these restaurants
-            await pool.query('DELETE FROM reviews WHERE store_id = ANY($1)', [storeIds]);
-
-            // Delete reservations for these restaurants
-            await pool.query('DELETE FROM reservations WHERE store_id = ANY($1)', [storeIds]);
-
-            // Delete the restaurants themselves
-            await pool.query('DELETE FROM stores WHERE owner_id = $1', [id]);
-        }
-
-        // 8. Finally delete the user
-        const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING *', [id]);
-
-        if (result.rowCount === 0) {
-            await pool.query('ROLLBACK');
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Commit the transaction
-        await pool.query('COMMIT');
-
-        res.json({ message: 'User and all related data deleted successfully' });
-    } catch (err) {
-        // Rollback on error
-        await pool.query('ROLLBACK');
-        console.error('Error deleting user:', err);
-        res.status(500).json({ error: 'Internal server error' });
+      return res.status(202).json({ message: 'Delete request created. Awaiting approval from 2 other admins.' });
     }
+
+    const action = pending.rows[0];
+    const approved_by = action.approved_by || [];
+    const rejected_by = action.rejected_by || [];
+    const requestedBy = action.requested_by;
+
+    if (adminId === requestedBy) {
+      return res.status(403).json({ error: 'You cannot approve or reject your own request.' });
+    }
+
+    if (rejected_by.includes(adminId)) {
+      return res.status(400).json({ error: 'You already rejected this action.' });
+    }
+
+    if (approved_by.includes(adminId)) {
+      return res.status(400).json({ error: 'You already approved this action.' });
+    }
+
+    // Reject logic
+    if (req.query.decision === 'reject') {
+      await pool.query(`
+        UPDATE pending_actions 
+        SET rejected_by = array_append(rejected_by, $1), status = 'rejected'
+        WHERE action_id = $2
+      `, [adminId, action.action_id]);
+
+      return res.status(200).json({ message: 'Action rejected. Deletion cancelled.' });
+    }
+
+    // Approve logic
+    const updatedApprovals = [...approved_by, adminId];
+
+    if (updatedApprovals.length >= 2) {
+      console.log(`[DELETE USER] 2 approvals reached. Deleting user ${id}`);
+      await pool.query('BEGIN');
+      inTransaction = true;
+
+      await pool.query('DELETE FROM pending_actions WHERE requested_by = $1', [id]);
+
+      await pool.query('DELETE FROM reservation_edits WHERE user_id = $1', [id]);
+      await pool.query(`
+        DELETE FROM reservation_edits
+        WHERE reservation_id IN (
+          SELECT reservation_id FROM reservations WHERE user_id = $1
+        )
+      `, [id]);
+
+      await pool.query('DELETE FROM reviews WHERE user_id = $1', [id]);
+      await pool.query('DELETE FROM reservations WHERE user_id = $1', [id]);
+      await pool.query('UPDATE stores SET approved_by = NULL WHERE approved_by = $1', [id]);
+
+      const storesResult = await pool.query('SELECT store_id FROM stores WHERE owner_id = $1', [id]);
+      if (storesResult.rows.length > 0) {
+        const storeIds = storesResult.rows.map(row => row.store_id);
+
+        await pool.query(`
+          DELETE FROM reservation_edits
+          WHERE reservation_id IN (
+            SELECT reservation_id FROM reservations WHERE store_id = ANY($1)
+          )
+        `, [storeIds]);
+
+        await pool.query('DELETE FROM reviews WHERE store_id = ANY($1)', [storeIds]);
+        await pool.query('DELETE FROM reservations WHERE store_id = ANY($1)', [storeIds]);
+        await pool.query('DELETE FROM stores WHERE owner_id = $1', [id]);
+        await pool.query(`DELETE FROM pending_actions WHERE target_type = 'restaurant' AND target_id = ANY($1)
+  `, [storeIds]);
+      }
+
+      const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING *', [id]);
+      if (result.rowCount === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found during deletion.' });
+      }
+
+      await pool.query(`DELETE FROM pending_actions WHERE target_type = 'user' AND target_id = $1`, [id]);
+
+      await pool.query(`UPDATE pending_actions SET approved_by = $1, status = 'approved' WHERE action_id = $2`, [updatedApprovals, action.action_id]);
+
+      await pool.query('COMMIT');
+      
+      console.log(`[DELETE USER] User ${id} deleted successfully.`);
+      return res.json({ message: 'User deleted after approval.' });
+    }
+
+    // Not enough approvals yet
+    await pool.query(`
+      UPDATE pending_actions SET approved_by = $1 
+      WHERE action_id = $2
+    `, [updatedApprovals, action.action_id]);
+
+    console.log(`[DELETE USER] Approval from ${adminId} recorded. Awaiting more.`);
+    return res.status(200).json({ message: 'Approval recorded. Waiting for another admin.' });
+
+  } catch (err) {
+    if (inTransaction) await pool.query('ROLLBACK');
+    console.error('Multi-admin deletion error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Update user by id
@@ -485,24 +557,115 @@ router.get('/users/:id', async (req, res) => {
     }
 });
 
-// Reset password for user by id
-router.post('/users/:id/reset-password', async (req, res) => {
-    const { id } = req.params;
+// POST /users/:id/reset-password
+router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const requestedBy = req.user.userId;
 
-    try {
-        const defaultPassword = 'Pass123';
-        const hashedPassword = await argon2.hash(defaultPassword);
-
-        await pool.query(
-            'UPDATE users SET password = $1 WHERE user_id = $2',
-            [hashedPassword, id]
-        );
-
-        res.json({ message: 'Password reset to default' });
-    } catch (err) {
-        console.error('Error resetting password:', err);
-        res.status(500).json({ error: 'Internal server error' });
+  try {
+    console.log('[RESET PASSWORD] Requested by:', requestedBy, 'Target ID:', id);
+    const userResult = await pool.query('SELECT role FROM users WHERE user_id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
+
+    const targetRole = userResult.rows[0].role;
+    console.log('[RESET PASSWORD] Target role:', userResult.rows[0].role);
+
+    // For admin/owner: requires multi-admin approval
+    if (['admin', 'owner'].includes(targetRole)) {
+      const pendingRes = await pool.query(`
+        SELECT * FROM pending_actions 
+        WHERE action_type = 'reset_password' AND target_id = $1 
+        AND target_type = 'user' AND status = 'pending'
+      `, [id]);
+
+      // Existing request
+      if (pendingRes.rows.length > 0) {
+        const pending = pendingRes.rows[0];
+
+        if (pending.requested_by === requestedBy) {
+          return res.status(403).json({ error: 'You cannot approve or reject your own password reset request.' });
+        }
+
+        const approved_by = pending.approved_by || [];
+        const rejected_by = pending.rejected_by || [];
+
+        if (req.query.decision === 'reject') {
+            await pool.query(`
+            UPDATE pending_actions 
+            SET rejected_by = array_append(rejected_by, $1), status = 'rejected' 
+            WHERE action_id = $2
+            `, [requestedBy, pending.action_id]);
+
+            return res.status(200).json({ message: 'Password reset request rejected.' });
+        }
+
+        if (rejected_by.includes(requestedBy)) {
+          return res.status(400).json({ error: 'You already rejected this request.' });
+        }
+
+        if (approved_by.includes(requestedBy)) {
+          return res.status(400).json({ error: 'You already approved this request.' });
+        }
+
+        // If someone has already rejected
+        if (rejected_by.length > 0) {
+          await pool.query(`
+            UPDATE pending_actions 
+            SET rejected_by = ARRAY_APPEND(rejected_by, $1), status = 'rejected' 
+            WHERE action_id = $2
+          `, [requestedBy, pending.action_id]);
+
+          return res.status(400).json({ message: 'Action has been rejected by another admin.' });
+        }
+
+        const updatedApprovals = [...approved_by, requestedBy];
+        if (updatedApprovals.length >= 2) {
+          const hashedPassword = await argon2.hash('Pass123');
+          await pool.query('UPDATE users SET password = $1 WHERE user_id = $2', [hashedPassword, id]);
+
+          await pool.query(`
+            UPDATE pending_actions 
+            SET approved_by = $1, status = 'approved' 
+            WHERE action_id = $2
+          `, [updatedApprovals, pending.action_id]);
+
+          return res.json({ message: 'Password reset to default after approvals.' });
+        }
+
+        // Record partial approval
+        await pool.query(`
+          UPDATE pending_actions 
+          SET approved_by = $1 
+          WHERE action_id = $2
+        `, [updatedApprovals, pending.action_id]);
+
+        return res.status(200).json({ message: 'Approval recorded. Awaiting another admin.' });
+      }
+
+      // No existing request → create new one
+      await pool.query(`
+        INSERT INTO pending_actions (
+          action_type, target_id, target_type, requested_by, approved_by, rejected_by, status
+        ) VALUES (
+          'reset_password', $1, 'user', $2, ARRAY[]::INTEGER[], ARRAY[]::INTEGER[], 'pending'
+        )
+      `, [id, requestedBy]);
+      console.log('[RESET PASSWORD] Pending action created for user:', id);
+
+      return res.status(202).json({ message: 'Password reset request created. Awaiting 2 admin approvals.' });
+    }
+
+    // For normal users: reset immediately
+    const hashedPassword = await argon2.hash('Pass123');
+    await pool.query('UPDATE users SET password = $1 WHERE user_id = $2', [hashedPassword, id]);
+    return res.json({ message: 'Password reset to default.' });
+
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Filename validation & Content-Disposition
@@ -727,33 +890,115 @@ router.put('/restaurants/:id', upload.single('image'), validateUploadedImage, up
 });
 
 // UPDATED: Delete restaurant by id with file cleanup
-router.delete('/restaurants/:id', async (req, res) => {
-    const { id } = req.params;
+router.delete('/restaurants/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const requestedBy = req.user.userId;
 
-    try {
-        // Get image filename before deleting
-        const result = await pool.query(
-            'SELECT image_filename FROM stores WHERE store_id = $1',
-            [id]
-        );
+  try {
+    const existing = await pool.query(`
+      SELECT * FROM pending_actions
+      WHERE action_type = 'delete_restaurant'
+        AND target_id = $1
+        AND target_type = 'restaurant'
+        AND status = 'pending'
+    `, [id]);
 
-        if (result.rows.length > 0 && result.rows[0].image_filename) {
-            const imagePath = path.join(__dirname, '../../frontend/static/img/restaurants', result.rows[0].image_filename);
-            try {
-                if (fs.existsSync(imagePath)) {
-                    fs.unlinkSync(imagePath);
-                }
-            } catch (deleteErr) {
-                console.warn('Failed to delete image file:', deleteErr);
-            }
-        }
+    // Case 1: No pending request yet → create one
+    if (existing.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO pending_actions (
+          action_type, target_id, target_type, requested_by, approved_by, rejected_by, status
+        ) VALUES (
+          'delete_restaurant', $1, 'restaurant', $2, ARRAY[]::INTEGER[], ARRAY[]::INTEGER[], 'pending'
+        )
+      `, [id, requestedBy]);
 
-        await pool.query('DELETE FROM stores WHERE store_id = $1', [id]);
-        res.json({ message: 'Restaurant deleted successfully' });
-    } catch (err) {
-        console.error('Error deleting restaurant:', err);
-        res.status(500).json({ error: 'Internal server error' });
+      return res.status(202).json({ message: 'Delete request created. Awaiting approval from other admins.' });
     }
+
+    const action = existing.rows[0];
+    const { approved_by, rejected_by } = action;
+
+    // ❌ Prevent requester from acting on their own request
+    if (requestedBy === action.requested_by) {
+      return res.status(403).json({ error: 'You cannot approve or reject your own request.' });
+    }
+
+    // Case 2: Already rejected
+    if (rejected_by.includes(requestedBy)) {
+      return res.status(400).json({ error: 'You already rejected this action.' });
+    }
+
+    // Case 3: Already approved by this user
+    if (approved_by.includes(requestedBy)) {
+      return res.status(400).json({ error: 'You already approved this action.' });
+    }
+
+    // Case 4: Reject
+    if (req.query.decision === 'reject') {
+      await pool.query(`
+        UPDATE pending_actions
+        SET rejected_by = array_append(rejected_by, $1),
+            status = 'rejected'
+        WHERE action_id = $2
+      `, [requestedBy, action.action_id]);
+
+      return res.status(200).json({ message: 'Delete request rejected.' });
+    }
+
+    // Case 5: Approve
+    const updatedApprovals = [...approved_by, requestedBy];
+
+    if (updatedApprovals.length >= 2) {
+      await pool.query('BEGIN');
+
+      const resIdsResult = await pool.query(`
+        SELECT reservation_id FROM reservations WHERE store_id = $1
+      `, [id]);
+      const reservationIds = resIdsResult.rows.map(r => r.reservation_id);
+
+      if (reservationIds.length > 0) {
+        await pool.query(`
+          DELETE FROM reservation_edits
+          WHERE reservation_id = ANY($1)
+        `, [reservationIds]);
+      }
+
+      await pool.query('DELETE FROM reviews WHERE store_id = $1', [id]);
+      await pool.query('DELETE FROM reservations WHERE store_id = $1', [id]);
+
+      const result = await pool.query('SELECT image_filename FROM stores WHERE store_id = $1', [id]);
+      if (result.rows.length > 0 && result.rows[0].image_filename) {
+        const imagePath = path.join(__dirname, '../../frontend/static/img/restaurants', result.rows[0].image_filename);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+
+      await pool.query('DELETE FROM stores WHERE store_id = $1', [id]);
+
+      await pool.query(`
+        UPDATE pending_actions
+        SET approved_by = $1, status = 'approved'
+        WHERE action_id = $2
+      `, [updatedApprovals, action.action_id]);
+
+      await pool.query('COMMIT');
+      return res.json({ message: 'Action approved. Restaurant has been deleted.' });
+    }
+
+    await pool.query(`
+      UPDATE pending_actions
+      SET approved_by = $1
+      WHERE action_id = $2
+    `, [updatedApprovals, action.action_id]);
+
+    return res.status(202).json({ message: 'Approval recorded. Awaiting another admin.' });
+
+  } catch (err) {
+    console.error('Error processing restaurant delete approval:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ======== REVIEWS ========
@@ -887,6 +1132,27 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
         console.error('Error cancelling reservation:', err);
         res.status(500).json({ error: 'Failed to cancel reservation' });
     }
+});
+
+router.get('/pending-actions', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        pa.*, 
+        u.name AS requested_by_name, 
+        COALESCE(s."storeName", u2.name) AS target_name
+      FROM pending_actions pa
+      LEFT JOIN users u ON pa.requested_by = u.user_id
+      LEFT JOIN stores s ON pa.target_type = 'restaurant' AND pa.target_id = s.store_id
+      LEFT JOIN users u2 ON pa.target_type = 'user' AND pa.target_id = u2.user_id
+      ORDER BY pa.created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching pending actions:', err);
+    res.status(500).json({ error: 'Failed to fetch pending actions' });
+  }
 });
 
 // module.exports = router;

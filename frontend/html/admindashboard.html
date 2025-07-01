@@ -173,6 +173,32 @@
               </table>
             </div>
           </div>
+          <h2 class="mt-5">Pending Admin Actions</h2>
+          <div class="alert alert-warning">
+            <i class="bi bi-shield-lock"></i>
+            Multi‑admin approval required for sensitive actions like password resets and deletions.
+          </div>
+
+          <div id="pendingActionList">
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Target ID</th>
+                    <th>Target Type</th>
+                    <th>Requested By</th>
+                    <th>Approvals</th>
+                    <th>Rejections</th>
+                    <th>Decision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- Restaurant Detail Modal for Review -->

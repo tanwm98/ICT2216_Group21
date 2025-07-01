@@ -49,6 +49,7 @@ function showSection(id) {
             break;
         case 'pending':
             loadPendingRestaurants();
+            loadPendingActions();
             break;
     }
 }
@@ -685,26 +686,53 @@ async function deleteUser(id) {
 }
 
 async function resetUserPassword(id) {
-    if (!confirm('Send password reset email to this user? They will receive a secure reset link.')) {
+    if (!confirm('Send password reset email to this user? This may require multi-admin approval.')) {
         return;
     }
 
     try {
-        const response = await fetch(`/api/admin/users/${id}/send-reset-email`, {
+        // Step 1: Trigger the reset-password logic
+        const res = await fetch(`/api/admin/users/${id}/reset-password`, {
             method: 'POST'
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to send reset email');
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.error || 'Failed to initiate password reset.');
+            showSection('pending');
+            return;
         }
 
-        const result = await response.json();
-        alert(result.message || 'Password reset email sent to user!');
-    } catch (error) {
-        console.error('Error sending reset email:', error);
-        alert('Failed to send reset email');
+        // Step 2: If password has been reset (i.e. multi-admin approval met)
+        if (data.message?.includes('reset to default')) {
+            // Now send the email
+            const emailRes = await fetch(`/api/admin/users/${id}/send-reset-email`, {
+                method: 'POST'
+            });
+
+            const emailData = await emailRes.json();
+
+            if (emailRes.ok) {
+                alert(emailData.message || 'Password reset email sent!');
+            } else {
+                alert(emailData.error || 'Password was reset, but failed to send email.');
+            }
+
+        } else {
+            // Not yet approved → inform the admin
+            alert(data.message || 'Password reset request created. Waiting for 2 admin approvals.');
+        }
+
+        showSection('pending');
+
+    } catch (err) {
+        console.error('Error in password reset flow:', err);
+        alert('Unexpected error occurred.');
+        showSection('pending');
     }
 }
+
 
 async function cancelReservation(id) {
     if (!confirm('Are you sure you want to cancel this reservation?')) {
@@ -731,7 +759,115 @@ async function cancelReservation(id) {
 
 function showError(message) {
     console.error(message);
-    alert(message); // You might want to replace this with a more elegant error display
+    alert(message); 
+}
+
+// Load pending sensitive admin actions
+async function loadPendingActions() {
+  try {
+    const res = await fetch('/api/admin/pending-actions');
+    if (!res.ok) throw new Error('Failed to fetch pending actions');
+    const actions = await res.json();
+
+    const tbody = document.querySelector('#pendingActionList tbody');
+    tbody.innerHTML = '';
+
+    actions.forEach(action => {
+      const tr = document.createElement('tr');
+
+      const decisionCell = document.createElement('td');
+      if (action.status === 'pending') {
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'btn btn-sm btn-success me-1';
+        approveBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
+        approveBtn.title = 'Approve';
+        approveBtn.onclick = () => approveAction(action);
+
+        const rejectBtn = document.createElement('button');
+        rejectBtn.className = 'btn btn-sm btn-danger';
+        rejectBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
+        rejectBtn.title = 'Reject';
+        rejectBtn.onclick = () => rejectAction(action);
+
+        decisionCell.appendChild(approveBtn);
+        decisionCell.appendChild(rejectBtn);
+      } else {
+        decisionCell.textContent = action.status;
+      }
+
+      tr.innerHTML = `
+        <td>${action.action_type}</td>
+        <td>${action.target_id} - ${action.target_name || 'Unknown'}</td>
+        <td>${action.target_type}</td>
+        <td>${action.requested_by} - ${action.requested_by_name || 'Unknown'}</td>
+        <td>${(action.approved_by || []).length}</td>
+        <td>${(action.rejected_by || []).length}</td>
+      `;
+      tr.appendChild(decisionCell);
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error('Error loading pending admin actions:', err);
+    alert('Failed to load pending actions.');
+  }
+}
+
+async function approveAction(action) {
+  try {
+    const endpoint = action.action_type === 'delete_user'
+      ? `/api/admin/users/${action.target_id}`
+      : action.action_type === 'delete_restaurant'
+        ? `/api/admin/restaurants/${action.target_id}`
+        : action.action_type === 'reset_password'
+          ? `/api/admin/users/${action.target_id}/reset-password`
+          : null;
+
+    if (!endpoint) throw new Error('Unsupported action type');
+
+    const res = await fetch(endpoint, {
+      method: action.action_type === 'reset_password' ? 'POST' : 'DELETE'
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      showSection('pending');
+    } else {
+      alert(data.error || data.message || 'Failed to approve');
+    }
+  } catch (err) {
+    console.error('Approval failed:', err);
+    alert('Failed to approve action');
+  }
+}
+
+async function rejectAction(action) {
+  try {
+    const endpoint = action.action_type === 'delete_user'
+      ? `/api/admin/users/${action.target_id}?decision=reject`
+      : action.action_type === 'delete_restaurant'
+        ? `/api/admin/restaurants/${action.target_id}?decision=reject`
+        : action.action_type === 'reset_password'
+          ? `/api/admin/users/${action.target_id}/reset-password?decision=reject`
+          : null;
+
+    if (!endpoint) throw new Error('Unsupported action type');
+
+    const res = await fetch(endpoint, {
+      method: action.action_type === 'reset_password' ? 'POST' : 'DELETE'
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      showSection('pending');
+    } else {
+      alert(data.error || data.message || 'Failed to reject');
+    }
+  } catch (err) {
+    console.error('Rejection failed:', err);
+    alert('Failed to reject action');
+  }
 }
 
 function setupEventListeners() {
@@ -816,4 +952,5 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     showSection('dashboard');
     loadPendingRestaurants();
+    loadPendingActions();
 });
