@@ -11,7 +11,7 @@ const mime = require('mime-types');
 const argon2 = require('argon2');
 const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
 const crypto = require('crypto');
-
+const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 function generateImageUrl(imageFilename) {
     if (!imageFilename || typeof imageFilename !== 'string') {
@@ -376,21 +376,27 @@ router.get('/users', async (req, res) => {
 });
 
 // Add a new user (default password Pass123)
-router.post('/users', addUserValidator, handleValidation, async (req, res) => {
-  const { name, email, role, fname, lname } = req.body;
-  try {
-    const password = 'Pass123';
-    const hashedPassword = await argon2.hash(password);
-    await pool.query(
-      'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
-      [name, email, hashedPassword, role, fname, lname]
-    );
-    res.status(201).json({ message: 'User added successfully' });
-  } catch (err) {
-    console.error('Error adding user:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+router.post(
+    '/users',
+    fieldLevelAccess(['name', 'email', 'role', 'fname', 'lname']),
+    addUserValidator,
+    handleValidation,
+    async (req, res) => {
+        const { name, email, role, fname, lname } = req.body;
+        try {
+            const password = 'Pass123';
+            const hashedPassword = await argon2.hash(password);
+            await pool.query(
+                'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
+                [name, email, hashedPassword, role, fname, lname]
+            );
+            res.status(201).json({ message: 'User added successfully' });
+        } catch (err) {
+            console.error('Error adding user:', err);
+            res.status(500).json({ error: 'Server error' });
+        }
+    }
+);
 
 // Delete user by id
 // Replace the existing deleteUser route with this:
@@ -522,26 +528,32 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
 });
 
 // Update user by id
-router.put('/users/:id', [
-  userNameValidator,
-  userFirstNameValidator,
-  userLastNameValidator,
-  body('email').isEmail().normalizeEmail(),
-  body('role').isIn(['user', 'owner'])
-], handleValidation, async (req, res) => {
-  const { id } = req.params;
-  const { name, email, role, firstname, lastname } = req.body;
-  try {
-    await pool.query(
-      'UPDATE users SET name = $1, email = $2, role = $3, firstname = $4, lastname = $5 WHERE user_id = $6',
-      [name, email, role, firstname, lastname, id]
-    );
-    res.json({ message: 'User updated' });
-  } catch (err) {
-    console.error('Error updating user:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.put(
+    '/users/:id',
+    fieldLevelAccess(['name', 'email', 'role', 'firstname', 'lastname']),
+    [
+        userNameValidator,
+        userFirstNameValidator,
+        userLastNameValidator,
+        body('email').isEmail().normalizeEmail(),
+        body('role').isIn(['user', 'owner'])
+    ],
+    handleValidation,
+    async (req, res) => {
+        const { id } = req.params;
+        const { name, email, role, firstname, lastname } = req.body;
+        try {
+            await pool.query(
+                'UPDATE users SET name = $1, email = $2, role = $3, firstname = $4, lastname = $5 WHERE user_id = $6',
+                [name, email, role, firstname, lastname, id]
+            );
+            res.json({ message: 'User updated' });
+        } catch (err) {
+            console.error('Error updating user:', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
 
 // Get user by id
 router.get('/users/:id', async (req, res) => {
@@ -822,72 +834,77 @@ router.get('/restaurants/:id', async (req, res) => {
 });
 
 // UPDATED: Update restaurant by id with file handling
-router.put('/restaurants/:id', upload.single('image'), validateUploadedImage, updateRestaurantValidator, handleValidation, async (req, res) => {
-    const id = req.params.id;
-    const {
-        storeName, address, postalCode, cuisine, location,
-        priceRange, totalCapacity, opening, closing, owner_id
-    } = req.body;
-
-    try {
-        // Get current restaurant data
-        const currentResult = await pool.query(
-            'SELECT image_filename FROM stores WHERE store_id = $1',
-            [id]
-        );
-
-        if (currentResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Restaurant not found' });
-        }
-
-        const currentRestaurant = currentResult.rows[0];
-        let imageFilename = currentRestaurant.image_filename;
-        let altText = `${storeName} restaurant image`;
-
-        // If new image uploaded
-        if (req.file) {
-            // Delete old image file if it exists
-            if (currentRestaurant.image_filename) {
-                const oldImagePath = path.join(__dirname, '../../frontend/static/img/restaurants', currentRestaurant.image_filename);
-                try {
-                    if (fs.existsSync(oldImagePath)) {
-                        fs.unlinkSync(oldImagePath);
-                    }
-                } catch (deleteErr) {
-                    console.warn('Failed to delete old image:', deleteErr);
-                }
-            }
-            imageFilename = req.file.filename;
-        }
-
-        await pool.query(`
-            UPDATE stores SET
-                "storeName" = $1,
-                address = $2,
-                "postalCode" = $3,
-                cuisine = $4,
-                location = $5,
-                "priceRange" = $6,
-                "totalCapacity" = $7,
-                "currentCapacity" = $7,
-                opening = $8,
-                closing = $9,
-                owner_id = $10,
-                image_filename = $11,
-                image_alt_text = $12
-            WHERE store_id = $13
-        `, [
+router.put(
+    '/restaurants/:id',
+    upload.single('image'),
+    validateUploadedImage,
+    fieldLevelAccess(['storeName', 'address', 'postalCode', 'cuisine', 'location', 'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id']),
+    updateRestaurantValidator,
+    handleValidation,
+    async (req, res) => {
+        const id = req.params.id;
+        const {
             storeName, address, postalCode, cuisine, location,
-            priceRange, totalCapacity, opening, closing,
-            owner_id, imageFilename, altText, id
-        ]);
+            priceRange, totalCapacity, opening, closing, owner_id
+        } = req.body;
 
-        res.json({ message: 'Restaurant updated successfully' });
-    } catch (err) {
-        console.error('Error updating restaurant:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        try {
+            const currentResult = await pool.query(
+                'SELECT image_filename FROM stores WHERE store_id = $1',
+                [id]
+            );
+
+            if (currentResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Restaurant not found' });
+            }
+
+            const currentRestaurant = currentResult.rows[0];
+            let imageFilename = currentRestaurant.image_filename;
+            let altText = `${storeName} restaurant image`;
+
+            if (req.file) {
+                if (currentRestaurant.image_filename) {
+                    const oldImagePath = path.join(__dirname, '../../frontend/static/img/restaurants', currentRestaurant.image_filename);
+                    try {
+                        if (fs.existsSync(oldImagePath)) {
+                            fs.unlinkSync(oldImagePath);
+                        }
+                    } catch (deleteErr) {
+                        console.warn('Failed to delete old image:', deleteErr);
+                    }
+                }
+                imageFilename = req.file.filename;
+            }
+
+            await pool.query(`
+          UPDATE stores SET
+              "storeName" = $1,
+              address = $2,
+              "postalCode" = $3,
+              cuisine = $4,
+              location = $5,
+              "priceRange" = $6,
+              "totalCapacity" = $7,
+              "currentCapacity" = $7,
+              opening = $8,
+              closing = $9,
+              owner_id = $10,
+              image_filename = $11,
+              image_alt_text = $12
+          WHERE store_id = $13
+      `, [
+                storeName, address, postalCode, cuisine, location,
+                priceRange, totalCapacity, opening, closing,
+                owner_id, imageFilename, altText, id
+            ]);
+
+            res.json({ message: 'Restaurant updated successfully' });
+        } catch (err) {
+            console.error('Error updating restaurant:', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
     }
-});
+);
 
 // UPDATED: Delete restaurant by id with file cleanup
 router.delete('/restaurants/:id', authenticateToken, requireAdmin, async (req, res) => {

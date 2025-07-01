@@ -162,9 +162,14 @@ function setupResetPasswordHandler() {
   if (resetForm) {
     resetForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-
+      const currentPassword = document.getElementById('currentPassword').value;
       const newPassword = document.getElementById('newPassword').value;
       const confirmPassword = document.getElementById('confirmPassword').value;
+
+      // if (currentPassword.length < 8 || currentPassword.length > 64) {
+      //   alert('Current Password ought to be within 8 to  64 characters long');
+      //   return;
+      // }
 
       if (newPassword !== confirmPassword) {
         alert('Passwords do not match.');
@@ -175,22 +180,31 @@ function setupResetPasswordHandler() {
         const response = await fetch('/api/user/reset-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newPassword })
+          body: JSON.stringify({ currentPassword, newPassword })
         });
+
+        let result;
+        try {
+          result = await response.json(); // Try parsing, but catch JSON parsing error
+        } catch (jsonError) {
+          result = {}; // fallback if no JSON returned
+        }
 
         if (response.ok) {
           alert('Password has been reset successfully! You will be logged out.');
           await fetch('/logout', { method: 'POST' });
           window.location.href = '/login';
         } else {
-          const result = await response.json();
-          if (result.errors && Array.isArray(result.errors)) {
+          if (result.error) {
+            alert(result.error); // ✅ Will catch "Current password is incorrect"
+          } else if (result.errors && Array.isArray(result.errors)) {
             const errorMessages = result.errors.map(err => err.msg).join('\n');
             alert(`Password requirements:\n${errorMessages}`);
           } else {
             alert('Failed to reset password. Please try again.');
           }
         }
+
       } catch (err) {
         console.error('Password reset failed:', err);
         alert('An error occurred while resetting the password.');

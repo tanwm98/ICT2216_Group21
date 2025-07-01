@@ -25,18 +25,21 @@ exports.registerValidator = [
   body('name')
     .trim()
     .matches(/^[A-Za-z0-9._-]+$/)
+    .isLength({ min: 2, max: 100 })
     .withMessage('Name must only contain letters, numbers, dot, dash, or underscore'),
 
   body('firstname')
     .trim()
     .escape()
     .matches(/^[A-Za-z]+$/)
+    .isLength({ min: 2, max: 100 })
     .withMessage('First name must be alphabetic'),
 
   body('lastname')
     .trim()
     .escape()
     .matches(/^[A-Za-z]+$/)
+    .isLength({ min: 2, max: 100 })
     .withMessage('Last name must be alphabetic'),
 
   body('role')
@@ -358,6 +361,7 @@ exports.userNameValidator = [
     .trim()
     .escape()
     .matches(/^[A-Za-z0-9._-]+$/)
+    .isLength({ min: 2, max: 100 })
     .withMessage('Username must only contain letters, numbers, dot, dash, or underscore.')
 ];
 
@@ -366,6 +370,7 @@ exports.userFirstNameValidator = [
     .trim()
     .escape()
     .matches(/^[A-Za-z]+$/)
+    .isLength({ min: 2, max: 100 })
     .withMessage('First name must only contain letters.')
 ];
 
@@ -374,6 +379,7 @@ exports.userLastNameValidator = [
     .trim()
     .escape()
     .matches(/^[A-Za-z]+$/)
+    .isLength({ min: 2, max: 100 })
     .withMessage('Last name must only contain letters.')
 ];
 

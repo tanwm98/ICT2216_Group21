@@ -7,6 +7,7 @@ const { updateRestaurantValidator, cancelReservationValidator } = require('../mi
 const handleValidation = require('../middleware/handleHybridValidation');
 const { decodeHtmlEntities, debugDecode } = require('../middleware/htmlDecoder');
 const session = require('express-session');
+const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 // Set up your transporter (configure with real credentials)
 const transporter = nodemailer.createTransport({
@@ -151,7 +152,17 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
 
 
 // ========== UPDATE EXISTING RESTAURANT ==========
-router.put('/restaurants/:id', updateRestaurantValidator, handleValidation, async (req, res) => {
+router.put('/restaurants/:id',   fieldLevelAccess([
+    'storeName',
+    'address',
+    'postalCode',
+    'location',
+    'cuisine',
+    'priceRange',
+    'totalCapacity',
+    'opening',
+    'closing'
+]), updateRestaurantValidator, handleValidation, async (req, res) => {
     const ownerId = req.user.userId;
     const restaurantId = req.params.id;
     const { storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing } = req.body;

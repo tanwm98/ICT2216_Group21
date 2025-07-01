@@ -3,7 +3,7 @@ const token = urlParams.get('token');
 
 document.getElementById('resetPasswordForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
+    const currentPassword = document.getElementById('current-password').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     const messageDiv = document.getElementById('resetMessage');
@@ -28,6 +28,7 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
             },
             body: JSON.stringify({
                 token,
+                currentPassword,
                 newPassword
             })
         });

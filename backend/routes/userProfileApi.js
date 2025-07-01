@@ -6,6 +6,7 @@ const { authenticateToken, requireUser } = require('../../frontend/js/token');
 
 const { userPasswordValidator, userNameValidator, userFirstNameValidator, userLastNameValidator, cancelReservationValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
+const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 router.use(authenticateToken, requireUser);
 
@@ -93,16 +94,46 @@ router.get('/reviews', async (req, res) => {
 // ======== Reset user password ======== 
 router.post('/reset-password', userPasswordValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
-  const { newPassword } = req.body;
-
+  const { currentPassword, newPassword } = req.body;
+  // Ensure user is logged in when performing change password
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
 
+  // Compare current password against saved hashed password
+  let isMatch;
+  let fetchedResult;
+  try {
+    fetchedResult = await pool.query('SELECT password FROM users WHERE user_id = $1', [userId]);
+    // if no password exists for some reason
+    if (fetchedResult.rows.length === 0) {
+      return res.status(401).json({ error: 'Error performing password reset.' });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+
+  const storedHashedPassword = fetchedResult.rows[0].password;
+  try{
+    isMatch = await argon2.verify(storedHashedPassword, currentPassword);
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+  if (!isMatch) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+
+  // Length checks
   if (!newPassword || newPassword.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
   }
 
+  if (!newPassword || newPassword.length > 64) {
+    return res.status(400).json({ error: 'Password must be less than 64 characters long.' });
+  }
+
+  // Update to new password
   try {
     const hashedPassword = await argon2.hash(newPassword);
 
