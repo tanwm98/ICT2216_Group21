@@ -132,7 +132,7 @@ jobs:
           timeout 60 bash -c 'until curl -k -f https://localhost/api/health >/dev/null 2>&1; do sleep 2; done'
           
           echo "✅ Services are ready!"
-          docker-compose -f docker/test.yml ps
+          docker compose -f docker/test.yml ps
 
       - name: 🏥 Health check
         run: |
