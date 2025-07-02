@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../../db');
 const { logSecurity } = require('../../backend/logger'); // ADD THIS LINE
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const token = req.cookies.token; // token stored in cookie
 
   if (!token) {
@@ -10,10 +11,30 @@ function authenticateToken(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = payload; // attach payload (userId, role, name) to request
+    const userId = payload.userId;
+
+    // Real-time lookup from DB to check if user still exists and is authorized
+    const result = await pool.query(
+        'SELECT user_id, role, name FROM users WHERE user_id = $1',
+        [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'Forbidden - User no longer exists' });
+    }
+
+    const user = result.rows[0];
+
+    // Ensure the role and name haven't been revoked or changed to unauthorized
+    req.user = {
+      userId: user.user_id,
+      role: user.role,
+      name: user.name
+    };
+
     next();
   } catch (err) {
-    return res.status(403).json({ message: 'Forbidden: Invalid token' });
+    return res.status(403).json({ message: 'Forbidden - Invalid or expired token' });
   }
 }
 
@@ -42,7 +63,6 @@ function requireRole(allowedRoles) {
       error.statusCode = 403;
       return next(error);
     }
-
     next();
   };
 }
