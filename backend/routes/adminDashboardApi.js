@@ -543,6 +543,7 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
 router.put(
     '/users/:id',
     fieldLevelAccess(['name', 'email', 'role', 'firstname', 'lastname']),
+    requireRecentReauth,
     [
         userNameValidator,
         userFirstNameValidator,
@@ -851,7 +852,7 @@ router.put(
     upload.single('image'),
     validateUploadedImage,
     fieldLevelAccess(['storeName', 'address', 'postalCode', 'cuisine', 'location', 'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id']),
-
+    requireRecentReauth,
     updateRestaurantValidator,
     handleValidation,
     async (req, res) => {

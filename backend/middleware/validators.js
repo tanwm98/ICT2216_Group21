@@ -192,9 +192,9 @@ exports.restaurantAddValidator = [
     .withMessage('Location must only contain letters'),
 
   body('cuisine')
-    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese'])
-    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese or Japanese'),
-
+    .isIn(['Chinese', 'Italian', 'Japanese', 'Thai', 'Indian', 'Mexican', 'French', 'Greek', 'Korean', 'Vietnamese', 'Western', 'Local', 'Other'])
+    .withMessage('Invalid Cuisine Type'),
+    
   body('priceRange')
     .isIn(['$', '$$', '$$$', '$$$$', '$$$$$'])
     .withMessage('Price range must be one of $, $$, $$$, $$$$, $$$$$'),
@@ -272,8 +272,8 @@ exports.updateRestaurantValidator = [
     .withMessage('Location must only contain letters'),
 
   body('cuisine')
-    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese'])
-    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese or Japanese'),
+    .isIn(['Chinese', 'Italian', 'Japanese', 'Thai', 'Indian', 'Mexican', 'French', 'Greek', 'Korean', 'Vietnamese', 'Western', 'Local', 'Other'])
+    .withMessage('Invalid Cuisine Type'),
 
   body('priceRange')
     .isIn(['$', '$$', '$$$', '$$$$', '$$$$$'])
