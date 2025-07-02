@@ -29,6 +29,8 @@ app.use(session({
     resave: false,
     saveUninitialized: false
 }));
+// Then rate limiter uses req.user if available
+app.use(createRateLimiter());
 
 // Serve frontend static files
 app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
@@ -41,7 +43,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(sanitizeInput);    // Sanitize all incoming data
 app.use(sanitizeOutput);   // Sanitize all outgoing responses
-
 
 // import route files
 const authRoutes = require('./backend/routes/authApi')

@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { sanitizeInput, sanitizeSpecificFields } = require('../middleware/sanitization');
 const { upload, validateUploadedImage } = require('../middleware/fileUploadValidation');
+const { requireRecentReauth } = require('../middleware/requireReauth');
 const mime = require('mime-types');
 const argon2 = require('argon2');
 const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
@@ -73,7 +74,7 @@ router.get('/pending-restaurants', authenticateToken, requireAdmin, async (req, 
     }
 });
 
-router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, requireRecentReauth, async (req, res) => {
     try {
         const storeId = parseInt(req.params.id);
         const adminId = req.user.userId;
@@ -158,7 +159,7 @@ router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, async (r
     }
 });
 
-router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRecentReauth, async (req, res) => {
     try {
         const storeId = parseInt(req.params.id);
         const adminId = req.user.userId;
@@ -377,25 +378,36 @@ router.get('/users', async (req, res) => {
 
 // Add a new user (default password Pass123)
 router.post(
-    '/users',
-    fieldLevelAccess(['name', 'email', 'role', 'fname', 'lname']),
-    addUserValidator,
-    handleValidation,
-    async (req, res) => {
-        const { name, email, role, fname, lname } = req.body;
-        try {
-            const password = 'Pass123';
-            const hashedPassword = await argon2.hash(password);
-            await pool.query(
-                'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
-                [name, email, hashedPassword, role, fname, lname]
-            );
-            res.status(201).json({ message: 'User added successfully' });
-        } catch (err) {
-            console.error('Error adding user:', err);
-            res.status(500).json({ error: 'Server error' });
-        }
+  '/users',
+  fieldLevelAccess(['name', 'email', 'role', 'fname', 'lname']),
+  addUserValidator,
+  handleValidation,
+  requireRecentReauth,
+  async (req, res) => {
+    const { name, email, role, fname, lname } = req.body;
+    try {
+      console.log('[ADD USER] Request body:', { name, email, role, fname, lname });
+
+      const password = 'Pass123';
+      const hashedPassword = await argon2.hash(password);
+
+      const result = await pool.query(
+        'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6)',
+        [name, email, hashedPassword, role, fname, lname]
+      );
+
+      console.log('[ADD USER] User inserted:', result.rowCount);
+      res.status(201).json({ message: 'User added successfully' });
+
+    } catch (err) {
+      console.error('[ADD USER ERROR]', {
+        message: err.message,
+        stack: err.stack,
+        detail: err.detail || null
+      });
+      res.status(500).json({ error: 'Server error', detail: err.detail || err.message });
     }
+  }
 );
 
 // Delete user by id
@@ -757,7 +769,7 @@ router.get('/owners', async (req, res) => {
 //     }
 // });
 
-router.post('/restaurants', upload.single('image'), validateUploadedImage, restaurantAddValidator, handleValidation, async (req, res) => {
+router.post('/restaurants', upload.single('image'), validateUploadedImage, requireRecentReauth, restaurantAddValidator, handleValidation, async (req, res) => {
   const {
     owner_id, storeName, address, postalCode, location,
     cuisine, priceRange, totalCapacity,
@@ -839,6 +851,7 @@ router.put(
     upload.single('image'),
     validateUploadedImage,
     fieldLevelAccess(['storeName', 'address', 'postalCode', 'cuisine', 'location', 'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id']),
+
     updateRestaurantValidator,
     handleValidation,
     async (req, res) => {
@@ -1169,6 +1182,25 @@ router.get('/pending-actions', async (req, res) => {
   } catch (err) {
     console.error('Error fetching pending actions:', err);
     res.status(500).json({ error: 'Failed to fetch pending actions' });
+  }
+});
+
+router.post('/reauthenticate', authenticateToken, async (req, res) => {
+  const { password } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const result = await pool.query('SELECT password FROM users WHERE user_id = $1', [userId]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const isMatch = await argon2.verify(result.rows[0].password, password);
+    if (!isMatch) return res.status(401).json({ error: 'Incorrect password' });
+
+    req.session.lastVerified = Date.now(); 
+    res.json({ message: 'Reauthenticated successfully' });
+  } catch (err) {
+    console.error('Reauth error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
