@@ -97,7 +97,11 @@ router.post('/reset-password', userPasswordValidator, handleValidation, async (r
   const { currentPassword, newPassword } = req.body;
   // Ensure user is logged in when performing change password
   if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized. Please log in.' });
+    return res.status(401).json({ error: 'Please log in first.' });
+  }
+
+  if (req.user.userId !== parseInt(req.params.id)) {
+    return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
   }
 
   // Compare current password against saved hashed password

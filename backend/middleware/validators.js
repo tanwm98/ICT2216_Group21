@@ -98,8 +98,8 @@ exports.ownerValidator = [
     .withMessage('Postal code must be a 6-digit number'),
 
   body('cuisine')
-    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese'])
-    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese or Japanese'),
+    .isIn(['Asian', 'Asian Fusion', 'Korean', 'Western', 'Italian', 'Chinese', 'Japanese', 'Others'])
+    .withMessage('Cuisine must be one of Asian, Asian Fusion, Korean, Western, Italian, Chinese, Japanese, or Others'),
 
   body('location')
     .trim()

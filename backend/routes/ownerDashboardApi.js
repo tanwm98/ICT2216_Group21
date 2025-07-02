@@ -42,7 +42,7 @@ router.get('/restaurants', async (req, res) => {
 });
 
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
-router.get('/reservations/:ownerId', async (req, res) => {
+router.get('/reservations/:ownerId', authenticateToken, async (req, res) => {
     const ownerId = req.user.userId;
 
     try {
@@ -69,27 +69,7 @@ router.get('/reservations/:ownerId', async (req, res) => {
 });
 
 // ========== CANCEL RESERVATION ==========
-// router.put('/reservations/:id/cancel', async (req, res) => {
-//     try {
-//         const reservationId = req.params.id;
-
-//         const result = await pool.query(
-//             `UPDATE reservations SET status = 'cancelled' WHERE reservation_id = $1 RETURNING *`,
-//             [reservationId]
-//         );
-
-//         if (result.rowCount === 0) {
-//             return res.status(404).json({ error: 'Reservation not found' });
-//         }
-
-//         res.json({ message: 'Reservation cancelled', reservation: result.rows[0] });
-//     } catch (err) {
-//         console.error('Error cancelling reservation:', err);
-//         res.status(500).json({ error: 'Failed to cancel reservation' });
-//     }
-// });
-
-router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
+router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValidator, handleValidation, async (req, res) => {
     try {
         const reservationId = req.params.id;
         const result = await pool.query(`
@@ -162,7 +142,7 @@ router.put('/restaurants/:id',   fieldLevelAccess([
     'totalCapacity',
     'opening',
     'closing'
-]), updateRestaurantValidator, handleValidation, async (req, res) => {
+]), authenticateToken, updateRestaurantValidator, handleValidation, async (req, res) => {
     const ownerId = req.user.userId;
     const restaurantId = req.params.id;
     const { storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing } = req.body;
@@ -187,7 +167,7 @@ router.put('/restaurants/:id',   fieldLevelAccess([
 });
 
 // ========== GET REVIEWS FOR OWNER'S RESTAURANTS ==========
-router.get('/reviews/:ownerId', async (req, res) => {
+router.get('/reviews/:ownerId', authenticateToken, async (req, res) => {
   const ownerId = req.user.userId;
 
   try {
