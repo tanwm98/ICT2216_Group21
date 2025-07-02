@@ -101,7 +101,7 @@ router.post('/reset-password', userPasswordValidator, handleValidation, async (r
   }
 
   if (req.user.userId !== parseInt(req.params.id)) {
-    return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
+    return res.status(403).json({ error: 'Forbidden - You can only access your own data' });
   }
 
   // Compare current password against saved hashed password

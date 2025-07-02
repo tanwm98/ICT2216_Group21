@@ -42,7 +42,7 @@ router.get('/restaurants', async (req, res) => {
 });
 
 // ========== GET RESERVATIONS FOR OWNER'S RESTAURANTS ==========
-router.get('/reservations/:ownerId', authenticateToken, async (req, res) => {
+router.get('/reservations/:ownerId', async (req, res) => {
     const ownerId = req.user.userId;
 
     try {
@@ -167,7 +167,7 @@ router.put('/restaurants/:id',   fieldLevelAccess([
 });
 
 // ========== GET REVIEWS FOR OWNER'S RESTAURANTS ==========
-router.get('/reviews/:ownerId', authenticateToken, async (req, res) => {
+router.get('/reviews/:ownerId', async (req, res) => {
   const ownerId = req.user.userId;
 
   try {
