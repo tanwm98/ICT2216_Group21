@@ -429,50 +429,47 @@ function showRejectSection() {
 }
 
 async function approveRestaurant(restaurantId) {
-    if (!confirm('Are you sure you want to approve this restaurant? It will go live immediately.')) {
-        return;
-    }
+    if (!confirm('Are you sure you want to approve this restaurant?')) return;
 
     try {
-        const response = await fetch(`/api/admin/approve-restaurant/${restaurantId}`, {
-            method: 'POST'
-        });
+        const response = await callSensitiveJson(`/api/admin/approve-restaurant/${restaurantId}`, 'POST');
 
         if (!response.ok) {
-            throw new Error('Failed to approve restaurant');
+            const result = await response.json();
+            throw new Error(result.error || 'Failed to approve restaurant');
         }
 
         const result = await response.json();
-        alert('Restaurant approved successfully! The owner has been notified.');
+        alert(result.message);
         closeReviewModal();
         loadPendingRestaurants();
+
     } catch (error) {
         console.error('Error approving restaurant:', error);
-        alert('Failed to approve restaurant');
+        alert(error.message);
     }
 }
 
 async function rejectRestaurant(restaurantId, reason) {
     try {
-        const response = await fetch(`/api/admin/reject-restaurant/${restaurantId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ rejection_reason: reason })
-        });
+        const response = await callSensitiveJson(
+            `/api/admin/reject-restaurant/${restaurantId}`,
+            'POST',
+            { rejection_reason: reason }
+        );
 
         if (!response.ok) {
-            throw new Error('Failed to reject restaurant');
+            const result = await response.json();
+            throw new Error(result.error || 'Failed to reject restaurant');
         }
 
         const result = await response.json();
-        alert('Restaurant rejected. The owner has been notified with the feedback.');
+        alert(result.message);
         closeReviewModal();
         loadPendingRestaurants();
     } catch (error) {
         console.error('Error rejecting restaurant:', error);
-        alert('Failed to reject restaurant');
+        alert(error.message);
     }
 }
 
@@ -516,74 +513,68 @@ function resetUserForm() {
 }
 
 async function submitRestaurantForm() {
-    const form = document.getElementById('restaurantForm');
-    const formData = new FormData(form);
-    const restaurantId = document.getElementById('restaurantId').value;
-    
-    // Add owner_id to formData
-    formData.append('owner_id', document.getElementById('ownerSelect').value);
-    
-    try {
-        const url = restaurantId ? `/api/admin/restaurants/${restaurantId}` : '/api/admin/restaurants';
-        const method = restaurantId ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to save restaurant');
-        }
-        
-        const result = await response.json();
-        alert(result.message || 'Restaurant saved successfully!');
-        closeModal();
-        loadRestaurants();
-    } catch (error) {
-        console.error('Error saving restaurant:', error);
-        alert('Failed to save restaurant');
+  const form = document.getElementById('restaurantForm');
+  const formData = new FormData(form);
+  const restaurantId = document.getElementById('restaurantId').value;
+
+  // Add owner_id to formData
+  formData.append('owner_id', document.getElementById('ownerSelect').value);
+
+  try {
+    const url = restaurantId
+      ? `/api/admin/restaurants/${restaurantId}`
+      : '/api/admin/restaurants';
+    const method = restaurantId ? 'PUT' : 'POST';
+
+    const response = await callSensitiveJson(url, method, formData, true); // <-- use this
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || result.message || 'Failed to save restaurant');
     }
+
+    alert(result.message || 'Restaurant saved successfully!');
+    closeModal();
+    loadRestaurants();
+  } catch (error) {
+    console.error('Error saving restaurant:', error);
+    alert(`Failed to save restaurant: ${error.message}`);
+  }
 }
+
 
 async function submitUserForm() {
     const form = document.getElementById('userForm');
     const formData = new FormData(form);
     const userId = document.getElementById('userId').value;
-    
+
     const userData = {
         name: formData.get('name'),
         firstname: formData.get('firstname'),
         lastname: formData.get('lastname'),
         email: formData.get('email'),
         role: formData.get('role'),
-        fname: formData.get('firstname'), // Backend expects fname
-        lname: formData.get('lastname')   // Backend expects lname
+        fname: formData.get('firstname'),
+        lname: formData.get('lastname')
     };
-    
+
+    const url = userId ? `/api/admin/users/${userId}` : '/api/admin/users';
+    const method = userId ? 'PUT' : 'POST';
+
     try {
-        const url = userId ? `/api/admin/users/${userId}` : '/api/admin/users';
-        const method = userId ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(userData)
-        });
-        
+        const response = await callSensitiveJson(url, method, userData);
         if (!response.ok) {
-            throw new Error('Failed to save user');
+            const result = await response.json();
+            throw new Error(result.message || 'Failed to save user');
         }
-        
+
         const result = await response.json();
         alert(result.message || 'User saved successfully!');
         closeUserModal();
         loadUsers();
     } catch (error) {
         console.error('Error saving user:', error);
-        alert('Failed to save user');
+        alert(`Failed to save user: ${error.message}`);
     }
 }
 
@@ -947,6 +938,77 @@ function setupEventListeners() {
         });
     }
 }
+
+async function callSensitiveJson(url, method = 'POST', body = null, isFormData = false) {
+  let headers = isFormData ? undefined : { 'Content-Type': 'application/json' };
+
+  let response = await fetch(url, {
+    method,
+    headers,
+    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
+  });
+
+  if (response.status === 401) {
+    return new Promise((resolve, reject) => {
+      showReauthModal(async () => {
+        try {
+          // Retry original request after successful modal reauth
+          const retryResponse = await fetch(url, {
+            method,
+            headers,
+            body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
+          });
+          resolve(retryResponse);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+  }
+
+  return response;
+}
+
+let reauthCallback = null;
+
+function showReauthModal(callback) {
+  reauthCallback = callback;
+  document.getElementById('reauthPassword').value = '';
+  document.getElementById('reauthModal').classList.remove('hidden');
+  document.getElementById('reauthPassword').focus();
+}
+
+function closeReauthModal() {
+  document.getElementById('reauthModal').classList.add('hidden');
+  reauthCallback = null;
+}
+
+document.getElementById('reauthForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const password = document.getElementById('reauthPassword').value;
+
+  try {
+    const res = await fetch('/api/admin/reauthenticate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+
+    if (!res.ok) {
+      alert('Incorrect password.');
+      return;
+    }
+
+    closeReauthModal();
+    if (reauthCallback) reauthCallback();
+
+  } catch (err) {
+    console.error('Reauth failed:', err);
+    alert('Reauthentication failed');
+  }
+});
+
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();

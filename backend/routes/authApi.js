@@ -144,6 +144,8 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
         const isMatch = await argon2.verify(user.password, password);
 
         if (isMatch) {
+            // Reauthentication flag
+            req.session.lastVerified = Date.now();
             // Create JWT token
             const token = jwt.sign(
                 {

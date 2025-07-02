@@ -169,11 +169,12 @@ function sanitizeFieldByType(fieldName, value) {
 /**
  * Rate limiting middleware for sensitive operations
  */
-function createRateLimiter(maxAttempts = 10, timeWindow = 60000) { // 10 attempts per minute
+function createRateLimiter(maxAttempts = 200, timeWindow = 60000) { // 10 attempts per minute
     const attempts = new Map();
 
     return (req, res, next) => {
-        const identifier = req.ip + (req.user?.userId || 'anonymous');
+        const userId = req.user?.userId;
+        const identifier = userId ? `user:${userId}` : `ip:${req.ip}`;
         const now = Date.now();
 
         // Clean old attempts
@@ -197,6 +198,7 @@ function createRateLimiter(maxAttempts = 10, timeWindow = 60000) { // 10 attempt
         // Record this attempt
         userAttempts.push(now);
         attempts.set(identifier, userAttempts);
+        console.log(`[RateLimiter] ${identifier} has ${userAttempts.length} attempts`);
 
         next();
     };
