@@ -14,7 +14,7 @@ test.describe('User Authentication Flow', () => {
     
     // Fill login form with valid credentials
     await page.getByLabel('Email').fill('test123@gmail.com');
-    await page.getByLabel('Password').fill('i love phainon');
+    await page.getByLabel('Password').fill('1234qwer');
     
     // Submit login form
     await page.getByRole('button', { name: 'Log in' }).click();
