@@ -137,10 +137,12 @@ router.post('/reset-password', userPasswordValidator, handleValidation, async (r
   try {
     const hashedPassword = await argon2.hash(newPassword);
 
+    // Increment token_version to invalidate old tokens
     await pool.query(
-      'UPDATE users SET password = $1 WHERE user_id = $2',
+      `UPDATE users SET password = $1, token_version = token_version + 1 WHERE user_id = $2`,
       [hashedPassword, userId]
     );
+    res.clearCookie('token'); 
 
     res.json({ message: 'Password reset successful.' });
   } catch (err) {

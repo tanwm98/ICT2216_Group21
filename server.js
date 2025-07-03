@@ -71,12 +71,18 @@ app.get('/', authenticateToken, (req, res) => {
     }
 });
 
-app.get('/api/session', (req, res) => {
+app.get('/api/session', async (req, res) => {
      const token = req.cookies.token;
     if (!token) return res.json({ loggedIn: false });
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const result = await pool.query('SELECT token_version FROM users WHERE user_id = $1', [decoded.userId]);
+
+        if (result.rows.length === 0 || result.rows[0].token_version !== decoded.tokenVersion) {
+            return res.json({ loggedIn: false });
+        }
+
         res.json({
             loggedIn: true,
             userId: decoded.userId,

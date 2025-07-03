@@ -513,6 +513,14 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
         return res.status(404).json({ error: 'User not found during deletion.' });
       }
 
+      if (parseInt(id) === req.user.userId) {
+        console.log(`[SESSION] Terminating session for user ${id}`);
+        req.session.destroy(() => {
+          res.clearCookie('token');
+          console.log('[SESSION] JWT cookie cleared after self-deletion');
+        });
+      }
+
       await pool.query(`DELETE FROM pending_actions WHERE target_type = 'user' AND target_id = $1`, [id]);
 
       await pool.query(`UPDATE pending_actions SET approved_by = $1, status = 'approved' WHERE action_id = $2`, [updatedApprovals, action.action_id]);
@@ -648,7 +656,7 @@ router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async 
         const updatedApprovals = [...approved_by, requestedBy];
         if (updatedApprovals.length >= 2) {
           const hashedPassword = await argon2.hash('Pass123');
-          await pool.query('UPDATE users SET password = $1 WHERE user_id = $2', [hashedPassword, id]);
+          await pool.query('UPDATE users SET password = $1, token_version = token_version + 1 WHERE user_id = $2', [hashedPassword, id]);
 
           await pool.query(`
             UPDATE pending_actions 
@@ -684,7 +692,7 @@ router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async 
 
     // For normal users: reset immediately
     const hashedPassword = await argon2.hash('Pass123');
-    await pool.query('UPDATE users SET password = $1 WHERE user_id = $2', [hashedPassword, id]);
+    await pool.query('UPDATE users SET password = $1, token_version = token_version + 1 WHERE user_id = $2', [hashedPassword, id]);
     return res.json({ message: 'Password reset to default.' });
 
   } catch (err) {
@@ -1202,6 +1210,26 @@ router.post('/reauthenticate', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Reauth error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/users/:id/force-logout', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET token_version = token_version + 1 WHERE user_id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User session terminated.' });
+  } catch (err) {
+    console.error('Error during force logout:', err);
+    res.status(500).json({ error: 'Failed to force logout user.' });
   }
 });
 

@@ -244,13 +244,19 @@ async function loadUsers() {
             deleteBtn.addEventListener('click', () => deleteUser(user.user_id));
             
             const resetBtn = document.createElement('button');
-            resetBtn.className = 'btn btn-sm btn-info';
+            resetBtn.className = 'btn btn-sm btn-info me-2';
             resetBtn.textContent = 'Reset Pass';
             resetBtn.addEventListener('click', () => resetUserPassword(user.user_id));
+
+            const logoutBtn = document.createElement('button');
+            logoutBtn.className = 'btn btn-sm btn-secondary';
+            logoutBtn.textContent = 'Kick';
+            logoutBtn.addEventListener('click', () => terminateSession(user.user_id));
             
             actionsCell.appendChild(editBtn);
             actionsCell.appendChild(deleteBtn);
             actionsCell.appendChild(resetBtn);
+            actionsCell.appendChild(logoutBtn);
             row.appendChild(actionsCell);
             
             tbody.appendChild(row);
@@ -1008,6 +1014,26 @@ document.getElementById('reauthForm').addEventListener('submit', async (e) => {
   }
 });
 
+async function terminateSession(userId) {
+  if (!confirm("Force logout this user? This will invalidate their session immediately.")) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${userId}/force-logout`, {
+      method: 'POST'
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || data.message || 'Failed to logout user');
+    }
+
+    alert(data.message || 'User session terminated successfully.');
+  } catch (err) {
+    console.error('Force logout failed:', err);
+    alert('Error terminating session.');
+  }
+}
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
