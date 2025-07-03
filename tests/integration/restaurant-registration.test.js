@@ -17,8 +17,8 @@ test.describe('Restaurant Owner Registration', () => {
     await page.getByLabel('Last Name').fill('Owner');
     const testEmail = `testowner+${Date.now()}@example.com`;
     await page.getByLabel('Email Address').fill(testEmail);
-    await page.getByLabel('Password', { exact: true }).fill('TestPass123');
-    await page.getByLabel('Confirm Password').fill('TestPass123');
+    await page.getByLabel('Password', { exact: true }).fill('i love phainon');
+    await page.getByLabel('Confirm Password').fill('i love phainon');
     
     // Fill restaurant information
     await page.getByLabel('Restaurant Name').fill('Test Restaurant');
