@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../../db');
 const { logSecurity } = require('../../backend/logger'); // ADD THIS LINE
-const pool = require('../../db'); 
 
 async function authenticateToken(req, res, next) {
   const token = req.cookies.token; // token stored in cookie
