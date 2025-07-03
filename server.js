@@ -72,40 +72,31 @@ app.get('/', authenticateToken, (req, res) => {
 });
 
 app.get('/api/session', async (req, res) => {
-  const token = req.cookies.token;
-  if (!token) return res.json({ loggedIn: false }); // anonymous user
+     const token = req.cookies.token;
+    if (!token) return res.json({ loggedIn: false });
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const result = await pool.query(
-      'SELECT token_version FROM users WHERE user_id = $1',
-      [decoded.userId]
-    );
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const result = await pool.query('SELECT token_version FROM users WHERE user_id = $1', [decoded.userId]);
 
-    if (result.rows.length === 0) {
-      return res.status(403).json({ message: 'Session invalidated. Please re-login.' });
+        if (result.rows.length === 0 || result.rows[0].token_version !== decoded.tokenVersion) {
+            return res.json({ loggedIn: false });
+        }
+
+        res.json({
+            loggedIn: true,
+            userId: decoded.userId,
+            role: decoded.role,
+            permissions: {
+                canAccessAdmin: decoded.role === 'admin',
+                canAccessOwner: ['owner', 'admin'].includes(decoded.role),
+                canAccessUser: decoded.role === 'user'
+            }
+        });
+    } catch {
+        res.json({ loggedIn: false });
     }
-
-    const currentVersion = result.rows[0].token_version;
-    if (decoded.tokenVersion !== currentVersion) {
-      return res.status(403).json({ message: 'Session invalidated. Please re-login.' });
-    }
-
-    res.json({
-      loggedIn: true,
-      userId: decoded.userId,
-      role: decoded.role,
-      permissions: {
-        canAccessAdmin: decoded.role === 'admin',
-        canAccessOwner: ['owner', 'admin'].includes(decoded.role),
-        canAccessUser: decoded.role === 'user'
-      }
-    });
-  } catch {
-    return res.status(403).json({ message: 'Session invalidated. Please re-login.' });
-  }
 });
-
 
 app.get('/api/session/validation-errors', (req, res) => {
   const errors = req.session.validationErrors || [];

@@ -3,31 +3,25 @@ async function checkSession() {
 
   try {
     const res = await fetch('/api/session');
+    console.log('[SESSION] Response status:', res.status);
+
     const data = await res.json();
+    console.log('[SESSION] Response data:', data);
 
-    console.log('[SESSION] Response:', data);
-
-    // Case A: user is logged in but token is invalid → redirect
-    if (res.status === 403 || data.message === "Session invalidated. Please re-login.") {
-      console.warn('[SESSION] Logged-in user’s token is invalid → redirecting to login');
+    if (!data.loggedIn) {
+      console.warn('[SESSION] Invalid session detected. Redirecting...');
       document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       window.location.href = '/login?expired=1';
       return;
     }
 
-    // Case B: not logged in → allow access (anonymous user)
-    if (!data.loggedIn) {
-      console.info('[SESSION] No active login. Anonymous browsing allowed.');
-      return;
-    }
-
-    console.info('[SESSION] Valid session for:', data.userId);
+    console.log('[SESSION] Session is valid. User ID:', data.userId, 'Role:', data.role);
   } catch (err) {
-    console.error('[SESSION] Session check error:', err);
-    // Optional: fallback redirect only if needed
-    // window.location.href = '/login?error=session_check';
+    console.error('[SESSION] Error while checking session:', err);
+    window.location.href = '/login?error=session_check';
   }
 }
+
 
 // Run check on load + every 30s
 document.addEventListener('DOMContentLoaded', () => {
