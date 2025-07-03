@@ -152,8 +152,7 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 {
                     userId: user.user_id,
                     role: user.role,
-                    name: user.name,
-                    tokenVersion: user.token_version
+                    name: user.name
                 },
                 process.env.JWT_SECRET,
                 { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../../db');
 const { logSecurity } = require('../../backend/logger'); // ADD THIS LINE
 
-async function authenticateToken(req, res, next) {
+function authenticateToken(req, res, next) {
   const token = req.cookies.token; // token stored in cookie
 
   if (!token) {
@@ -11,19 +11,6 @@ async function authenticateToken(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(payload);
-    
-    const result = await pool.query('SELECT user_id, token_version FROM users WHERE user_id = $1', [payload.userId]);
-
-    if (result.rows.length === 0) {
-      return res.status(403).json({ message: 'User account no longer exists' });
-    }
-
-    const currentTokenVersion = result.rows[0].token_version;
-    if (payload.tokenVersion !== currentTokenVersion) {
-      return res.status(403).json({ message: 'Session invalidated. Please re-login.' });
-    }
-    
     req.user = payload; // attach payload (userId, role, name) to request
     next();
   } catch (err) {
