@@ -92,7 +92,7 @@ router.get('/reviews', async (req, res) => {
 });
 
 
-// ======== Reset user password ======== 
+// ======== Authenticated User Change password ========
 router.post('/reset-password', userPasswordValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
   const { currentPassword, newPassword } = req.body;
@@ -100,11 +100,7 @@ router.post('/reset-password', userPasswordValidator, handleValidation, async (r
   if (!userId) {
     return res.status(401).json({ error: 'Please log in first.' });
   }
-
-  if (req.user.userId !== parseInt(req.params.id)) {
-    return res.status(403).json({ error: 'Forbidden - You can only access your own data' });
-  }
-
+  
   // Compare current password against saved hashed password
   let isMatch;
   let fetchedResult;
