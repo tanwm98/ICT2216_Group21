@@ -564,6 +564,10 @@ router.put(
         const { id } = req.params;
         const { name, email, role, firstname, lastname } = req.body;
         try {
+            const checkUser = await pool.query('SELECT user_id FROM users WHERE user_id = $1', [id]);
+            if (checkUser.rowCount === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
             await pool.query(
                 'UPDATE users SET name = $1, email = $2, role = $3, firstname = $4, lastname = $5 WHERE user_id = $6',
                 [name, email, role, firstname, lastname, id]
@@ -871,16 +875,17 @@ router.put(
         } = req.body;
 
         try {
-            const currentResult = await pool.query(
-                'SELECT image_filename FROM stores WHERE store_id = $1',
-                [id]
-            );
-
-            if (currentResult.rows.length === 0) {
+            const storeCheck = await pool.query('SELECT owner_id, image_filename FROM stores WHERE store_id = $1', [id]);
+            if (storeCheck.rowCount === 0) {
                 return res.status(404).json({ error: 'Restaurant not found' });
             }
+            // Logging IDOR attempts
+            const currentRestaurant = storeCheck.rows[0];
+            if (req.user.role !== 'admin' && currentRestaurant.owner_id !== req.user.userId) {
+                logSecurity(`IDOR attempt: user ${req.user.userId} tried to update store ${id}`);
+                return res.status(403).json({ error: 'Unauthorized to update this restaurant' });
+            }
 
-            const currentRestaurant = currentResult.rows[0];
             let imageFilename = currentRestaurant.image_filename;
             let altText = `${storeName} restaurant image`;
 
@@ -1042,6 +1047,13 @@ router.delete('/restaurants/:id', authenticateToken, requireAdmin, async (req, r
 
 // ======== REVIEWS ========
 router.get('/reviews', async (req, res) => {
+    const requestedOwnerId = req.params.ownerId;
+    const authenticatedOwnerId = req.user.userId;
+
+    if (requestedOwnerId !== authenticatedOwnerId) {
+        return res.status(403).json({ error: 'Forbidden: Access to reviews is restricted to the authenticated owner.' });
+    }
+
     try {
         const result = await pool.query(`
             SELECT
@@ -1107,9 +1119,10 @@ router.get('/reservations', async (req, res) => {
 // });
 
 router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
+    const reservationId = req.params.id;
+    const ownerId = req.user.userId;
     try {
-        const reservationId = req.params.id;
-
+        // Securely verify ownership before allowing cancellation
         // Fetch reservation details, user email, and store name
         const result = await pool.query(
             `SELECT r.*, u.email AS user_email, u.name AS user_name, s."storeName"
@@ -1126,6 +1139,11 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
         }
 
         const reservation = result.rows[0];
+
+        // Check if the reservation belongs to a restaurant owned by the user (IDOR)
+        if (reservation.owner_id !== ownerId) {
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to cancel this reservation.' });
+        }
 
         // Cancel the reservation
         await pool.query(

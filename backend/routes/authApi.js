@@ -16,6 +16,7 @@ const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
 const { sanitizeInput } = require('../middleware/sanitization');
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
+const { isBreachedPassword } = require('../utils/breachCheck');
 
 //const AppError = require('../AppError'); 
 
@@ -213,6 +214,15 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
 
         validatePassword(password);
 
+        // check password not in breach
+        if (await isBreachedPassword(password)) {
+            logAuth('registration', false, {
+                email: email,
+                reason: 'breached_password'
+            }, req);
+            throw new AppError('Chosen password has appeared in a data breach. Please choose another.', 400);
+        }
+
         const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
 
         if (existingUser.rows.length > 0) {
@@ -300,6 +310,15 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
 
         // Validate password strength (throws if invalid)
         validatePassword(password);
+
+        // check password not in breach
+        if (await isBreachedPassword(password)) {
+            logAuth('owner_registration', false, {
+                email: email,
+                reason: 'breached_password'
+            }, req);
+            throw new AppError('This password has appeared in a data breach. Please choose another.', 400);
+        }
 
         // Check if email already exists BEFORE starting transaction
         const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../../db');
 const { logSecurity } = require('../../backend/logger'); // ADD THIS LINE
 const pool = require('../../db'); 
 
@@ -27,7 +28,7 @@ async function authenticateToken(req, res, next) {
     req.user = payload; // attach payload (userId, role, name) to request
     next();
   } catch (err) {
-    return res.status(403).json({ message: 'Forbidden: Invalid token' });
+    return res.status(403).json({ message: 'Forbidden - Invalid or expired token' });
   }
 }
 
@@ -56,7 +57,6 @@ function requireRole(allowedRoles) {
       error.statusCode = 403;
       return next(error);
     }
-
     next();
   };
 }

@@ -2,13 +2,23 @@
   "cookies": [
     {
       "name": "token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsIm5hbWUiOiJhZG1pbiIsImlhdCI6MTc1MTM5MTg2OSwiZXhwIjoxNzUxMzk1NDY5fQ.XXAEx6BFTrAkw3mB26YEnkqsCj13-6vOJWoqd84Fd5Q",
-      "domain": "https://localhost",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsIm5hbWUiOiJhZG1pbiIsImlhdCI6MTc1MTU0MjI5MCwiZXhwIjoxNzUxNTQ1ODkwfQ.PG_-RyDqZDRjcFMSs4KE570znJitR0VmGKsaSZkBgjw",
+      "domain": "localhost",
       "path": "/",
-      "expires": 1751395468.891727,
+      "expires": 1751545890.400194,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Strict"
+    },
+    {
+      "name": "connect.sid",
+      "value": "s%3AP_dR6K8tDlARLdjzyLrji8J75A18RsiQ.DP0ugP9cfe3ir7IPS3m%2BWwfWMj4OCF6Z1PgEiqBK4gI",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
     }
   ],
   "origins": []
