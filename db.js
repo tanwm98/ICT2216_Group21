@@ -1,31 +1,24 @@
 require('dotenv').config();
-const { Pool } = require('pg');
+const knex = require('knex');
+const config = require('./knexfile');
 
-// Create a pool with the database connection string
-const pool = new Pool({
-    connectionString: process.env.DB_URL, // gets connection string from env file
-      ssl: {
-        rejectUnauthorized: false, 
-      },
-});
+const environment = process.env.NODE_ENV || 'development';
+const db = knex(config[environment]);
 
-// export pool to use universally
-module.exports = pool;
-
-
-// test connection
+// Test connection
 async function testConnection() {
     try {
-        const res = await pool.query('SELECT * FROM users');  
-        console.log('Connected to the database:');
+        await db.raw('SELECT 1+1 AS result');
+        console.log('✅ Connected to database via Knex');
 
-        res.rows.forEach((user, index) => {
-            console.log(`User ${index + 1}:`, user);
-        });
-
+        // Test query to show users
+        const users = await db('users').select('*').limit(5);
+        console.log('Database users sample:', users.length);
     } catch (err) {
-        console.error('Database connection failed:', err); 
+        console.error('❌ Database connection failed:', err);
     }
 }
 
 testConnection();
+
+module.exports = db;

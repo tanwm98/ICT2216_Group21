@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../../db');
+const db = require('../../db');
 const argon2 = require('argon2');
 require('dotenv').config();
 const nodemailer = require('nodemailer');
@@ -131,17 +131,17 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
             throw new AppError('Email and password are required', 400);
         }
 
-        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+        const user = await db('users')
+            .where('email', email.toLowerCase().trim())
+            .first();
 
-        if (result.rows.length === 0) {
+        if (!user) {
             logAuth('login', false, {
                 email: email,
                 reason: 'user_not_found'
             }, req);
             return res.redirect('/login?error=1');
         }
-
-        const user = result.rows[0];
         const isMatch = await argon2.verify(user.password, password);
 
         if (isMatch) {
@@ -223,9 +223,12 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
             throw new AppError('Chosen password has appeared in a data breach. Please choose another.', 400);
         }
 
-        const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
+        const existingUser = await db('users')
+            .select('email')
+            .where('email', email)
+            .first();
 
-        if (existingUser.rows.length > 0) {
+        if (existingUser) {
             logAuth('registration', false, {
                 email: email,
                 reason: 'email_already_exists'
@@ -235,26 +238,33 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
 
         const hashedPassword = await argon2.hash(password, {
             type: argon2.argon2id,
-            memoryCost: 2 ** 16, // 64 MB
+            memoryCost: 2 ** 16,
             timeCost: 2,
             parallelism: 2,
-
+            saltLength: 32,
+            hashLength: 32
         });
 
-        const result = await pool.query(
-            'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id',
-            [name, email, hashedPassword, 'user', firstname, lastname]
-        );
+        const [newUser] = await db('users')
+            .insert({
+                name: name,
+                email: email,
+                password: hashedPassword,
+                role: 'user',
+                firstname: firstname,
+                lastname: lastname
+            })
+            .returning(['user_id']);
 
         logAuth('registration', true, {
-            user_id: result.rows[0].user_id,
+            user_id: newUser.user_id,
             email: email,
             name: name,
             role: 'user'
         }, req);
 
         logBusiness('user_created', 'user', {
-            user_id: result.rows[0].user_id,
+            user_id: newUser.user_id,
             user_type: 'customer'
         }, req);
 
@@ -321,15 +331,18 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         }
 
         // Check if email already exists BEFORE starting transaction
-        const existingUser = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
-        if (existingUser.rows.length > 0) {
+        const existingUser = await db('users')
+            .select('email')
+            .where('email', email)
+            .first();
+
+        if (existingUser) {
             logAuth('owner_registration', false, {
                 email: email,
                 reason: 'email_already_exists'
             }, req);
             throw new AppError('Email already registered', 400);
         }
-
         // Validate numeric inputs
         const capacityNum = parseInt(capacity);
         const totalCapacityNum = parseInt(totalCapacity);
@@ -363,9 +376,10 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         }, req);
 
         // Start a database transaction - FIXED: Include ALL database operations
-        await pool.query('BEGIN');
-
-        try {
+        const {
+            ownerId,
+            storeId
+        } = await db.transaction(async (trx) => {
             // 1. Create the owner user account with SECURE password hashing
             const hashedPassword = await argon2.hash(password, {
                 type: argon2.argon2id,
@@ -374,46 +388,52 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 parallelism: 2,
             });
 
-            const userResult = await pool.query(
-                'INSERT INTO users (name, email, password, role, firstname, lastname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id',
-                [ownerName, email, hashedPassword, 'owner', firstname, lastname]
-            );
+            const [newUser] = await trx('users')
+                .insert({
+                    name: ownerName,
+                    email: email,
+                    password: hashedPassword,
+                    role: 'owner',
+                    firstname: firstname,
+                    lastname: lastname
+                })
+                .returning(['user_id']);
 
-            const ownerId = userResult.rows[0].user_id;
+            const ownerId = newUser.user_id;
 
             // 2. Create the restaurant/store entry
-            const storeResult = await pool.query(
-                `INSERT INTO stores
-                ("storeName", location, cuisine, "priceRange", address, "postalCode", "totalCapacity", "currentCapacity", opening, closing, owner_id, image_filename, image_alt_text, status)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-                RETURNING store_id`,
-                [
-                    storeName,
-                    location,
-                    cuisine,
-                    priceRange,
-                    address,
-                    postalCode,
-                    totalCapacityNum,
-                    capacityNum,
-                    opening,
-                    closing,
-                    ownerId,
-                    imageFile ? imageFile.filename : null,
-                    imageFile ? `${storeName} restaurant image` : null,
-                    'pending'
-                ]
-            );
+            const [newStore] = await trx('stores')
+                .insert({
+                    storeName: storeName,
+                    location: location,
+                    cuisine: cuisine,
+                    priceRange: priceRange,
+                    address: address,
+                    postalCode: postalCode,
+                    totalCapacity: totalCapacityNum,
+                    currentCapacity: capacityNum,
+                    opening: opening,
+                    closing: closing,
+                    owner_id: ownerId,
+                    image_filename: imageFile ? imageFile.filename : null,
+                    image_alt_text: imageFile ? `${storeName} restaurant image` : null,
+                    status: 'pending'
+                })
+                .returning(['store_id']);
 
-            const storeId = storeResult.rows[0].store_id;
+            const storeId = newStore.store_id;
 
-            // COMMIT only after ALL operations succeed
-            await pool.query('COMMIT');
+            return {
+                ownerId,
+                storeId
+            };
+        });
 
-            // 3. Send notification emails (after successful DB commit)
-            try {
-                // Admin notification email
-                const adminMessage = `
+
+        // 3. Send notification emails (after successful DB commit)
+        try {
+            // Admin notification email
+            const adminMessage = `
                     New Restaurant Owner Registration - PENDING APPROVAL:
 
                     👤 Owner Details:
@@ -440,15 +460,15 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                     Please log into the admin dashboard to review and approve/reject this restaurant.
                 `;
 
-                await transporter.sendMail({
-                    from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
-                    to: `<${process.env.EMAIL_USER}>`,
-                    subject: `New Restaurant Registered: ${storeName}`,
-                    text: adminMessage,
-                });
+            await transporter.sendMail({
+                from: `"Kirby Chope System" <${process.env.EMAIL_USER}>`,
+                to: `<${process.env.EMAIL_USER}>`,
+                subject: `New Restaurant Registered: ${storeName}`,
+                text: adminMessage,
+            });
 
-                // Owner welcome email
-                const ownerMessage = `
+            // Owner welcome email
+            const ownerMessage = `
                     Thank you for submitting your restaurant to Kirby Chope, ${firstname}!
 
                     Your restaurant application has been received and is currently under review.
@@ -478,53 +498,48 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                     The Kirby Chope Team
                 `;
 
-                await transporter.sendMail({
-                    from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-                    to: email,
-                    subject: 'Welcome to Kirby Chope - Restaurant Registration Complete',
-                    text: ownerMessage,
-                });
-            } catch (emailError) {
-                // Log email errors but don't fail the registration
-                logSystem('warning', 'Email notification failed but registration succeeded', {
-                    owner_id: ownerId,
-                    store_id: storeId,
-                    email_error: emailError.message
-                });
-            }
-
-            logAuth('owner_registration', true, {
-                user_id: ownerId,
-                store_id: storeId,
-                email: email,
-                owner_name: ownerName,
-                store_name: storeName
-            }, req);
-
-            logBusiness('restaurant_created', 'restaurant', {
-                store_id: storeId,
-                owner_id: ownerId,
-                store_name: storeName,
-                status: 'pending'
-            }, req);
-
-            logSystem('info', 'Owner application processed successfully', {
-                owner_id: ownerId,
-                store_id: storeId,
-                owner_name: ownerName,
-                email: email,
-                store_name: storeName
+            await transporter.sendMail({
+                from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: 'Welcome to Kirby Chope - Restaurant Registration Complete',
+                text: ownerMessage,
             });
-
-            res.redirect('/rOwnerReg?success=1');
-
-        } catch (dbError) {
-            // Rollback transaction on any database error
-            await pool.query('ROLLBACK');
-            throw dbError;
+        } catch (emailError) {
+            // Log email errors but don't fail the registration
+            logSystem('warning', 'Email notification failed but registration succeeded', {
+                owner_id: ownerId,
+                store_id: storeId,
+                email_error: emailError.message
+            });
         }
 
-    } catch (err) {
+        logAuth('owner_registration', true, {
+            user_id: ownerId,
+            store_id: storeId,
+            email: email,
+            owner_name: ownerName,
+            store_name: storeName
+        }, req);
+
+        logBusiness('restaurant_created', 'restaurant', {
+            store_id: storeId,
+            owner_id: ownerId,
+            store_name: storeName,
+            status: 'pending'
+        }, req);
+
+        logSystem('info', 'Owner application processed successfully', {
+            owner_id: ownerId,
+            store_id: storeId,
+            owner_name: ownerName,
+            email: email,
+            store_name: storeName
+        });
+
+        res.redirect('/rOwnerReg?success=1');
+
+    }
+    catch (err) {
         // Clean up uploaded file if error occurred
         if (req.file && fs.existsSync(req.file.path)) {
             try {
@@ -533,7 +548,6 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 console.error('File cleanup error:', fileErr);
             }
         }
-
         logSystem('error', 'Failed to process owner application', {
             owner_name: req.body.ownerName,
             email: req.body.email,
@@ -541,11 +555,9 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             error: err.message,
             stack: err.stack
         });
-
         next(err);
     }
 });
-
 // POST /logout (preferred)
 router.post('/logout', (req, res) => {
     res.clearCookie('token');
