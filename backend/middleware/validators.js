@@ -1,5 +1,5 @@
 const { body, param, query } = require('express-validator');
-const pool = require('../../db');
+const db = require('../../db');
 
 exports.loginValidator = [
   body('email')
@@ -77,11 +77,12 @@ exports.ownerValidator = [
     .custom(async (value, { req }) => {
       const location = req.body.location;
       if (!location) return true;
-      const existing = await pool.query(
-        'SELECT 1 FROM stores WHERE "storeName" = $1 AND location = $2',
-        [value, location]
-      );
-      if (existing.rows.length > 0) {
+      const existing = await db('stores')
+        .select(1)
+        .where('storeName', value)
+        .where('location', location)
+        .first();
+      if (existing) {
         console.log('[VALIDATION FAIL] Duplicate store at location:', { storeName: value, location });
         throw new Error('A restaurant with this name at the same location already exists.');
       }
@@ -167,11 +168,12 @@ exports.restaurantAddValidator = [
     .withMessage('Store name must only contain letters and numbers')
     .custom(async (storeName, { req }) => {
       const location = req.body.location;
-      const result = await pool.query(
-        'SELECT 1 FROM stores WHERE "storeName" = $1 AND location = $2',
-        [storeName, location]
-      );
-      if (result.rows.length > 0) {
+      const existing = await db('stores')
+        .select(1)
+        .where('storeName', storeName)
+        .where('location', location)
+        .first();
+      if (existing) {
         throw new Error('A restaurant with this name already exists at this location.');
       }
       return true;
@@ -252,11 +254,13 @@ exports.updateRestaurantValidator = [
     .custom(async (address, { req }) => {
       const storeName = req.body.storeName;
       const storeId = req.params.id;
-      const result = await pool.query(
-        `SELECT 1 FROM stores WHERE "storeName" = $1 AND address = $2 AND store_id != $3`,
-        [storeName, address, storeId]
-      );
-      if (result.rows.length > 0) {
+      const existing = await db('stores')
+        .select(1)
+        .where('storeName', storeName)
+        .where('address', address)
+        .where('store_id', '!=', storeId)
+        .first();
+      if (existing) {
         throw new Error('A restaurant with this name and address already exists.');
       }
       return true;

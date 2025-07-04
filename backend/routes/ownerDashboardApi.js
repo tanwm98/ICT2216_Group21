@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../../db');
+const db = require('../../db');
 const router = express.Router();
 const { authenticateToken, requireOwner } = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
@@ -29,12 +29,11 @@ router.get('/restaurants', async (req, res) => {
     }
 
     try {
-        const result = await pool.query(`
-            SELECT * FROM stores
-            WHERE owner_id = $1
-        `, [ownerId]);
+        const restaurants = await db('stores')
+            .select('*')
+            .where('owner_id', ownerId);
 
-        res.json(result.rows);
+        res.json(restaurants);
     } catch (err) {
         console.error('Error fetching owner restaurants:', err);
         res.status(500).json({ error: 'Internal server error' });
@@ -46,17 +45,28 @@ router.get('/reservations/:ownerId', async (req, res) => {
     const ownerId = req.user.userId;
 
     try {
-        const result = await pool.query(`
-            SELECT r.reservation_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
-                   r."specialRequest", r.status, r."first_name", r."last_name", u.name AS "userName", s."storeName"
-            FROM reservations r
-            JOIN users u ON r.user_id = u.user_id
-            JOIN stores s ON r.store_id = s.store_id
-            WHERE s.owner_id = $1
-            ORDER BY r."reservationDate" DESC, r."reservationTime" DESC
-        `, [ownerId]);
+        const reservations = await db('reservations as r')
+            .join('users as u', 'r.user_id', 'u.user_id')
+            .join('stores as s', 'r.store_id', 's.store_id')
+            .select(
+                'r.reservation_id',
+                'r.noOfGuest',
+                db.raw('r."reservationDate"::TEXT as "reservationDate"'),
+                'r.reservationTime',
+                'r.specialRequest',
+                'r.status',
+                'r.first_name',
+                'r.last_name',
+                'u.name as userName',
+                's.storeName'
+            )
+            .where('s.owner_id', ownerId)
+            .orderBy([
+                { column: 'r.reservationDate', order: 'desc' },
+                { column: 'r.reservationTime', order: 'desc' }
+            ]);
 
-        const decodedResults = result.rows.map(r => ({
+        const decodedResults = reservations.map(r => ({
             ...r,
             specialRequest: debugDecode(r.specialRequest || '')
         }));
@@ -72,18 +82,22 @@ router.get('/reservations/:ownerId', async (req, res) => {
 router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValidator, handleValidation, async (req, res) => {
     try {
         const reservationId = req.params.id;
-        const result = await pool.query(`
-            SELECT r.*, u.email AS user_email, u.name AS user_name, s."storeName"
-             FROM reservations r
-             JOIN users u ON r."user_id" = u."user_id"
-             JOIN stores s ON r."store_id" = s."store_id"
-             WHERE r."reservation_id" = $1`, [reservationId]);
 
-        if (result.rowCount === 0) {
+        const reservation = await db('reservations as r')
+            .join('users as u', 'r.user_id', 'u.user_id')
+            .join('stores as s', 'r.store_id', 's.store_id')
+            .select(
+                'r.*',
+                'u.email as user_email',
+                'u.name as user_name',
+                's.storeName'
+            )
+            .where('r.reservation_id', reservationId)
+            .first();
+
+        if (!reservation) {
             return res.status(404).json({ error: 'Reservation not found' });
         }
-
-        const reservation = result.rows[0];
 
         // Log reservation details
         console.log('Reservation Details:');
@@ -95,7 +109,9 @@ router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValid
         console.log(`Guests: ${reservation.noOfGuest}`);
         console.log(`Special Request: ${reservation.specialRequest || 'None'}`);
 
-        await pool.query(`UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`, [reservationId]);
+        await db('reservations')
+            .where('reservation_id', reservationId)
+            .update({ status: 'Cancelled' });
 
         const date = new Date(reservation.reservationDate).toLocaleDateString();
         const time = reservation.reservationTime.slice(0, 5);
@@ -132,7 +148,7 @@ router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValid
 
 
 // ========== UPDATE EXISTING RESTAURANT ==========
-router.put('/restaurants/:id',   fieldLevelAccess([
+router.put('/restaurants/:id', fieldLevelAccess([
     'storeName',
     'address',
     'postalCode',
@@ -148,18 +164,27 @@ router.put('/restaurants/:id',   fieldLevelAccess([
     const { storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing } = req.body;
 
     try {
-        const result = await pool.query(`
-            UPDATE stores
-            SET "storeName" = $1, address = $2, "postalCode" = $3, location = $4, cuisine = $5,
-                "priceRange" = $6, "totalCapacity" = $7, opening = $8, closing = $9
-            WHERE store_id = $10 AND owner_id = $11 RETURNING *
-        `, [storeName, address, postalCode, location, cuisine, priceRange, totalCapacity, opening, closing, restaurantId, ownerId]);
+        const updatedRestaurant = await db('stores')
+            .where('store_id', restaurantId)
+            .where('owner_id', ownerId)
+            .update({
+                storeName: storeName,
+                address: address,
+                postalCode: postalCode,
+                location: location,
+                cuisine: cuisine,
+                priceRange: priceRange,
+                totalCapacity: totalCapacity,
+                opening: opening,
+                closing: closing
+            })
+            .returning('*');
 
-        if (result.rowCount === 0) {
+        if (updatedRestaurant.length === 0) {
             return res.status(404).json({ error: 'Restaurant not found or unauthorized' });
         }
 
-        res.json({ message: 'Restaurant updated successfully', restaurant: result.rows[0] });
+        res.json({ message: 'Restaurant updated successfully', restaurant: updatedRestaurant[0] });
     } catch (err) {
         console.error('Error updating restaurant:', err);
         res.status(500).json({ error: 'Internal server error' });
@@ -171,17 +196,21 @@ router.get('/reviews/:ownerId', async (req, res) => {
   const ownerId = req.user.userId;
 
   try {
-    const result = await pool.query(`
-      SELECT rv.review_id, rv.rating, rv.description, u.name AS "userName", s."storeName"
-      FROM reviews rv
-      JOIN users u ON rv.user_id = u.user_id
-      JOIN stores s ON rv.store_id = s.store_id
-      WHERE s.owner_id = $1
-      ORDER BY rv.review_id DESC
-    `, [ownerId]);
+    const reviews = await db('reviews as rv')
+      .join('users as u', 'rv.user_id', 'u.user_id')
+      .join('stores as s', 'rv.store_id', 's.store_id')
+      .select(
+        'rv.review_id',
+        'rv.rating',
+        'rv.description',
+        'u.name as userName',
+        's.storeName'
+      )
+      .where('s.owner_id', ownerId)
+      .orderBy('rv.review_id', 'desc');
 
     // Decode HTML entities
-    const decodedRows = result.rows.map(review => ({
+    const decodedRows = reviews.map(review => ({
       ...review,
       description: debugDecode(review.description)
     }));
@@ -197,20 +226,19 @@ router.get('/restaurant-status', authenticateToken, requireOwner, async (req, re
     try {
         const ownerId = req.user.userId;
 
-        const result = await pool.query(`
-            SELECT
-                store_id,
-                "storeName",
-                status,
-                submitted_at,
-                approved_at,
-                rejection_reason
-            FROM stores
-            WHERE owner_id = $1
-            ORDER BY submitted_at DESC
-        `, [ownerId]);
+        const restaurants = await db('stores')
+            .select(
+                'store_id',
+                'storeName',
+                'status',
+                'submitted_at',
+                'approved_at',
+                'rejection_reason'
+            )
+            .where('owner_id', ownerId)
+            .orderBy('submitted_at', 'desc');
 
-        res.json(result.rows);
+        res.json(restaurants);
     } catch (error) {
         console.error('Error fetching restaurant status:', error);
         res.status(500).json({ error: 'Failed to fetch restaurant status' });

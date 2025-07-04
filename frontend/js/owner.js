@@ -317,7 +317,7 @@ function fetchReservations() {
 
                 // Special request cell (decoded only)
                 const requestTd = document.createElement('td');
-                requestTd.textContent = decodeHtmlEntities(reservation.specialRequest || '');
+                requestTd.textContent = reservation.specialRequest || '';
                 row.appendChild(requestTd);
 
                 tableBody.appendChild(row);
@@ -365,7 +365,7 @@ function fetchReviews() {
                     escapeHtml(review.storeName),
                     escapeHtml(review.userName),
                     escapeHtml(review.rating?.toString()),
-                    decodeHtmlEntities(review.description) // intentionally decoded
+                    review.description // encoded it back cos it's not a good practice to decode; e.g. usage of InnerHTML will lead to XSS
                 ];
 
                 cells.forEach(cellContent => {
