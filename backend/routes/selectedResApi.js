@@ -263,104 +263,87 @@ router.get('/display_reviews', async (req, res) => {
 
 // add reservation into reserve table
 router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const pax = req.query.pax;
-    const time = req.query.time;
-    const date = req.query.date;
-    const userid = req.query.userid;
-    const storeid = req.query.storeid;
-    const firstname = req.query.firstname;
-    const lastname = req.query.lastname;
-    const specialreq = req.query.specialrequest;
-    const storename = req.query.storename;
-    const adultpax = req.query.adultpax;
-    const childpax = req.query.childpax;
+    const {
+      pax, time, date, userid, storeid,
+      firstname, lastname, specialrequest: specialreq,
+      storename, adultpax, childpax
+    } = req.query;
 
-    const [year, month, day] = date.split('-'); // e.g. "2025-06-30"
-    const [hour, minute] = time.split(':');     // e.g. "11:30"
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
 
     const reservationDateTimeSGT = new Date(Date.UTC(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-      parseInt(hour) - 8, // convert to UTC equivalent
-      parseInt(minute)
+      parseInt(year), parseInt(month) - 1, parseInt(day),
+      parseInt(hour) - 8, parseInt(minute)
     ));
 
-    // Current time in SGT
     const nowSGT = getCurrentSGTDate();
-
-    console.log("[DEBUG] Reservation DateTime (SGT):", reservationDateTimeSGT.toISOString());
-    console.log("[DEBUG] Current DateTime (SGT):", nowSGT.toLocaleString("en-SG", { timeZone: "Asia/Singapore" }))
 
     if (reservationDateTimeSGT < nowSGT) {
       return res.status(400).json({ message: "Cannot make a reservation in the past." });
     }
 
-    // 1. Enforce 1-hour cooldown since last reservation creation
-    const cooldownCheck = await pool.query(`
+    // 🔒 Start transaction
+    await client.query('BEGIN');
+
+    // Enforce 1-hour cooldown
+    const cooldownCheck = await client.query(`
       SELECT 1 FROM reservations 
-      WHERE "user_id" = $1 
-      AND created_at > (NOW() - INTERVAL '1 hour')`, 
+      WHERE "user_id" = $1 AND created_at > (NOW() - INTERVAL '1 hour')`,
       [userid]);
-
     if (cooldownCheck.rowCount > 0) {
-      return res.status(429).json({ message: 'You can only make one reservation per hour. Please try again later.' });
+      await client.query('ROLLBACK');
+      return res.status(429).json({ message: 'You can only make one reservation per hour.' });
     }
 
-    // 2. Check for existing reservation at same time/store
-    const checkExistingReservation = await pool.query(`
-      SELECT * FROM reservations 
-      WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'
-    `, [storeid, userid, time, date]);
-
-    if (checkExistingReservation.rows.length > 0) {
-      return res.status(400).json({ message: "You already have a reservation for that time." });
+    // Check for existing reservation at same time/store
+    const existing = await client.query(`
+      SELECT 1 FROM reservations 
+      WHERE "store_id" = $1 AND "user_id" = $2 AND "reservationTime" = $3 AND "reservationDate" = $4 AND "status" = 'Confirmed'`,
+      [storeid, userid, time, date]);
+    if (existing.rowCount > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'You already have a reservation for that time.' });
     }
 
-    // 3. Check capacity
-    const storeDetails = await pool.query(`
-      SELECT "currentCapacity" FROM stores WHERE "store_id" = $1
-    `, [storeid]);
-
-    const currentCapacity = storeDetails.rows[0].currentCapacity;
+    // Check current capacity
+    const capRes = await client.query(`
+      SELECT "currentCapacity", address FROM stores WHERE "store_id" = $1`,
+      [storeid]);
+    const { currentCapacity, address } = capRes.rows[0];
 
     if (parseInt(pax) > currentCapacity) {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         message: `Reservation exceeds remaining capacity of ${currentCapacity}.`
       });
     }
 
-    // 4. Get store details (for address)
-    const storeResult = await pool.query(`
-      SELECT * FROM stores WHERE "store_id" = $1
-    `, [storeid]);
-
-    const store = storeResult.rows;
-
-    // 5. Insert reservation
-    const reserveresult = await pool.query(`
-      INSERT INTO reservations 
-      ("user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate", 
-      "specialRequest", "first_name", "last_name", "childPax", "adultPax", "created_at")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`, 
+    // Insert reservation
+    const reserveResult = await client.query(`
+      INSERT INTO reservations (
+        "user_id", "store_id", "noOfGuest", "reservationTime", "reservationDate",
+        "specialRequest", "first_name", "last_name", "childPax", "adultPax", "created_at"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      RETURNING *`,
       [userid, storeid, pax, time, date, specialreq, firstname, lastname, childpax, adultpax]);
 
-    // 6. Update capacity
-    await pool.query(`
-      UPDATE stores 
-      SET "currentCapacity" = "currentCapacity" - $1 
-      WHERE "store_id" = $2
-    `, [pax, storeid]);
+    // Deduct capacity
+    await client.query(`
+      UPDATE stores SET "currentCapacity" = "currentCapacity" - $1
+      WHERE "store_id" = $2`,
+      [pax, storeid]);
 
-    // 7. Get user name
-    const usernameResult = await pool.query(`
-      SELECT name, email FROM users WHERE "user_id" = $1
-    `, [userid]);
-    const userEmail = usernameResult.rows[0]?.email;
-    const username = usernameResult.rows[0]?.name;
+    await client.query('COMMIT');
 
-    // 8. Send confirmation email
+    // Fetch user info for email
+    const userRes = await pool.query(`
+      SELECT name, email FROM users WHERE user_id = $1`, [userid]);
+    const { name: username, email: userEmail } = userRes.rows[0];
+
+    // Send confirmation email (outside transaction)
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
       to: userEmail,
@@ -373,7 +356,7 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
           <li><strong>👤 First Name:</strong> ${firstname}</li>
           <li><strong>👤 Last Name:</strong> ${lastname}</li>
           <li><strong>🏪 Restaurant:</strong> ${storename}</li>
-          <li><strong>📍 Location:</strong> ${store[0].address}</li>
+          <li><strong>📍 Location:</strong> ${address}</li>
           <li><strong>📅 Date:</strong> ${date}</li>
           <li><strong>🕒 Time:</strong> ${time}</li>
           <li><strong>👥 Number of Guests:</strong> ${pax}
@@ -389,11 +372,14 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
       `
     });
 
-    res.json(reserveresult.rows);
+    res.json(reserveResult.rows);
 
   } catch (err) {
-    console.error('Error querying database:', err);
-    res.status(500).json({ error: 'Failed to insert data' });
+    await client.query('ROLLBACK');
+    console.error('Error inserting reservation:', err);
+    res.status(500).json({ error: 'Failed to insert reservation' });
+  } finally {
+    client.release();
   }
 });
 
@@ -402,100 +388,94 @@ router.post('/update_reservation', fieldLevelAccess([
   'pax', 'time', 'date', 'firstname', 'lastname', 'specialrequest',
   'reservationid', 'adultpax', 'childpax', 'storename', 'userid'
 ]), updateReservationValidator, handleValidation, async (req, res) => {
-  try {
-    const { pax, time, date, firstname, lastname, specialrequest, reservationid, adultpax, childpax, storename, userid } = req.body;
+  const client = await pool.connect();
 
-    // Step 1: Get original reservation to restore its pax
-    const originalRes = await pool.query(
+  try {
+    const {
+      pax, time, date, firstname, lastname,
+      specialrequest, reservationid, adultpax, childpax, storename, userid
+    } = req.body;
+
+    await client.query('BEGIN');
+
+    const originalRes = await client.query(
       `SELECT "store_id", "noOfGuest", "reservationDate", "reservationTime", "specialRequest", "status"
-      FROM reservations WHERE reservation_id = $1`,
+       FROM reservations WHERE reservation_id = $1`,
       [reservationid]
     );
 
     if (originalRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Reservation not found' });
     }
 
     if (originalRes.rows[0].status === 'Cancelled') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ message: 'Cannot update a cancelled reservation.' });
     }
 
-    const storeId = originalRes.rows[0].store_id;
-    const originalPax = originalRes.rows[0].noOfGuest;
-
     const original = originalRes.rows[0];
-    const formatTime = t => (t ? t.slice(0, 5) : ''); // Extract HH:MM from both "12:30:00" or "12:30"
+    const storeId = original.store_id;
+    const originalPax = original.noOfGuest;
+    const formatTime = t => (t ? t.slice(0, 5) : '');
     const originalSpecial = decodeHtmlEntities(original.specialRequest || '');
     const decodedRequestSpecial = decodeHtmlEntities(specialrequest || '');
 
-    // Final comparison
     const isSame =
       parseInt(pax) === original.noOfGuest &&
       date === original.reservationDate.toISOString().split('T')[0] &&
       formatTime(time) === formatTime(original.reservationTime) &&
       decodedRequestSpecial === originalSpecial;
 
-    console.log('Compare original vs new:', {
-      pax: [original.noOfGuest, pax],
-      date: [original.reservationDate.toISOString().split('T')[0], date],
-      time: [formatTime(original.reservationTime), formatTime(time)],
-      specialrequest: [originalSpecial, decodedRequestSpecial]
-    });
-
     if (isSame) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ message: 'No changes detected in reservation.' });
     }
 
-    console.log('Compare original vs new:', {
-      pax: [original.noOfGuest, pax],
-      date: [original.reservationDate?.toISOString().split('T')[0], date],
-      time: [original.reservationTime, time],
-      specialrequest: [original.specialRequest, specialrequest]
-    });
-
-    // Step 1.5: Enforce 3 edits/day/user/reservation
+    // Limit edits per day
     const nowSGT = getCurrentSGTDate();
     const today = nowSGT.toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' });
 
-    const editLimitCheck = await pool.query(
+    const editLimitCheck = await client.query(
       `SELECT COUNT(*) FROM reservation_edits 
-      WHERE user_id = $1 AND reservation_id = $2 
-      AND DATE(edited_at AT TIME ZONE 'Asia/Singapore') = $3`,
+       WHERE user_id = $1 AND reservation_id = $2 
+       AND DATE(edited_at AT TIME ZONE 'Asia/Singapore') = $3`,
       [userid, reservationid, today]
     );
 
     if (parseInt(editLimitCheck.rows[0].count) >= 3) {
+      await client.query('ROLLBACK');
       return res.status(429).json({
         message: "Edit limit reached. You can only update this reservation 3 times per day."
       });
     }
 
-    // Step 2: Restore old pax to currentCapacity
-    await pool.query(
+    // Restore capacity
+    await client.query(
       'UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2',
       [originalPax, storeId]
     );
 
-    // Step 3: Fetch total and current capacity for validation
-    const capacityResult = await pool.query(
+    // Check capacity
+    const capacityResult = await client.query(
       'SELECT "totalCapacity", "currentCapacity", address FROM stores WHERE store_id = $1',
       [storeId]
     );
-    const { totalCapacity, currentCapacity, address } = capacityResult.rows[0];
+    const { currentCapacity, address } = capacityResult.rows[0];
 
-    // Step 4: Check if new pax exceeds available capacity
     if (parseInt(pax) > currentCapacity) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ message: `Reservation exceeds available capacity of ${currentCapacity}.` });
     }
 
-    // Step 5: Deduct new pax from current capacity
-    await pool.query(
+    // Deduct new pax
+    await client.query(
       'UPDATE stores SET "currentCapacity" = "currentCapacity" - $1 WHERE store_id = $2',
       [pax, storeId]
     );
 
-    // Step 6: Update reservation
-    await pool.query(`
+    // Update reservation
+    await client.query(`
       UPDATE reservations 
       SET "noOfGuest" = $1, 
           "reservationDate" = $2, 
@@ -507,19 +487,23 @@ router.post('/update_reservation', fieldLevelAccess([
           "last_name" = $8
       WHERE reservation_id = $9
     `, [pax, date, time, specialrequest, adultpax, childpax, firstname, lastname, reservationid]);
-    
-    // Step 6.5: Record this edit in the reservation_edits log
-    await pool.query(
-      `INSERT INTO reservation_edits (user_id, reservation_id, edited_at)
+
+    // Log the edit
+    await client.query(`
+      INSERT INTO reservation_edits (user_id, reservation_id, edited_at)
       VALUES ($1, $2, NOW())`,
       [userid, reservationid]
     );
 
-    // Step 7: Fetch user name
-    const usernameResult = await pool.query("SELECT name, email FROM users WHERE user_id = $1", [userid]);
+    await client.query('COMMIT');
+
+    // Send email AFTER DB commit
+    const usernameResult = await pool.query(
+      "SELECT name, email FROM users WHERE user_id = $1", [userid]
+    );
     const username = usernameResult.rows[0]?.name || '';
     const userEmail = usernameResult.rows[0]?.email || '';
-    // Step 8: Send email notification
+
     await transporter.sendMail({
       from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
       to: userEmail,
@@ -551,8 +535,11 @@ router.post('/update_reservation', fieldLevelAccess([
     res.status(200).json({ message: 'Reservation updated successfully.' });
 
   } catch (err) {
-    console.error('Error querying database:', err);
+    await client.query('ROLLBACK');
+    console.error('Error updating reservation:', err);
     res.status(500).json({ error: 'Failed to update reservation.' });
+  } finally {
+    client.release();
   }
 });
 
