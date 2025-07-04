@@ -386,6 +386,8 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 memoryCost: 2 ** 16, // 64 MB
                 timeCost: 2,
                 parallelism: 2,
+                hashLength: 32,
+                saltLength: 32
             });
 
             const [newUser] = await trx('users')

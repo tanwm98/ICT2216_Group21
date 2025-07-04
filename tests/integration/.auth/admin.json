@@ -2,17 +2,17 @@
   "cookies": [
     {
       "name": "token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsIm5hbWUiOiJhZG1pbiIsInRva2VuVmVyc2lvbiI6MCwiaWF0IjoxNzUxNTg4NDgwLCJleHAiOjE3NTE1OTIwODB9.BjtWfs3r9bpgtAlzNs8fwv7XvqRKIk17BttVUYB-r_Y",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsIm5hbWUiOiJhZG1pbiIsInRva2VuVmVyc2lvbiI6MCwiaWF0IjoxNzUxNjYwNDgyLCJleHAiOjE3NTE2NjQwODJ9.fgOSE3rdyBEH8oQ4s4p56dXhtTuAYI3bdOQCgFpCUUM",
       "domain": "localhost",
       "path": "/",
-      "expires": 1751592080.875145,
+      "expires": 1751664082.548047,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Strict"
     },
     {
       "name": "connect.sid",
-      "value": "s%3A-G1Daf-iPETk940dMwb_gkvXsPoowjyK.j9xgQm%2BvPpsAaIo%2Fc%2B%2BDeJiuVXlBjuUJgJ69lspBaDA",
+      "value": "s%3A1CTFNDVLFoZyj6yWZasPRPA25Iqj7eM-.TssKnN3RN14Q%2B11YYZgE3g3nscIHBpaKGpDXomTPaAc",
       "domain": "localhost",
       "path": "/",
       "expires": -1,

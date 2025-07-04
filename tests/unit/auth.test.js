@@ -1,10 +1,43 @@
 // tests/unit/auth.test.js
 const argon2 = require('argon2');
-const pool = require('../../db');
+
+// Mock the db module properly
+const mockDb = jest.fn();
+const mockSelect = jest.fn().mockReturnThis();
+const mockJoin = jest.fn().mockReturnThis();
+const mockWhere = jest.fn().mockReturnThis();
+const mockFirst = jest.fn();
+const mockInsert = jest.fn().mockReturnThis();
+const mockReturning = jest.fn();
+const mockUpdate = jest.fn();
+
+// Setup db mock to return query builder methods
+mockDb.mockImplementation(() => ({
+  select: mockSelect,
+  join: mockJoin,
+  where: mockWhere,
+  first: mockFirst,
+  insert: mockInsert,
+  returning: mockReturning,
+  update: mockUpdate
+}));
+
+// Add fn property for database functions
+mockDb.fn = {
+  now: jest.fn().mockReturnValue('NOW()')
+};
+
+jest.mock('../../db', () => mockDb);
 
 describe('Authentication Logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mock return values
+    mockSelect.mockReturnThis();
+    mockJoin.mockReturnThis();
+    mockWhere.mockReturnThis();
+    mockInsert.mockReturnThis();
+    mockReturning.mockReturnThis();
   });
 
   test('should hash password correctly during registration', async () => {
@@ -15,10 +48,12 @@ describe('Authentication Logic', () => {
       memoryCost: 2 ** 16, // 64 MB
       timeCost: 2,
       parallelism: 2,
+      hashLength: 32, // Optional, specify if needed
+      saltLength: 32// Optional, specify if needed
     };
 
     // Mock the hash function to return a test hash
-    argon2.hash.mockResolvedValue('$argon2id$v=19$m=65536,t=2,p=2$mockhash');
+    argon2.hash = jest.fn().mockResolvedValue('$argon2id$v=19$m=65536,t=2,p=2$mockhash');
 
     // Call argon2.hash directly (simulating what happens in your auth code)
     const hashedPassword = await argon2.hash(password, expectedOptions);
@@ -33,7 +68,7 @@ describe('Authentication Logic', () => {
     const hashedPassword = '$argon2id$v=19$m=65536,t=2,p=2$mockhash';
 
     // Mock verify to return true (valid password)
-    argon2.verify.mockResolvedValue(true);
+    argon2.verify = jest.fn().mockResolvedValue(true);
 
     // Call argon2.verify directly (simulating what happens in your auth code)
     const isValid = await argon2.verify(hashedPassword, password);
@@ -48,7 +83,7 @@ describe('Authentication Logic', () => {
     const hashedPassword = '$argon2id$v=19$m=65536,t=2,p=2$mockhash';
 
     // Mock verify to return false (invalid password)
-    argon2.verify.mockResolvedValue(false);
+    argon2.verify = jest.fn().mockResolvedValue(false);
 
     // Call argon2.verify directly
     const isValid = await argon2.verify(hashedPassword, wrongPassword);
@@ -60,8 +95,16 @@ describe('Authentication Logic', () => {
 });
 
 describe('Restaurant Approval Logic', () => {
+  const db = require('../../db');
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mock return values
+    mockSelect.mockReturnThis();
+    mockJoin.mockReturnThis();
+    mockWhere.mockReturnThis();
+    mockInsert.mockReturnThis();
+    mockReturning.mockReturnThis();
   });
 
   test('should approve restaurant and update database correctly', async () => {
@@ -79,38 +122,40 @@ describe('Restaurant Approval Logic', () => {
     const storeId = 1;
     const adminId = 3;
 
-    // Mock database queries
-    pool.query
-      .mockResolvedValueOnce({ rows: [mockRestaurant] }) // Get restaurant details
-      .mockResolvedValueOnce({ rows: [] }); // Update restaurant status
+    // Setup mocks for the select query
+    mockWhere.mockResolvedValue([mockRestaurant]);
+    mockUpdate.mockResolvedValue([]);
 
-    // Simulate the approval logic from your adminDashboardApi.js
-    const restaurantResult = await pool.query(
-      `SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
-       FROM stores s
-       JOIN users u ON s.owner_id = u.user_id
-       WHERE s.store_id = $1 AND s.status = 'pending'`,
-      [storeId]
-    );
+    // Simulate the approval logic using Knex query builder
+    const restaurantResult = await db('stores')
+      .select('stores.*', 'users.email as owner_email', 'users.firstname', 'users.lastname', 'users.name as owner_name')
+      .join('users', 'stores.owner_id', 'users.user_id')
+      .where({
+        'stores.store_id': storeId,
+        'stores.status': 'pending'
+      });
 
-    await pool.query(
-      `UPDATE stores
-       SET status = 'approved', approved_at = NOW(), approved_by = $1
-       WHERE store_id = $2`,
-      [adminId, storeId]
-    );
+    // Reset mocks for update query
+    mockWhere.mockReturnThis();
+    mockUpdate.mockResolvedValue([]);
 
-    // Verify the queries were called correctly
-    expect(pool.query).toHaveBeenCalledTimes(2);
-    expect(pool.query).toHaveBeenNthCalledWith(1, 
-      expect.stringContaining('SELECT s.*, u.email as owner_email'),
-      [storeId]
-    );
-    expect(pool.query).toHaveBeenNthCalledWith(2,
-      expect.stringContaining('UPDATE stores'),
-      expect.arrayContaining([adminId, storeId])
-    );
-    expect(restaurantResult.rows[0]).toEqual(mockRestaurant);
+    await db('stores')
+      .where('store_id', storeId)
+      .update({
+        status: 'approved',
+        approved_at: mockDb.fn.now(),
+        approved_by: adminId
+      });
+
+    // Verify the Knex methods were called correctly
+    expect(mockSelect).toHaveBeenCalledWith('stores.*', 'users.email as owner_email', 'users.firstname', 'users.lastname', 'users.name as owner_name');
+    expect(mockJoin).toHaveBeenCalledWith('users', 'stores.owner_id', 'users.user_id');
+    expect(mockUpdate).toHaveBeenCalledWith({
+      status: 'approved',
+      approved_at: mockDb.fn.now(),
+      approved_by: adminId
+    });
+    expect(restaurantResult[0]).toEqual(mockRestaurant);
   });
 
   test('should reject restaurant with valid reason', async () => {
@@ -127,51 +172,57 @@ describe('Restaurant Approval Logic', () => {
     const storeId = 1;
     const adminId = 3;
 
-    pool.query
-      .mockResolvedValueOnce({ rows: [mockRestaurant] })
-      .mockResolvedValueOnce({ rows: [] });
+    // Setup mocks
+    mockWhere.mockResolvedValueOnce([mockRestaurant]);
 
-    // Simulate rejection logic
-    await pool.query(
-      `SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
-       FROM stores s
-       JOIN users u ON s.owner_id = u.user_id
-       WHERE s.store_id = $1 AND s.status = 'pending'`,
-      [storeId]
-    );
+    // Simulate rejection logic using Knex
+    await db('stores')
+      .select('stores.*', 'users.email as owner_email', 'users.firstname', 'users.lastname', 'users.name as owner_name')
+      .join('users', 'stores.owner_id', 'users.user_id')
+      .where({
+        'stores.store_id': storeId,
+        'stores.status': 'pending'
+      });
 
-    await pool.query(
-      `UPDATE stores
-       SET status = 'rejected', rejection_reason = $1, approved_by = $2
-       WHERE store_id = $3`,
-      [rejectionReason, adminId, storeId]
-    );
+    // Reset mocks for update
+    mockWhere.mockReturnThis();
+    mockUpdate.mockResolvedValue([]);
+
+    await db('stores')
+      .where('store_id', storeId)
+      .update({
+        status: 'rejected',
+        rejection_reason: rejectionReason,
+        approved_by: adminId
+      });
 
     // Verify rejection was processed correctly
-    expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('rejection_reason'),
-      [rejectionReason, adminId, storeId]
-    );
+    expect(mockUpdate).toHaveBeenCalledWith({
+      status: 'rejected',
+      rejection_reason: rejectionReason,
+      approved_by: adminId
+    });
   });
 
   test('should handle non-existent restaurant gracefully', async () => {
     const storeId = 999; // Non-existent ID
 
-    pool.query.mockResolvedValueOnce({ rows: [] }); // No restaurant found
+    // Mock empty result
+    mockWhere.mockResolvedValue([]); // No restaurant found
 
-    const result = await pool.query(
-      `SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
-       FROM stores s
-       JOIN users u ON s.owner_id = u.user_id
-       WHERE s.store_id = $1 AND s.status = 'pending'`,
-      [storeId]
-    );
+    const result = await db('stores')
+      .select('stores.*', 'users.email as owner_email', 'users.firstname', 'users.lastname', 'users.name as owner_name')
+      .join('users', 'stores.owner_id', 'users.user_id')
+      .where({
+        'stores.store_id': storeId,
+        'stores.status': 'pending'
+      });
 
-    expect(result.rows.length).toBe(0);
-    expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT s.*, u.email as owner_email'),
-      [storeId]
-    );
+    expect(result.length).toBe(0);
+    expect(mockWhere).toHaveBeenCalledWith({
+      'stores.store_id': storeId,
+      'stores.status': 'pending'
+    });
   });
 });
 
@@ -187,9 +238,11 @@ describe('Password Security', () => {
       memoryCost: 2 ** 16, // 64 MB
       timeCost: 2,
       parallelism: 2,
+      hashLength: 32,
+      saltLength: 32
     };
-    
-    argon2.hash.mockResolvedValue('$argon2id$mockhash');
+
+    argon2.hash = jest.fn().mockResolvedValue('$argon2id$mockhash');
 
     await argon2.hash(password, expectedOptions);
 
@@ -222,7 +275,7 @@ describe('Password Security', () => {
     // Test valid passwords
     expect(() => validatePassword('ValidPass123')).not.toThrow();
     expect(validatePassword('ValidPass123').isValid).toBe(true);
-    
+
     // Test invalid passwords
     expect(() => validatePassword('')).toThrow('Password is required');
     expect(() => validatePassword('short')).toThrow('security requirements');
@@ -236,17 +289,66 @@ describe('Password Security', () => {
     const hash = '$argon2id$v=19$m=65536,t=2,p=2$mockhash';
 
     // Test successful verification
-    argon2.verify.mockResolvedValue(true);
-    const isValid = await argon2.verify(hash, password);
+    argon2.verify = jest.fn()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
+    const isValid = await argon2.verify(hash, password);
     expect(argon2.verify).toHaveBeenCalledWith(hash, password);
     expect(isValid).toBe(true);
 
     // Test failed verification
-    argon2.verify.mockResolvedValue(false);
     const isInvalid = await argon2.verify(hash, 'wrongpassword');
-
     expect(isInvalid).toBe(false);
     expect(argon2.verify).toHaveBeenCalledTimes(2);
+  });
+
+  test('should handle user registration with Knex', async () => {
+    const db = require('../../db');
+    const userData = {
+      email: 'test@example.com',
+      password_hash: '$argon2id$v=19$m=65536,t=2,p=2$mockhash',
+      firstname: 'John',
+      lastname: 'Doe'
+    };
+
+    // Setup mocks for insert
+    mockReturning.mockResolvedValue([{ user_id: 1, ...userData }]);
+
+    // Simulate user registration
+    const result = await db('users')
+      .insert(userData)
+      .returning('*');
+
+    expect(mockInsert).toHaveBeenCalledWith(userData);
+    expect(mockReturning).toHaveBeenCalledWith('*');
+    expect(result[0]).toEqual({ user_id: 1, ...userData });
+  });
+
+  test('should handle user login with Knex', async () => {
+    const db = require('../../db');
+    const email = 'test@example.com';
+    const mockUser = {
+      user_id: 1,
+      email: 'test@example.com',
+      password_hash: '$argon2id$v=19$m=65536,t=2,p=2$mockhash',
+      firstname: 'John',
+      lastname: 'Doe'
+    };
+
+    // Setup mocks - where should return an object with first method
+    mockWhere.mockReturnValue({
+      first: mockFirst
+    });
+    mockFirst.mockResolvedValue(mockUser);
+
+    // Simulate user login lookup
+    const result = await db('users')
+      .where('email', email)
+      .first();
+
+    expect(mockWhere).toHaveBeenCalledWith('email', email);
+    expect(mockFirst).toHaveBeenCalled();
+    expect(result).toEqual(mockUser);
   });
 });

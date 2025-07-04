@@ -37,7 +37,7 @@ COPY --from=dependencies --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Copy application files with proper ownership
 COPY --chown=nodejs:nodejs backend/ ./backend/
-COPY --chown=nodejs:nodejs db.js server.js package*.json ./
+COPY --chown=nodejs:nodejs db.js server.js knexfile.js package*.json ./
 COPY --chown=nodejs:nodejs frontend/ ./frontend/
 
 # Switch to non-root user
