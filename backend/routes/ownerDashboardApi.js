@@ -6,6 +6,7 @@ const nodemailer = require('nodemailer');
 const { updateRestaurantValidator, cancelReservationValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
 const { decodeHtmlEntities, debugDecode } = require('../middleware/htmlDecoder');
+const { encodeHTML, sanitizeForEmail } = require('../middleware/sanitization');
 const session = require('express-session');
 const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
@@ -117,18 +118,18 @@ router.put('/reservations/:id/cancel', authenticateToken, cancelReservationValid
         const time = reservation.reservationTime.slice(0, 5);
 
         const mailOptions = {
-            from: '"Kirby Chope" <yourapp@example.com>',
+            from: `"Kirby Chope" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
             to: reservation.user_email,
-            subject: `Your reservation at ${reservation.storeName} has been cancelled`,
+            subject: `Your reservation at ${sanitizeForEmail(reservation.storeName)} has been cancelled`,
             html: `
-                <p>Hello ${reservation.user_name || ''},</p>
+                <p>Hello ${sanitizeForEmail(reservation.user_name) || ''},</p>
                 <p>Your reservation has been <strong>cancelled</strong> by the restaurant.</p>
                 <ul>
-                    <li><strong>Restaurant:</strong> ${reservation.storeName}</li>
+                    <li><strong>Restaurant:</strong> ${sanitizeForEmail(reservation.storeName)}</li>
                     <li><strong>Date:</strong> ${date}</li>
                     <li><strong>Time:</strong> ${time}</li>
                     <li><strong>Guests:</strong> ${reservation.noOfGuest}</li>
-                    ${reservation.specialRequest ? `<li><strong>Special Request:</strong> ${reservation.specialRequest}</li>` : ''}
+                    ${reservation.specialRequest ? `<li><strong>Special Request:</strong> ${sanitizeForEmail(reservation.specialRequest)}</li>` : ''}
                 </ul>
                 <p>We apologize for the inconvenience.</p>
             `

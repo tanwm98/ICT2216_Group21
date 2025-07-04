@@ -1,5 +1,5 @@
 const validator = require('validator');
-const { encodeHTML } = require('entities');
+const { encodeHTML, escapeUTF8 } = require('entities');
 
 function sanitizeInput(req, res, next) {
     // Sanitize request body
@@ -166,7 +166,12 @@ function sanitizeFieldByType(fieldName, value) {
 
     return value;
 }
+function sanitizeForEmail(text) {
+    if (!text || typeof text !== 'string') return '';
 
+    // Use UTF8 encoding - preserves international chars, escapes only XML-dangerous ones
+    return escapeUTF8(text);
+}
 /**
  * Rate limiting middleware for sensitive operations
  */
@@ -204,11 +209,20 @@ function createRateLimiter(maxAttempts = 200, timeWindow = 60000) { // 10 attemp
         next();
     };
 }
+function sanitizeForEmail(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    // Keep &, #, commas for readability in emails
+}
 
 module.exports = {
     sanitizeInput,
     sanitizeOutput,
     sanitizeSpecificFields,
     createRateLimiter,
-    encodeHTML
+    encodeHTML,
+    sanitizeForEmail
 };

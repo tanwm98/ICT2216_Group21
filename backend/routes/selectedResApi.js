@@ -4,7 +4,7 @@ const router = express.Router();
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const { authenticateToken, requireUser } = require('../../frontend/js/token');
-const { createRateLimiter, encodeHTML } = require('../middleware/sanitization');
+const { createRateLimiter, encodeHTML, sanitizeForEmail } = require('../middleware/sanitization');
 const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 const transporter = nodemailer.createTransport({
@@ -368,31 +368,31 @@ router.post('/reserve', reserveValidator, handleValidation, async (req, res) => 
             .first();
 
         await transporter.sendMail({
-            from: `"Kirby Chope" <${encodeHTML(process.env.EMAIL_USER)}>`,
+            from: `"Kirby Chope" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
             to: user.email,
-            subject: `Reservation Confirmed at ${encodeHTML(storename)}`,
+            subject: `Reservation Confirmed at ${sanitizeForEmail(storename)}`,
             html: `
-                                <p>Hello ${encodeHTML(user.name)},</p>
-                                <p>Your reservation with ${encodeHTML(storename)} is <strong>confirmed</strong>. See below for more details.</p>
-                                <h4>Reservation Details:</h4>
-                                <ul>
-                                  <li><strong>👤 First Name:</strong> ${encodeHTML(firstname)}</li>
-                                  <li><strong>👤 Last Name:</strong> ${encodeHTML(lastname)}</li>
-                                  <li><strong>🏪 Restaurant:</strong> ${encodeHTML(storename)}</li>
-                                  <li><strong>📍 Location:</strong> ${encodeHTML(storeDetails.address)}</li>
-                                  <li><strong>📅 Date:</strong> ${date}</li>
-                                  <li><strong>🕒 Time:</strong> ${time}</li>
-                                  <li><strong>👥 Number of Guests:</strong> ${pax}
-                                    <ul>
-                                      <li><strong>Number of Adults:</strong> ${adultpax}</li>
-                                      <li><strong>Number of Child:</strong> ${childpax}</li>
-                                    </ul>
-                                  </li>
-                                  ${encodeHTML(specialrequest) ? `<li><strong>📢 Special Request:</strong> ${encodeHTML(specialrequest)}</li>` : ''}
-                                </ul>
-                                <p>Thank you!</p>
-                                <p>Kirby Chope</p>
-                            `
+                <p>Hello ${sanitizeForEmail(user.name)},</p>
+                <p>Your reservation with ${sanitizeForEmail(storename)} is <strong>confirmed</strong>. See below for more details.</p>
+                <h4>Reservation Details:</h4>
+                <ul>
+                  <li><strong>👤 First Name:</strong> ${sanitizeForEmail(firstname)}</li>
+                  <li><strong>👤 Last Name:</strong> ${sanitizeForEmail(lastname)}</li>
+                  <li><strong>🏪 Restaurant:</strong> ${sanitizeForEmail(storename)}</li>
+                  <li><strong>📍 Location:</strong> ${sanitizeForEmail(storeDetails.address)}</li>
+                  <li><strong>📅 Date:</strong> ${date}</li>
+                  <li><strong>🕒 Time:</strong> ${time}</li>
+                  <li><strong>👥 Number of Guests:</strong> ${pax}
+                    <ul>
+                      <li><strong>Number of Adults:</strong> ${adultpax}</li>
+                      <li><strong>Number of Child:</strong> ${childpax}</li>
+                    </ul>
+                  </li>
+                  ${specialrequest ? `<li><strong>📢 Special Request:</strong> ${sanitizeForEmail(specialrequest)}</li>` : ''}
+                </ul>
+                <p>Thank you!</p>
+                <p>Kirby Chope</p>
+            `
         });
 
         res.json({
@@ -515,31 +515,31 @@ router.post('/update_reservation', fieldLevelAccess([
             .first();
         // Step 8: Send email notification
         await transporter.sendMail({
-            from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+            from: `"Kirby Chope" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
             to: user.email,
-            subject: `Modification of Reservation at ${encodeHTML(storename)}`,
+            subject: `Modification of Reservation at ${sanitizeForEmail(storename)}`,
             html: `
-        <p>Hello ${user.name},</p>
-        <p>Your reservation with ${encodeHTML(storename)} has been successfully <strong>updated</strong>. See below for updated details.</p>
-        <h4>Updated Reservation Details:</h4>
-        <ul>
-          <li><strong>👤 First Name:</strong> ${encodeHTML(firstname)}</li>
-          <li><strong>👤 Last Name:</strong> ${encodeHTML(lastname)}</li>
-          <li><strong>🏪 Restaurant:</strong> ${encodeHTML(storename)}</li>
-          <li><strong>📍 Location:</strong> ${encodeHTML(capacityInfo.address)}</li>
-          <li><strong>📅 Date:</strong> ${date}</li>
-          <li><strong>🕒 Time:</strong> ${time}</li>
-          <li><strong>👥 Number of Guests:</strong> ${pax}
-            <ul>
-              <li><strong>Number of Adults:</strong> ${adultpax}</li>
-              <li><strong>Number of Child:</strong> ${childpax}</li>
-            </ul>
-          </li>
-          ${encodeHTML(specialrequest) ? `<li><strong>📢 Special Request:</strong> ${encodeHTML(specialrequest)}</li>` : ''}
-        </ul>
-        <p>Thank you!</p>
-        <p>Kirby Chope</p>
-      `
+              <p>Hello ${sanitizeForEmail(user.name)},</p>
+              <p>Your reservation with ${sanitizeForEmail(storename)} has been successfully <strong>updated</strong>. See below for updated details.</p>
+              <h4>Updated Reservation Details:</h4>
+              <ul>
+                <li><strong>👤 First Name:</strong> ${sanitizeForEmail(firstname)}</li>
+                <li><strong>👤 Last Name:</strong> ${sanitizeForEmail(lastname)}</li>
+                <li><strong>🏪 Restaurant:</strong> ${sanitizeForEmail(storename)}</li>
+                <li><strong>📍 Location:</strong> ${sanitizeForEmail(capacityInfo.address)}</li>
+                <li><strong>📅 Date:</strong> ${date}</li>
+                <li><strong>🕒 Time:</strong> ${time}</li>
+                <li><strong>👥 Number of Guests:</strong> ${pax}
+                  <ul>
+                    <li><strong>Number of Adults:</strong> ${adultpax}</li>
+                    <li><strong>Number of Child:</strong> ${childpax}</li>
+                  </ul>
+                </li>
+                ${specialrequest ? `<li><strong>📢 Special Request:</strong> ${sanitizeForEmail(specialrequest)}</li>` : ''}
+              </ul>
+              <p>Thank you!</p>
+              <p>Kirby Chope</p>
+            `
         });
 
         res.status(200).json({
@@ -620,18 +620,18 @@ cron.schedule('0 * * * *', async () => {
                 return (async () => {
                     try {
                         await transporter.sendMail({
-                            from: `"Kirby Chope" <${encodeHTML(process.env.EMAIL_USER)}>`,
+                            from: `"Kirby Chope" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
                             to: r.user_email,
-                            subject: `Reservation Reminder at ${encodeHTML(r.store_name)}`,
+                            subject: `Reservation Reminder at ${sanitizeForEmail(r.store_name)}`,
                             html: `
-                                <p>Hello ${encodeHTML(r.user_name)},</p>
-                                <p>You have an upcoming reservation at ${encodeHTML(r.store_name)}. See below for more details.</p>
+                                <p>Hello ${sanitizeForEmail(r.user_name)},</p>
+                                <p>You have an upcoming reservation at ${sanitizeForEmail(r.store_name)}. See below for more details.</p>
                                 <h4>Reservation Details:</h4>
                                 <ul>
-                                    <li><strong>👤 First Name:</strong> ${encodeHTML(r.first_name)}</li>
-                                    <li><strong>👤 Last Name:</strong> ${encodeHTML(r.last_name)}</li>
-                                    <li><strong>🏪 Restaurant:</strong> ${encodeHTML(r.store_name)}</li>
-                                    <li><strong>📍 Location:</strong> ${encodeHTML(r.store_address)}</li>
+                                    <li><strong>👤 First Name:</strong> ${sanitizeForEmail(r.first_name)}</li>
+                                    <li><strong>👤 Last Name:</strong> ${sanitizeForEmail(r.last_name)}</li>
+                                    <li><strong>🏪 Restaurant:</strong> ${sanitizeForEmail(r.store_name)}</li>
+                                    <li><strong>📍 Location:</strong> ${sanitizeForEmail(r.store_address)}</li>
                                     <li><strong>📅 Date:</strong> ${r.date_text}</li>
                                     <li><strong>🕒 Time:</strong> ${r.reservationTime}</li>
                                     <li><strong>👥 Number of Guests:</strong> ${r.noOfGuest}
@@ -640,7 +640,7 @@ cron.schedule('0 * * * *', async () => {
                                             <li><strong>Number of Child:</strong> ${r.childPax}</li>
                                         </ul>
                                     </li>
-                                    ${encodeHTML(r.specialRequest) ? `<li><strong>📢 Special Request:</strong> ${encodeHTML(r.specialRequest)}</li>` : ''}
+                                    ${r.specialRequest ? `<li><strong>📢 Special Request:</strong> ${sanitizeForEmail(r.specialRequest)}</li>` : ''}
                                 </ul>
                                 <p>Thank you!</p>
                                 <p>Kirby Chope</p>
