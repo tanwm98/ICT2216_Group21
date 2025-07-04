@@ -1,3 +1,7 @@
+document.addEventListener('DOMContentLoaded', () => {
+    void checkSession();
+});
+
 let userid;
 let calenderValue;
 let reservationid;
@@ -42,7 +46,7 @@ function decodeHtmlEntities(str) {
 
 function createSecureImageElement(imageUrl, altText, fallbackText = 'Restaurant image') {
     const img = document.createElement('img');
-    
+
     if (!imageUrl || typeof imageUrl !== 'string') {
         img.src = '/static/img/restaurants/no-image.png';
     } else if (imageUrl.startsWith('/static/img/restaurants/')) {
@@ -51,16 +55,16 @@ function createSecureImageElement(imageUrl, altText, fallbackText = 'Restaurant 
         console.warn('Invalid image URL detected:', imageUrl);
         img.src = '/static/img/restaurants/no-image.png';
     }
-    
+
     img.alt = escapeHtml(altText || fallbackText);
     img.referrerPolicy = 'strict-origin-when-cross-origin';
     img.loading = 'lazy';
-    
-    img.onerror = function() {
+
+    img.onerror = function () {
         this.src = '/static/img/restaurants/no-image.png';
         this.onerror = null;
     };
-    
+
     return img;
 }
 
@@ -86,7 +90,7 @@ window.onload = async function () {
             reserveBtn.textContent = "Login to Reserve";
             reserveBtn.classList.add('btn-disabled');
 
-            reserveBtn.addEventListener('click', function(e) {
+            reserveBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 const currentUrl = window.location.href;
                 window.location.href = `/login?redirect=${encodeURIComponent(currentUrl)}`;
@@ -131,7 +135,7 @@ document.getElementById("adultDropdown").addEventListener("change", function () 
     adultCount = validatePaxInput(this.value);
     changePax();
     handleCapacityUpdate();
-    
+
     const paxError = document.getElementById("paxError");
     if (pax > availCapacity) {
         paxError.textContent = `So sorry, the restaurant only has ${availCapacity} seats left.`;
@@ -150,7 +154,7 @@ document.getElementById("childDropdown").addEventListener("change", function () 
     childCount = validatePaxInput(this.value);
     changePax();
     handleCapacityUpdate();
-    
+
     const paxError = document.getElementById("paxError");
     if (pax > availCapacity) {
         paxError.textContent = `So sorry, the restaurant only has ${availCapacity} seats left.`;
@@ -236,7 +240,7 @@ async function displayTimingOptions() {
         let startMin = toMinutes(openTime);
         let closeMin = toMinutes(closeTime);
 
-        const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', hour12: false});
 
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         if (!dateRegex.test(selectedDate)) {
@@ -281,14 +285,14 @@ async function displayTimingOptions() {
             const slotTime = changeBack(startMin);
             const slotEnd = new Date(`${selectedDate}T${slotTime}:00`);
             const slotStart = new Date(slotEnd.getTime() - 60 * 60 * 1000);
-            
+
             const formattedSlotEnd = formatTime(slotEnd);
             const formattedSlotStart = formatTime(slotStart);
-            
+
             console.log("selectedDate: " + selectedDate);
             console.log("end: " + formattedSlotEnd);
             console.log("start: " + formattedSlotStart);
-            
+
             let paxHour;
 
             if (count > 0) {
@@ -330,7 +334,7 @@ async function displayTimingOptions() {
                 const paxError = document.getElementById("paxError");
                 console.log("available capacity: " + availCapacity);
                 console.log("is pax > capacity: " + (pax > availCapacity));
-                
+
                 if (pax > availCapacity) {
                     paxError.textContent = `So sorry, the restaurant only has ${availCapacity} seats left.`;
                     paxError.classList.add('error-message');
@@ -341,7 +345,7 @@ async function displayTimingOptions() {
                     paxError.classList.remove('error-message');
                     isCapacityExceeded = false;
                 }
-                
+
                 checkReserveButtonState();
             });
 
@@ -467,7 +471,7 @@ async function displaySpecificStore() {
             stores[0].altText || `${stores[0].storeName} restaurant image`,
             'Restaurant image'
         );
-        
+
         img.classList.add('restaurant-main-image');
 
         link.appendChild(img);
@@ -638,7 +642,7 @@ async function submitReview(userId, storeId) {
 
         const response = await fetch('/add-review', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 userid: userId,
                 storeid: storeId,
@@ -673,9 +677,9 @@ function showErrorMessage(message) {
     const errorDiv = document.createElement('div');
     errorDiv.className = 'alert alert-danger error-toast';
     errorDiv.textContent = message;
-    
+
     container.appendChild(errorDiv);
-    
+
     setTimeout(() => {
         if (errorDiv.parentNode) {
             errorDiv.parentNode.removeChild(errorDiv);

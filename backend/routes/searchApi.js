@@ -112,7 +112,10 @@ router.get(
                COUNT(rv.rating) AS "review_count"
         FROM stores s
         LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
-        WHERE s.status = 'approved' AND s."currentCapacity" >= $1
+        WHERE s.status = 'approved' 
+          AND s."currentCapacity" >= $1   
+          AND s.opening <= $4
+          AND s.closing >= $4
           AND NOT EXISTS (
                 SELECT 1 FROM reservations r
                 WHERE r.store_id = s.store_id
@@ -121,7 +124,7 @@ router.get(
           )
         GROUP BY s.store_id, s."storeName", s.image_filename, s.image_alt_text, s.cuisine, s.location, s."priceRange", s."currentCapacity"
         `,
-        [people, date, time]
+        [people, date, time, time]
       );
 
       // Add image URLs to the response

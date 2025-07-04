@@ -33,6 +33,11 @@ img.rounded {
 .visible-inline {
   display: inline !important;
 }
+
+.d-none { display: none !important; }
+.d-inline { display: inline !important; }
+.badge-visible { display: inline !important; }
+.badge-hidden { display: none !important; }
 .modal-overlay {
     position: fixed;
     top: 0;

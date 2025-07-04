@@ -65,9 +65,11 @@ async function loadPendingRestaurants() {
         const badge = document.getElementById('pendingCount');
         if (pendingRestaurants.length > 0) {
             badge.textContent = pendingRestaurants.length;
-            badge.style.display = 'inline';
+            badge.classList.remove('d-none');  // Bootstrap class
+            badge.classList.add('d-inline');   // Bootstrap class
         } else {
-            badge.style.display = 'none';
+            badge.classList.add('d-none');     // Bootstrap class
+            badge.classList.remove('d-inline');
         }
 
         if (pendingRestaurants.length === 0) {
@@ -354,10 +356,23 @@ function reviewRestaurant(restaurant) {
     img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
     img.alt = `${restaurant.storeName} image`;
 
-    // Setup action buttons
-    document.getElementById('approveBtn').onclick = () => approveRestaurant(restaurant.store_id);
-    document.getElementById('rejectBtn').onclick = () => showRejectSection();
-    document.getElementById('cancelReviewBtn').onclick = closeReviewModal;
+    const approveBtn = document.getElementById('approveBtn');
+    // Remove any existing listeners first
+    approveBtn.replaceWith(approveBtn.cloneNode(true));
+    document.getElementById('approveBtn').addEventListener('click', () => approveRestaurant(restaurant.store_id));
+
+    const rejectBtn = document.getElementById('rejectBtn');
+    rejectBtn.replaceWith(rejectBtn.cloneNode(true));
+    document.getElementById('rejectBtn').addEventListener('click', () => showRejectSection());
+
+    const cancelBtn = document.getElementById('cancelReviewBtn');
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    document.getElementById('cancelReviewBtn').addEventListener('click', closeReviewModal);
+
+    // Store restaurant ID for later use
+    document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
+
+
 
     // Store restaurant ID for rejection
     document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
@@ -367,44 +382,6 @@ function reviewRestaurant(restaurant) {
     rej.classList.add('hidden');
     rej.classList.remove('visible-block');
 
-    document.getElementById('rejectionReason').value = '';
-
-    showModal('reviewModal');
-}
-
-function reviewRestaurant(restaurant) {
-    // Populate modal with restaurant details
-    document.getElementById('reviewStoreName').textContent   = restaurant.storeName;
-    document.getElementById('reviewAddress').textContent     = restaurant.address;
-    document.getElementById('reviewPostalCode').textContent  = restaurant.postalCode;
-    document.getElementById('reviewLocation').textContent    = restaurant.location;
-    document.getElementById('reviewCuisine').textContent     = restaurant.cuisine;
-    document.getElementById('reviewPriceRange').textContent  = restaurant.priceRange;
-    document.getElementById('reviewCapacity').textContent    = restaurant.totalCapacity;
-    document.getElementById('reviewHours').textContent       = `${restaurant.opening} - ${restaurant.closing}`;
-
-    document.getElementById('reviewOwnerName').textContent   = `${restaurant.firstname} ${restaurant.lastname}`;
-    document.getElementById('reviewOwnerEmail').textContent  = restaurant.owner_email;
-    document.getElementById('reviewSubmitted').textContent   = new Date(restaurant.submitted_at).toLocaleString();
-
-    const img = document.getElementById('reviewImage');
-    img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
-    img.alt = `${restaurant.storeName} image`;
-
-    // Setup action buttons
-    document.getElementById('approveBtn').onclick      = () => approveRestaurant(restaurant.store_id);
-    document.getElementById('rejectBtn').onclick       = () => showRejectSection();
-    document.getElementById('cancelReviewBtn').onclick = closeReviewModal;
-
-    // Store restaurant ID for rejection
-    document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
-
-    // Reset (hide) rejection section via CSS classes
-    const rej = document.getElementById('rejectionSection');
-    rej.classList.add('hidden');
-    rej.classList.remove('visible-block');
-
-    // Clear textarea
     document.getElementById('rejectionReason').value = '';
 
     showModal('reviewModal');
@@ -421,15 +398,17 @@ function showRejectSection() {
     document.getElementById('rejectionReason').focus();
 
     // Wire up the actual rejection handler
-    document.getElementById('rejectBtn').onclick = () => {
+    const rejectBtn = document.getElementById('rejectBtn');
+    rejectBtn.replaceWith(rejectBtn.cloneNode(true));
+    document.getElementById('rejectBtn').addEventListener('click', () => {
         const reason = document.getElementById('rejectionReason').value.trim();
         if (reason.length < 10) {
             alert('Please provide a detailed rejection reason (at least 10 characters)');
             return;
         }
         const restaurantId = document.getElementById('reviewModal').dataset.restaurantId;
-        rejectRestaurant(restaurantId, reason);
-    };
+        void rejectRestaurant(restaurantId, reason);
+    });
 
     document.getElementById('rejectBtn').innerHTML = '<i class="bi bi-x-circle"></i> Confirm Rejection';
 }
@@ -778,13 +757,13 @@ async function loadPendingActions() {
         approveBtn.className = 'btn btn-sm btn-success me-1';
         approveBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
         approveBtn.title = 'Approve';
-        approveBtn.onclick = () => approveAction(action);
+        approveBtn.addEventListener('click', () => approveAction(action));
 
         const rejectBtn = document.createElement('button');
         rejectBtn.className = 'btn btn-sm btn-danger';
         rejectBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
         rejectBtn.title = 'Reject';
-        rejectBtn.onclick = () => rejectAction(action);
+        rejectBtn.addEventListener('click', () => rejectAction(action));
 
         decisionCell.appendChild(approveBtn);
         decisionCell.appendChild(rejectBtn);
@@ -943,6 +922,7 @@ function setupEventListeners() {
             }
         });
     }
+    document.getElementById('closeReauthModalBtn').addEventListener('click', closeReauthModal);
 }
 
 async function callSensitiveJson(url, method = 'POST', body = null, isFormData = false) {

@@ -93,7 +93,7 @@ localhost {
 			report-uri /csp-report;
 			# Comprehensive permissions policy
 
-			Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), vr=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
+			Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
 
 			# Additional security headers
 			X-Permitted-Cross-Domain-Policies "none"

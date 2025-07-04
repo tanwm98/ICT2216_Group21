@@ -63,6 +63,16 @@
     box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
 }
 
+.btn-edit-reservation {
+    background-color: #fc6c3f !important;
+    color: white !important;
+}
+
+.btn-edit-reservation:hover {
+    background-color: #e55a35 !important;
+    color: white !important;
+}
+
 /* Action buttons in tables */
 .action-btn {
     margin: 0 2px;

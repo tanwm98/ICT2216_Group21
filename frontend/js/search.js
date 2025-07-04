@@ -1,11 +1,15 @@
+document.addEventListener('DOMContentLoaded', () => {
+  void checkSession();
+});
+
 window.onload = function () {
   flatpickr("#dateInput", {
       dateFormat: "Y-m-d",
       minDate: 'today'
   });
 
-  loadLocations();
-  displayStores();
+  void loadLocations();
+  void displayStores();
       // Initialize the review score slider
     const slider = document.getElementById('review-score-slider');
     const reviewScoreDisplay = document.querySelector('.review-score-display');
@@ -77,13 +81,12 @@ function filterByReservationDetails() {
   const date = document.getElementById('dateInput').value;
   const time = document.getElementById('timeInput').value;
 
-  // IMPROVED: Better validation with user feedback
   if (!people || !date || !time) {
     showMessage('Please fill in all reservation details (people, date, and time).', 'warning');
     return;
   }
 
-  displayReservationAvailability(people, date, time);
+  void displayReservationAvailability(people, date, time);
 }
 
 // FILTER according to cuisine/rating/prices
@@ -152,10 +155,10 @@ function createRestaurantCard(store) {
 
   img.alt = store.altText || `${store.storeName} restaurant image`;
   img.loading = 'lazy';
-  img.onerror = function() {
+  img.addEventListener('error', function() {
     this.src = '/static/img/restaurants/no-image.png';
-    this.onerror = null;
-  };
+    this.removeEventListener('error', arguments.callee);
+  });
 
   card.appendChild(img);
 
@@ -199,8 +202,7 @@ function createRestaurantCard(store) {
   // Link to restaurant details page
   const link = document.createElement('a');
   link.href = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
-  link.style.textDecoration = 'none';
-  link.style.color = 'inherit';
+  link.className = 'restaurant-link';
   link.rel = 'noopener';
   link.appendChild(card);
 
@@ -362,21 +364,32 @@ function showMessage(message, type = 'info') {
       default:        alertClass += 'alert-info'; break;
     }
 
-    // Combine Bootstrap's alert class with your custom message-box class
-    foodList.innerHTML = `
-      <div class="${alertClass} message-box">
-        ${message}
-        ${type === 'error' ? '<br><br><button onclick="location.reload()" class="btn btn-danger btn-sm">Refresh Page</button>' : ''}
-      </div>
-    `;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `${alertClass} message-box`;
+    messageDiv.innerHTML = message;
+
+    if (type === 'error') {
+      const br1 = document.createElement('br');
+      const br2 = document.createElement('br');
+      const refreshBtn = document.createElement('button');
+      refreshBtn.className = 'btn btn-danger btn-sm';
+      refreshBtn.textContent = 'Refresh Page';
+      refreshBtn.addEventListener('click', () => location.reload());
+
+      messageDiv.appendChild(br1);
+      messageDiv.appendChild(br2);
+      messageDiv.appendChild(refreshBtn);
+    }
+
+    foodList.innerHTML = '';
+    foodList.appendChild(messageDiv);
   }
 }
-
 
 function showLoading() {
   const foodList = document.getElementById('res-content');
   if (foodList) {
-    foodList.innerHTML = `
+    foodList.innerHTML = `    
       <div class="loading-container">
         <div class="spinner-border" role="status">
           <span class="visually-hidden">Loading...</span>

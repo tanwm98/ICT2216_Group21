@@ -1,3 +1,8 @@
+
+document.addEventListener('DOMContentLoaded', () => {
+  void checkSession();
+});
+
 window.addEventListener('DOMContentLoaded', () => {
   fetchUser();
   fetchReservations();
@@ -51,60 +56,74 @@ function fetchUser() {
 // ======== Fetch user reservations ======== 
 function fetchReservations() {
   fetch('/api/user/reservations')
-    .then(res => res.json())
-    .then(data => {
-      const tableBody = document.querySelector('#reservationTable tbody');
-      tableBody.innerHTML = '';
-      data.forEach(reservation => {
-        const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
-        const now = new Date();
-        const isPastReservation = now >= reservationDateTime;
+      .then(res => res.json())
+      .then(data => {
+        const tableBody = document.querySelector('#reservationTable tbody');
+        tableBody.innerHTML = '';
 
-        console.log("[DEBUG] Encoded specialRequest from backend:", reservation.specialRequest);
-        console.log("[DEBUG] Decoded specialRequest for rendering:", decodeHtmlEntities(reservation.specialRequest || ''));
+        data.forEach(reservation => {
+          const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+          const now = new Date();
+          const isPastReservation = now >= reservationDateTime;
 
-        const row = document.createElement('tr');
+          console.log("[DEBUG] Encoded specialRequest from backend:", reservation.specialRequest);
+          console.log("[DEBUG] Decoded specialRequest for rendering:", decodeHtmlEntities(reservation.specialRequest || ''));
 
-        row.innerHTML = `
-          <td>${reservation.storeName}</td>
-          <td>${reservation.reservationDate}</td>
-          <td>${reservation.reservationTime}</td>
-          <td>${reservation.noOfGuest}</td>
-          <td>
-            ${(reservation.status === 'Confirmed' && !isPastReservation)
-              ? `<button class="btn btn-sm btn-warning" onclick="cancelUserReservation(${reservation.reservation_id})">Cancel</button>`
-              : (reservation.status === 'Confirmed' && isPastReservation)
-                ? 'Completed'
-                : reservation.status}
-          </td>
-        `;
+          const row = document.createElement('tr');
+          const storeCell = document.createElement('td');
+          storeCell.textContent = reservation.storeName;
+          row.appendChild(storeCell);
 
-        // Safely add specialRequest cell
-        const specialRequestCell = document.createElement('td');
-        specialRequestCell.textContent = decodeHtmlEntities(reservation.specialRequest || '');
-        row.appendChild(specialRequestCell);
+          // Date cell
+          const dateCell = document.createElement('td');
+          dateCell.textContent = reservation.reservationDate;
+          row.appendChild(dateCell);
 
-        // Append edit button or dash
-        const editCell = document.createElement('td');
-        if (reservation.status === 'Confirmed' && !isPastReservation) {
-          const editBtn = document.createElement('button');
-          editBtn.className = 'btn btn-sm';
-          editBtn.style.backgroundColor = '#fc6c3f';
-          editBtn.style.color = 'white';
-          editBtn.textContent = 'Edit Reservation';
-          editBtn.onclick = () => editReservation(reservation.store_id, reservation.reservation_id);
-          editCell.appendChild(editBtn);
-        } else {
-          editCell.textContent = '-';
-        }
-        row.appendChild(editCell);
+          // Time cell
+          const timeCell = document.createElement('td');
+          timeCell.textContent = reservation.reservationTime;
+          row.appendChild(timeCell);
 
-        tableBody.appendChild(row);
+          // Guest count cell
+          const guestCell = document.createElement('td');
+          guestCell.textContent = reservation.noOfGuest;
+          row.appendChild(guestCell);
+
+          const statusCell = document.createElement('td');
+          if (reservation.status === 'Confirmed' && !isPastReservation) {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-sm btn-warning';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.addEventListener('click', () => cancelUserReservation(reservation.reservation_id));
+            statusCell.appendChild(cancelBtn);
+          } else if (reservation.status === 'Confirmed' && isPastReservation) {
+            statusCell.textContent = 'Completed';
+          } else {
+            statusCell.textContent = reservation.status;
+          }
+          row.appendChild(statusCell);
+          const specialRequestCell = document.createElement('td');
+          specialRequestCell.textContent = decodeHtmlEntities(reservation.specialRequest || '');
+          row.appendChild(specialRequestCell);
+
+          const editCell = document.createElement('td');
+          if (reservation.status === 'Confirmed' && !isPastReservation) {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm btn-edit-reservation';
+            editBtn.textContent = 'Edit Reservation';
+            editBtn.addEventListener('click', () => editReservation(reservation.store_id, reservation.reservation_id));
+            editCell.appendChild(editBtn);
+          } else {
+            editCell.textContent = '-';
+          }
+          row.appendChild(editCell);
+
+          tableBody.appendChild(row);
+        });
+      })
+      .catch(err => {
+        console.error('Error loading reservations:', err);
       });
-    })
-    .catch(err => {
-      console.error('Error loading reservations:', err);
-    });
 }
 // ========== CANCEL RESERVATION ==========
 function cancelUserReservation(reservationId) {

@@ -1,3 +1,7 @@
+document.addEventListener('DOMContentLoaded', () => {
+    void checkSession();
+});
+
 async function displayStores() {
     const foodList = document.getElementById('post-content');
     if (!foodList) {
@@ -210,6 +214,7 @@ function initializePageLoad() {
 }
 
 window.onload = function() {
+
     try {
         initializePageLoad();
     } catch (error) {
