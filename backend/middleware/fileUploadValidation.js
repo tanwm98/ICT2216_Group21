@@ -52,7 +52,7 @@ const validateUploadedImage = async (req, res, next) => {
         if (!req.file) return next();
 
         const safeFilename = path.basename(req.file.originalname).replace(/[^\w.-]/g, '_');
-        const filePath = path.join(__dirname, '../../uploads', safeFilename);
+        const filePath = req.file.path;
 
         const buffer = await fs.promises.readFile(filePath);
         const type = await FileType.fromBuffer(buffer);

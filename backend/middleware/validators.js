@@ -384,17 +384,17 @@ exports.userLastNameValidator = [
 ];
 
 exports.reserveValidator = [
-  query('pax').isInt({ min: 1 }).withMessage('Pax must be a positive integer'),
-  query('userid').isInt().withMessage('User ID must be an integer'),
-  query('storeid').isInt().withMessage('Store ID must be an integer'),
-  query('time').matches(/^\d{2}:\d{2}$/).withMessage('Time must be in HH:MM format'),
-  query('date').isISO8601().withMessage('Date must be valid (YYYY-MM-DD)'),
-  query('firstname').trim().escape().isAlpha().withMessage('First name must contain only letters'),
-  query('lastname').trim().escape().isAlpha().withMessage('Last name must contain only letters'),
-  query('specialrequest').optional().trim().escape(),
-  query('storename').trim().escape(),
-  query('adultpax').isInt({ min: 0 }).withMessage('Adult pax must be >= 0'),
-  query('childpax').isInt({ min: 0 }).withMessage('Child pax must be >= 0'),
+  body('pax').isInt({ min: 1 }).withMessage('Pax must be a positive integer'),
+  body('userid').isInt().withMessage('User ID must be an integer'),
+  body('storeid').isInt().withMessage('Store ID must be an integer'),
+  body('time').matches(/^\d{2}:\d{2}$/).withMessage('Time must be in HH:MM format'),
+  body('date').isISO8601().withMessage('Date must be valid (YYYY-MM-DD)'),
+  body('firstname').trim().escape().isAlpha().withMessage('First name must contain only letters'),
+  body('lastname').trim().escape().isAlpha().withMessage('Last name must contain only letters'),
+  body('specialrequest').optional().trim().escape(),
+  body('storename').trim().escape(),
+  body('adultpax').isInt({ min: 0 }).withMessage('Adult pax must be >= 0'),
+  body('childpax').isInt({ min: 0 }).withMessage('Child pax must be >= 0'),
 ];
 
 exports.updateReservationValidator = [

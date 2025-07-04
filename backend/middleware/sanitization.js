@@ -1,4 +1,5 @@
 const validator = require('validator');
+const { encodeHTML } = require('entities');
 
 function sanitizeInput(req, res, next) {
     // Sanitize request body
@@ -208,5 +209,6 @@ module.exports = {
     sanitizeInput,
     sanitizeOutput,
     sanitizeSpecificFields,
-    createRateLimiter
+    createRateLimiter,
+    encodeHTML
 };

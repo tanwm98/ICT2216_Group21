@@ -115,7 +115,7 @@ async function populateFields(reservationid) {
 
         document.getElementById('firstname').value = escapeHtml(details.first_name);
         document.getElementById('lastname').value = escapeHtml(details.last_name);
-        document.getElementById('specialrequest').value = decodeHtmlEntities(details.specialRequest);
+        document.getElementById('specialrequest').value = details.specialRequest;
     } catch (error) {
         console.error('Error populating fields:', error);
         showError('Failed to load reservation details');
@@ -198,7 +198,25 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                         })
                     });
                 } else {
-                    response = await fetch(`/reserve?pax=${totalpeople}&date=${date}&time=${time}&userid=${userid}&storeid=${storeid}&firstname=${firstname}&lastname=${lastname}&specialrequest=${specialrequest}&storename=${storename}&adultpax=${adultpax}&childpax=${childpax}`);
+                    response = await fetch('/reserve', { // Changed to POST
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            pax: totalpeople,
+                            date,
+                            time,
+                            userid,
+                            storeid,
+                            firstname,
+                            lastname,
+                            specialrequest,
+                            storename,
+                            adultpax,
+                            childpax
+                        })
+                    });
                 }
 
                 const result = await response.json();
