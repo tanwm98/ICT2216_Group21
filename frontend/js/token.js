@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const pool = require('../../db');
+const db = require('../../db');
 const { logSecurity } = require('../../backend/logger'); // ADD THIS LINE
 
 async function authenticateToken(req, res, next) {
@@ -15,15 +15,19 @@ async function authenticateToken(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     console.log(payload);
 
-    const result = await pool.query('SELECT user_id, token_version FROM users WHERE user_id = $1', [payload.userId]);
+    // KNEX: Convert pool.query to Knex query builder
+    const user = await db('users')
+      .select('user_id', 'token_version')
+      .where('user_id', payload.userId)
+      .first(); // .first() returns single object or undefined
 
-    if (result.rows.length === 0) {
+    if (!user) {
       const error = new Error('User account no longer exists');
       error.statusCode = 403;
       return next(error);
     }
 
-    const currentTokenVersion = result.rows[0].token_version;
+    const currentTokenVersion = user.token_version;
     if (payload.tokenVersion !== currentTokenVersion) {
       const error = new Error('Session invalidated. Please re-login.');
       error.statusCode = 403;

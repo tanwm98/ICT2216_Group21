@@ -1,4 +1,4 @@
-const pool = require('../../db');
+const db = require('../../db');
 const express = require('express');
 
 // const app = express();
@@ -48,8 +48,12 @@ function addImageUrls(stores) {
 // Route to get locations
 router.get('/available_locations', async (req, res) => {
   try {
-    const result = await pool.query(`SELECT DISTINCT location FROM stores ORDER BY location`);
-    res.json(result.rows.map(row => row.location));
+    const locations = await db('stores')
+      .distinct('location')
+      .orderBy('location')
+      .pluck('location');
+
+    res.json(locations);
   } catch (err) {
     console.error('Error fetching locations:', err);
     res.status(500).json({ error: 'Failed to fetch locations' });
@@ -59,28 +63,41 @@ router.get('/available_locations', async (req, res) => {
 // Route to display ALL stores
 router.get('/displayallStores', async (req, res) => {
     try {
-      const query = await pool.query(`
-        SELECT
-          s."store_id",
-          s."storeName",
-          s.image_filename,
-          s.image_alt_text,
-          s.cuisine,
-          s.location,
-          s."priceRange",
-          ROUND(AVG(r.rating), 1) AS "average_rating",
-          COUNT(r.rating) AS "review_count"
-          FROM stores s
-          LEFT JOIN reviews r ON s."store_id" = r."store_id"
-          GROUP BY s."store_id", s."storeName", s.image_filename, s.image_alt_text, s.cuisine, s.location, s."priceRange";
-        `);
+      const stores = await db('stores as s')
+        .leftJoin('reviews as r', 's.store_id', 'r.store_id')
+        .select([
+          's.store_id',
+          's.storeName',
+          's.image_filename',
+          's.image_alt_text',
+          's.cuisine',
+          's.location',
+          's.priceRange'
+        ])
+        .avg('r.rating as average_rating')
+        .count('r.rating as review_count')
+        .groupBy([
+          's.store_id',
+          's.storeName',
+          's.image_filename',
+          's.image_alt_text',
+          's.cuisine',
+          's.location',
+          's.priceRange'
+        ]);
 
-        // Add image URLs to the response
-        res.json(addImageUrls(query.rows));
+      // Format the results to match expected structure
+      const formattedStores = stores.map(store => ({
+        ...store,
+        average_rating: store.average_rating ? parseFloat(store.average_rating).toFixed(1) : null,
+        review_count: parseInt(store.review_count) || 0
+      }));
 
-      } catch (err) {
-        console.error('Error querying database:', err);
-        res.status(500).json({ error: 'Failed to fetch data' });
+      // Add image URLs to the response
+      res.json(addImageUrls(formattedStores));
+    } catch (err) {
+      console.error('Error querying database:', err);
+      res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
 
@@ -88,47 +105,60 @@ router.get('/displayallStores', async (req, res) => {
 router.get(
   '/display_by_ReservationAvailability',
   [
-    // All validation is now here
     query('people').isInt({ min: 1, max: 50 }).withMessage('People count must be an integer between 1 and 50'),
     query('date').isISO8601().withMessage('Date must be in YYYY-MM-DD format'),
     query('time').matches(/^\d{2}:\d{2}$/).withMessage('Time must be in HH:MM format'),
   ],
-  handleValidation, // This middleware handles sending the 400 error response
+  handleValidation,
   async (req, res) => {
     try {
       const { people, date, time } = req.query;
 
-      const result = await pool.query(
-        `
-        SELECT s."store_id",
-               s."storeName",
-               s.image_filename,
-               s.image_alt_text,
-               s.cuisine,
-               s.location,
-               s."priceRange",
-               s."currentCapacity",
-               AVG(rv.rating)::numeric(2,1) AS "average_rating",
-               COUNT(rv.rating) AS "review_count"
-        FROM stores s
-        LEFT JOIN reviews rv ON s."store_id" = rv."store_id"
-        WHERE s.status = 'approved' 
-          AND s."currentCapacity" >= $1   
-          AND s.opening <= $4
-          AND s.closing >= $4
-          AND NOT EXISTS (
-                SELECT 1 FROM reservations r
-                WHERE r.store_id = s.store_id
-                  AND r."reservationDate" = $2
-                  AND r."reservationTime" = $3
-          )
-        GROUP BY s.store_id, s."storeName", s.image_filename, s.image_alt_text, s.cuisine, s.location, s."priceRange", s."currentCapacity"
-        `,
-        [people, date, time, time]
-      );
+      const stores = await db('stores as s')
+        .leftJoin('reviews as rv', 's.store_id', 'rv.store_id')
+        .where('s.status', 'approved')
+        .where('s.currentCapacity', '>=', people)
+        .where('s.opening', '<=', time)
+        .where('s.closing', '>=', time)
+        .whereNotExists(function() {
+          this.select(1)
+            .from('reservations as r')
+            .whereRaw('r.store_id = s.store_id')
+            .where('r.reservationDate', date)
+            .where('r.reservationTime', time);
+        })
+        .select([
+          's.store_id',
+          's.storeName',
+          's.image_filename',
+          's.image_alt_text',
+          's.cuisine',
+          's.location',
+          's.priceRange',
+          's.currentCapacity'
+        ])
+        .avg('rv.rating as average_rating')
+        .count('rv.rating as review_count')
+        .groupBy([
+          's.store_id',
+          's.storeName',
+          's.image_filename',
+          's.image_alt_text',
+          's.cuisine',
+          's.location',
+          's.priceRange',
+          's.currentCapacity'
+        ]);
+
+      // Format results
+      const formattedStores = stores.map(store => ({
+        ...store,
+        average_rating: store.average_rating ? parseFloat(store.average_rating).toFixed(1) : null,
+        review_count: parseInt(store.review_count) || 0
+      }));
 
       // Add image URLs to the response
-      res.json(addImageUrls(result.rows));
+      res.json(addImageUrls(formattedStores));
     } catch (err) {
       console.error('Error querying database:', err);
       res.status(500).json({ error: 'Failed to fetch data' });
@@ -138,7 +168,8 @@ router.get(
 
 // ========== FILTERED SEARCH ==========
 router.get(
-  '/display_filtered_store', [
+  '/display_filtered_store',
+  [
     query('priceRange').optional().isIn(['$', '$$', '$$$', '$$$$', '$$$$$']),
     query('reviewScoreMin').optional().isFloat({ min: 0, max: 5 }),
     query('reviewScoreMax').optional().isFloat({ min: 0, max: 5 }),
@@ -152,44 +183,56 @@ router.get(
       const cuisines = req.query.cuisines ? req.query.cuisines.split(',') : [];
       const { priceRange, reviewScoreMin, reviewScoreMax, location } = req.query;
 
-      const values = [];
-      let sql = `
-        SELECT s.*, AVG(r.rating)::numeric(2,1) AS "average_rating", COUNT(r."store_id") AS "review_count"
-        FROM stores s
-        LEFT JOIN reviews r ON s."store_id" = r."store_id"
-        WHERE 1=1
-      `;
+      let query = db('stores as s')
+        .leftJoin('reviews as r', 's.store_id', 'r.store_id')
+        .select([
+          's.*'
+        ])
+        .avg('r.rating as average_rating')
+        .count('r.store_id as review_count');
 
+      // Apply filters
       if (cuisines.length > 0) {
-        values.push(cuisines);
-        sql += ` AND s.cuisine = ANY($${values.length})`;
+        query = query.whereIn('s.cuisine', cuisines);
       }
 
       if (priceRange) {
-        values.push(priceRange);
-        sql += ` AND s."priceRange" = $${values.length}`;
+        query = query.andWhere('s.priceRange', priceRange);
       }
 
       if (location) {
-        values.push(location);
-        sql += ` AND s.location = $${values.length}`;
+        query = query.andWhere('s.location', location);
       }
 
-      // UPDATED: Add image columns to GROUP BY
-      sql += ` GROUP BY s."store_id", s."storeName", s.image_filename, s.image_alt_text, s.cuisine, s.location, s."priceRange", s."currentCapacity"`;
+      query = query.groupBy([
+        's.store_id',
+        's.storeName',
+        's.image_filename',
+        's.image_alt_text',
+        's.cuisine',
+        's.location',
+        's.priceRange',
+        's.currentCapacity'
+      ]);
 
+      // Apply rating filters using HAVING clause
       if (!isNaN(reviewScoreMin) && !isNaN(reviewScoreMax) &&
           (reviewScoreMin > 1 || reviewScoreMax < 5)) {
-          values.push(parseFloat(reviewScoreMin) - 0.5);
-          sql += ` HAVING AVG(r.rating) >= $${values.length}`;
-          values.push(parseFloat(reviewScoreMax) + 0.5);
-          sql += ` AND AVG(r.rating) <= $${values.length}`;
+        query = query.havingRaw('AVG(r.rating) >= ?', [parseFloat(reviewScoreMin) - 0.5])
+                     .havingRaw('AVG(r.rating) <= ?', [parseFloat(reviewScoreMax) + 0.5]);
       }
 
-      const result = await pool.query(sql, values);
+      const stores = await query;
+
+      // Format results
+      const formattedStores = stores.map(store => ({
+        ...store,
+        average_rating: store.average_rating ? parseFloat(store.average_rating).toFixed(1) : null,
+        review_count: parseInt(store.review_count) || 0
+      }));
 
       // Add image URLs to the response
-      res.json(addImageUrls(result.rows));
+      res.json(addImageUrls(formattedStores));
     } catch (err) {
       console.error('Filter error:', err);
       res.status(500).json({ error: 'Failed to fetch filtered data' });
