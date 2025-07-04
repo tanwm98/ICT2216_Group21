@@ -13,7 +13,7 @@ test.describe('User Authentication Flow', () => {
     await expect(page.getByLabel('Password')).toBeVisible();
     
     // Fill login form with valid credentials
-    await page.getByLabel('Email').fill('test123@gmail.com');
+    await page.getByLabel('Email').fill('tanwm98@gmail.com');
     await page.getByLabel('Password').fill('1234qwer');
     
     // Submit login form
