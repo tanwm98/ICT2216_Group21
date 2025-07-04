@@ -1,17 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../../db');
+const db = require('../../db'); // Using the enhanced db setup with Knex
 const argon2 = require('argon2');
 const { authenticateToken, requireUser } = require('../../frontend/js/token');
 
 const { userPasswordValidator, userNameValidator, userFirstNameValidator, userLastNameValidator, cancelReservationValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
+const { encodeHTML } = require('../middleware/sanitization');
 const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 const { isBreachedPassword } = require('../utils/breachCheck');
 
 router.use(authenticateToken, requireUser);
 
-// ======== Get user profile ======== 
+// ======== Get user profile ========
 router.get('/getUser', async (req, res) => {
   const userId = req.user.userId;
   if (!userId) {
@@ -19,18 +20,18 @@ router.get('/getUser', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      'SELECT name, email, firstname, lastname FROM users WHERE user_id = $1',
-      [userId]
-    );
+    const user = await db('users')
+      .select('name', 'email', 'firstname', 'lastname')
+      .where('user_id', userId)
+      .first();
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const { name, email, firstname, lastname } = result.rows[0];
+    const { name, email, firstname, lastname } = user;
     res.json({ name, email, firstname, lastname });
-    console.log(result)
+    console.log('User data fetched:', user);
 
   } catch (err) {
     console.error('Error fetching user info:', err);
@@ -38,8 +39,7 @@ router.get('/getUser', async (req, res) => {
   }
 });
 
-
-// ======== Get user reservations ======== 
+// ======== Get user reservations ========
 router.get('/reservations', async (req, res) => {
   const userId = req.user.userId;
   if (!userId) {
@@ -47,26 +47,33 @@ router.get('/reservations', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      `SELECT r.reservation_id, r.store_id, r."noOfGuest", r."reservationDate"::TEXT, r."reservationTime",
-                   r."specialRequest", r.status, s."storeName"
-            FROM reservations r 
-            JOIN users u ON r.user_id = u.user_id
-            JOIN stores s ON r.store_id = s.store_id
-       WHERE r.user_id = $1 
-       ORDER BY r."reservationDate" DESC, r."reservationTime" DESC`,
-      [userId]
-    );
+    const reservations = await db('reservations as r')
+      .join('users as u', 'r.user_id', 'u.user_id')
+      .join('stores as s', 'r.store_id', 's.store_id')
+      .select(
+        'r.reservation_id',
+        'r.store_id',
+        'r.noOfGuest',
+        db.raw('r."reservationDate"::TEXT as "reservationDate"'),
+        'r.reservationTime',
+        'r.specialRequest',
+        'r.status',
+        's.storeName'
+      )
+      .where('r.user_id', userId)
+      .orderBy([
+        { column: 'r.reservationDate', order: 'desc' },
+        { column: 'r.reservationTime', order: 'desc' }
+      ]);
 
-    res.json(result.rows);
+    res.json(reservations);
   } catch (err) {
     console.error('Error fetching reservations:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-
-// ======== Get user reviews======== 
+// ======== Get user reviews ========
 router.get('/reviews', async (req, res) => {
   const userId = req.user.userId;
   if (!userId) {
@@ -74,56 +81,66 @@ router.get('/reviews', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      `SELECT rv.review_id, rv.rating, rv.description, u.name AS "userName", s."storeName"
-        FROM reviews rv
-        JOIN users u ON rv.user_id = u.user_id
-        JOIN stores s ON rv.store_id = s.store_id
-        WHERE rv.user_id = $1 
-      ORDER BY rv.review_id DESC`,
-      [userId]
-    );
+    const reviews = await db('reviews as rv')
+      .join('users as u', 'rv.user_id', 'u.user_id')
+      .join('stores as s', 'rv.store_id', 's.store_id')
+      .select(
+        'rv.review_id',
+        'rv.rating',
+        'rv.description',
+        'u.name as userName',
+        's.storeName'
+      )
+      .where('rv.user_id', userId)
+      .orderBy('rv.review_id', 'desc');
 
-    res.json(result.rows);
+    res.json(reviews);
   } catch (err) {
     console.error('Error fetching reviews:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-
 // ======== Authenticated User Change password ========
 router.post('/reset-password', userPasswordValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
   const { currentPassword, newPassword } = req.body;
+
   // Ensure user is logged in when performing change password
   if (!userId) {
     return res.status(401).json({ error: 'Please log in first.' });
   }
-  
+
   // Compare current password against saved hashed password
   let isMatch;
-  let fetchedResult;
+  let user;
+
   try {
-    fetchedResult = await pool.query('SELECT password FROM users WHERE user_id = $1', [userId]);
+    user = await db('users')
+      .select('password')
+      .where('user_id', userId)
+      .first();
+
     // if no password exists for some reason
-    if (fetchedResult.rows.length === 0) {
+    if (!user) {
       return res.status(401).json({ error: 'Error performing password reset.' });
     }
   } catch (error) {
+    console.error('Error fetching user password:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 
-  const storedHashedPassword = fetchedResult.rows[0].password;
-  try{
+  const storedHashedPassword = user.password;
+  try {
     isMatch = await argon2.verify(storedHashedPassword, currentPassword);
   } catch (error) {
+    console.error('Error verifying password:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
+
   if (!isMatch) {
     return res.status(401).json({ error: 'Current password is incorrect' });
   }
-
 
   // Length checks
   if (!newPassword || newPassword.length < 8) {
@@ -136,22 +153,24 @@ router.post('/reset-password', userPasswordValidator, handleValidation, async (r
 
   // Check if password appeared in breach database
   if (await isBreachedPassword(newPassword)) {
-    return res.status(400).json({ error: 'Password has been flagged in breach databases. ' +
-          'Please choose another password.' });
+    return res.status(400).json({
+      error: 'Password has been flagged in breach databases. Please choose another password.'
+    });
   }
-
 
   // Update to new password
   try {
     const hashedPassword = await argon2.hash(newPassword);
 
     // Increment token_version to invalidate old tokens
-    await pool.query(
-      `UPDATE users SET password = $1, token_version = token_version + 1 WHERE user_id = $2`,
-      [hashedPassword, userId]
-    );
-    res.clearCookie('token'); 
+    await db('users')
+      .where('user_id', userId)
+      .update({
+        password: hashedPassword,
+        token_version: db.raw('token_version + 1')
+      });
 
+    res.clearCookie('token');
     res.json({ message: 'Password reset successful.' });
   } catch (err) {
     console.error('Error resetting password:', err);
@@ -159,25 +178,6 @@ router.post('/reset-password', userPasswordValidator, handleValidation, async (r
   }
 });
 
-
-// ======== Update user name ======== 
-// router.put('/edit', authenticateToken, async (req, res) => {
-//   const userId = req.user.userId;
-//   const { name } = req.body;
-
-//   if (!name || name.trim() === '') {
-//     return res.status(400).json({ message: 'Name cannot be empty.' });
-//   }
-
-//   try {
-//     await pool.query('UPDATE users SET name = $1 WHERE user_id = $2', [name.trim(), userId]);
-//     res.json({ message: 'Name updated successfully.' });
-//   } catch (err) {
-//     console.error('Error updating name:', err);
-//     res.status(500).json({ message: 'Internal server error.' });
-//   }
-// });
-// ======== Update user profile fields ======== 
 // ======== Update Username ========
 router.put('/edit/username', userNameValidator, handleValidation, async (req, res) => {
   const userId = req.user.userId;
@@ -188,7 +188,11 @@ router.put('/edit/username', userNameValidator, handleValidation, async (req, re
   }
 
   try {
-    await pool.query('UPDATE users SET name = $1 WHERE user_id = $2', [name.trim(), userId]);
+    const sanitizedName = encodeHTML(name.trim());
+    await db('users')
+      .where('user_id', userId)
+      .update({ name: sanitizedName });
+
     res.json({ message: 'Username updated successfully.' });
   } catch (err) {
     console.error('Error updating username:', err);
@@ -210,7 +214,11 @@ router.put('/edit/firstname', userFirstNameValidator, handleValidation, async (r
   }
 
   try {
-    await pool.query('UPDATE users SET firstname = $1 WHERE user_id = $2', [firstname.trim(), userId]);
+    const sanitizedFirstname = encodeHTML(firstname.trim());
+    await db('users')
+      .where('user_id', userId)
+      .update({ firstname: sanitizedFirstname });
+
     res.json({ message: 'First name updated successfully.' });
   } catch (err) {
     console.error('Error updating first name:', err);
@@ -232,7 +240,11 @@ router.put('/edit/lastname', userLastNameValidator, handleValidation, async (req
   }
 
   try {
-    await pool.query('UPDATE users SET lastname = $1 WHERE user_id = $2', [lastname.trim(), userId]);
+    const sanitizedLastname = encodeHTML(lastname.trim());
+    await db('users')
+      .where('user_id', userId)
+      .update({ lastname: sanitizedLastname });
+
     res.json({ message: 'Last name updated successfully.' });
   } catch (err) {
     console.error('Error updating last name:', err);
@@ -240,88 +252,265 @@ router.put('/edit/lastname', userLastNameValidator, handleValidation, async (req
   }
 });
 
-// ======== Cancel reservation ======== 
-router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
-  const client = await pool.connect();
+// ======== Get reservation for editing ========
+router.get('/reservations/:id/edit', async (req, res) => {
+  const reservationId = req.params.id;
+  const userId = req.user.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user info found' });
+  }
 
   try {
-    const reservationId = req.params.id;
-    const userId = req.user.userId;
+    const reservation = await db('reservations as r')
+      .join('stores as s', 'r.store_id', 's.store_id')
+      .select(
+        'r.reservation_id',
+        'r.store_id',
+        'r.noOfGuest',
+        'r.reservationDate',
+        'r.reservationTime',
+        'r.specialRequest',
+        'r.status',
+        's.storeName',
+        's.location',
+        's.maxCapacity',
+        's.currentCapacity'
+      )
+      .where('r.reservation_id', reservationId)
+      .where('r.user_id', userId)
+      .where('r.status', '!=', 'Cancelled')
+      .first();
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized: No user info found' });
-    }
-
-    await client.query('BEGIN');
-
-    // Fetch reservation
-    const result = await client.query(
-      `SELECT r.*, s."storeName"
-       FROM reservations r
-       JOIN stores s ON r."store_id" = s."store_id"
-       WHERE r."reservation_id" = $1 AND r."user_id" = $2`,
-      [reservationId, userId]
-    );
-
-    if (result.rowCount === 0) {
-      await client.query('ROLLBACK');
+    if (!reservation) {
       return res.status(404).json({ error: 'Reservation not found or does not belong to you' });
     }
 
-    const reservation = result.rows[0];
     const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
     const now = new Date();
 
     if (now >= reservationDateTime) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Cannot cancel a past or ongoing reservation' });
+      return res.status(400).json({ error: 'Cannot edit a past or ongoing reservation' });
     }
 
-    // Cancel reservation
-    await client.query(
-      `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,[reservationId]
-    );
-
-    // Add back pax to current capacity
-    await client.query(
-      `UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2`,
-      [reservation.noOfGuest, reservation.store_id]
-    );
-
-    await client.query('COMMIT');
-
-    res.json({ message: 'Reservation cancelled successfully', reservation });
-
+    res.json(reservation);
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error during user cancellation:', err);
-    res.status(500).json({ error: 'Failed to cancel reservation' });
-  } finally {
-    client.release();
+    console.error('Error fetching reservation for edit:', err);
+    res.status(500).json({ error: 'Failed to fetch reservation' });
   }
 });
 
-// edit reservation
-// router.get('/edit_reservation', async (req, res) => {
-//   try {
-//     // get store name from the request
-//     const storeName = req.query.name;
-//     const location = req.query.location;
-//     const reservationid = req.query.reservationid;
-//     const userid = req.query.userid;
+// ======== Update reservation ========
+router.put('/reservations/:id', async (req, res) => {
+  const reservationId = req.params.id;
+  const userId = req.user.userId;
+  const { noOfGuest, reservationDate, reservationTime, specialRequest } = req.body;
 
-//     const result = await pool.query(`
-//       SELECT * FROM stores s WHERE "storeName" = $1 AND location = $2 AND reservation_id = $3 AND r.user_id = $4
-//       INNER JOIN reservations r ON r.store_id = s.store_id
-//       INNER JOIN users u ON r.user_id = u.user_id
-//       `
-//       , [storeName, location, reservationid, userid]);
-//     res.json(result.rows); // send data back as json
-//   } catch (err) {
-//     console.error('Error querying database:', err);
-//     res.status(500).json({ error: 'Failed to fetch data' });
-//   }
-// });
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user info found' });
+  }
 
+  // Input validation
+  if (!noOfGuest || noOfGuest < 1 || noOfGuest > 20) {
+    return res.status(400).json({ error: 'Number of guests must be between 1 and 20' });
+  }
+
+  if (!reservationDate || !reservationTime) {
+    return res.status(400).json({ error: 'Reservation date and time are required' });
+  }
+
+  // Validate future date
+  const newReservationDateTime = new Date(`${reservationDate}T${reservationTime}`);
+  const now = new Date();
+
+  if (newReservationDateTime <= now) {
+    return res.status(400).json({ error: 'Reservation must be in the future' });
+  }
+
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Fetch current reservation
+      const currentReservation = await trx('reservations as r')
+        .join('stores as s', 'r.store_id', 's.store_id')
+        .select(
+          'r.*',
+          's.storeName',
+          's.maxCapacity',
+          's.currentCapacity'
+        )
+        .where('r.reservation_id', reservationId)
+        .where('r.user_id', userId)
+        .where('r.status', '!=', 'Cancelled')
+        .first();
+
+      if (!currentReservation) {
+        throw new Error('Reservation not found or does not belong to you');
+      }
+
+      const currentDateTime = new Date(`${currentReservation.reservationDate}T${currentReservation.reservationTime}`);
+
+      if (now >= currentDateTime) {
+        throw new Error('Cannot edit a past or ongoing reservation');
+      }
+
+      // Check if date/time changed - need to validate availability
+      const dateTimeChanged = (
+        reservationDate !== currentReservation.reservationDate ||
+        reservationTime !== currentReservation.reservationTime
+      );
+
+      if (dateTimeChanged) {
+        // Check for conflicting reservations at new time slot
+        const conflictingReservation = await trx('reservations')
+          .where('store_id', currentReservation.store_id)
+          .where('reservationDate', reservationDate)
+          .where('reservationTime', reservationTime)
+          .where('status', '!=', 'Cancelled')
+          .where('reservation_id', '!=', reservationId)
+          .first();
+
+        if (conflictingReservation) {
+          throw new Error('Time slot is no longer available');
+        }
+      }
+
+      // Calculate capacity changes
+      const guestDifference = noOfGuest - currentReservation.noOfGuest;
+
+      // Check if store can accommodate the change
+      if (guestDifference > 0) {
+        const availableCapacity = currentReservation.maxCapacity - currentReservation.currentCapacity;
+        if (guestDifference > availableCapacity) {
+          throw new Error(`Cannot accommodate ${guestDifference} additional guests. Available capacity: ${availableCapacity}`);
+        }
+      }
+
+      // Update reservation
+      await trx('reservations')
+        .where('reservation_id', reservationId)
+        .update({
+          noOfGuest: noOfGuest,
+          reservationDate: reservationDate,
+          reservationTime: reservationTime,
+          specialRequest: specialRequest ? encodeHTML(specialRequest.trim()) : null,
+          updated_at: db.fn.now()
+        });
+
+      // Update store capacity if guest count changed
+      if (guestDifference !== 0) {
+        await trx('stores')
+          .where('store_id', currentReservation.store_id)
+          .update({
+            currentCapacity: db.raw('?? - ?', ['currentCapacity', guestDifference])
+          });
+      }
+
+      // Fetch updated reservation for response
+      const updatedReservation = await trx('reservations as r')
+        .join('stores as s', 'r.store_id', 's.store_id')
+        .select(
+          'r.*',
+          's.storeName'
+        )
+        .where('r.reservation_id', reservationId)
+        .first();
+
+      return updatedReservation;
+    });
+
+    res.json({
+      message: 'Reservation updated successfully',
+      reservation: result
+    });
+
+  } catch (err) {
+    console.error('Error updating reservation:', err);
+
+    // Handle custom error messages from transaction
+    if (err.message.includes('Reservation not found')) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message.includes('Cannot edit a past')) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.message.includes('Time slot is no longer available')) {
+      return res.status(409).json({ error: err.message });
+    }
+    if (err.message.includes('Cannot accommodate')) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    res.status(500).json({ error: 'Failed to update reservation' });
+  }
+});
+
+// ======== Cancel reservation ========
+router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
+  const reservationId = req.params.id;
+  const userId = req.user.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user info found' });
+  }
+
+  try {
+    // Use Knex transaction for atomic operations
+    const result = await db.transaction(async (trx) => {
+      // Fetch reservation with store information
+      const reservation = await trx('reservations as r')
+        .join('stores as s', 'r.store_id', 's.store_id')
+        .select(
+          'r.*',
+          's.storeName'
+        )
+        .where('r.reservation_id', reservationId)
+        .where('r.user_id', userId)
+        .first();
+
+      if (!reservation) {
+        throw new Error('Reservation not found or does not belong to you');
+      }
+
+      const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+      const now = new Date();
+
+      if (now >= reservationDateTime) {
+        throw new Error('Cannot cancel a past or ongoing reservation');
+      }
+
+      // Cancel reservation
+      await trx('reservations')
+        .where('reservation_id', reservationId)
+        .update({ status: 'Cancelled' });
+
+      // Add back pax to current capacity
+      await trx('stores')
+        .where('store_id', reservation.store_id)
+        .update({
+          currentCapacity: db.raw('?? + ?', ['currentCapacity', reservation.noOfGuest])
+        });
+
+      return reservation;
+    });
+
+    res.json({
+      message: 'Reservation cancelled successfully',
+      reservation: result
+    });
+
+  } catch (err) {
+    console.error('Error during user cancellation:', err);
+
+    // Handle custom error messages from transaction
+    if (err.message.includes('Reservation not found')) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message.includes('Cannot cancel a past')) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    res.status(500).json({ error: 'Failed to cancel reservation' });
+  }
+});
 
 module.exports = router;

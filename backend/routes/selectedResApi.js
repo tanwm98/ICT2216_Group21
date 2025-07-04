@@ -527,12 +527,12 @@ router.post('/update_reservation', fieldLevelAccess([
           <li><strong>👤 Last Name:</strong> ${encodeHTML(lastname)}</li>
           <li><strong>🏪 Restaurant:</strong> ${encodeHTML(storename)}</li>
           <li><strong>📍 Location:</strong> ${encodeHTML(capacityInfo.address)}</li>
-          <li><strong>📅 Date:</strong> ${encodeHTML(date)}</li>
-          <li><strong>🕒 Time:</strong> ${encodeHTML(time)}</li>
-          <li><strong>👥 Number of Guests:</strong> ${encodeHTML(pax)}
+          <li><strong>📅 Date:</strong> ${date}</li>
+          <li><strong>🕒 Time:</strong> ${time}</li>
+          <li><strong>👥 Number of Guests:</strong> ${pax}
             <ul>
-              <li><strong>Number of Adults:</strong> ${encodeHTML(adultpax)}</li>
-              <li><strong>Number of Child:</strong> ${encodeHTML(childpax)}</li>
+              <li><strong>Number of Adults:</strong> ${adultpax}</li>
+              <li><strong>Number of Child:</strong> ${childpax}</li>
             </ul>
           </li>
           ${encodeHTML(specialrequest) ? `<li><strong>📢 Special Request:</strong> ${encodeHTML(specialrequest)}</li>` : ''}
@@ -632,12 +632,12 @@ cron.schedule('0 * * * *', async () => {
                                     <li><strong>👤 Last Name:</strong> ${encodeHTML(r.last_name)}</li>
                                     <li><strong>🏪 Restaurant:</strong> ${encodeHTML(r.store_name)}</li>
                                     <li><strong>📍 Location:</strong> ${encodeHTML(r.store_address)}</li>
-                                    <li><strong>📅 Date:</strong> ${encodeHTML(r.date_text)}</li>
-                                    <li><strong>🕒 Time:</strong> ${encodeHTML(r.reservationTime)}</li>
-                                    <li><strong>👥 Number of Guests:</strong> ${encodeHTML(r.noOfGuest)}
+                                    <li><strong>📅 Date:</strong> ${r.date_text}</li>
+                                    <li><strong>🕒 Time:</strong> ${r.reservationTime}</li>
+                                    <li><strong>👥 Number of Guests:</strong> ${r.noOfGuest}
                                         <ul>
-                                            <li><strong>Number of Adults:</strong> ${encodeHTML(r.adultPax)}</li>
-                                            <li><strong>Number of Child:</strong> ${encodeHTML(r.childPax)}</li>
+                                            <li><strong>Number of Adults:</strong> ${r.adultPax}</li>
+                                            <li><strong>Number of Child:</strong> ${r.childPax}</li>
                                         </ul>
                                     </li>
                                     ${encodeHTML(r.specialRequest) ? `<li><strong>📢 Special Request:</strong> ${encodeHTML(r.specialRequest)}</li>` : ''}
@@ -649,7 +649,7 @@ cron.schedule('0 * * * *', async () => {
                         // Only mark as reminded if the email was sent successfully
                         return r.reservation_id;
                     } catch (err) {
-                        console.error(`Failed to send reminder for reservation ${encodeHTML(r.reservation_id)}:`, err);
+                        console.error(`Failed to send reminder for reservation ${r.reservation_id}:`, err);
                         return null; // Indicate failure
                     }
                 })();

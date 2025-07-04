@@ -9,33 +9,9 @@ window.addEventListener('DOMContentLoaded', () => {
   fetchReviews();
   setupResetPasswordHandler();
   setupNameEditHandlers();
+  setupFirstNameEditHandler();
+  setupLastNameEditHandler();
 });
-
-function decodeHtmlEntities(str) {
-  if (typeof str !== 'string') return str;
-
-  const htmlMap = {
-    '&amp;': '&',
-    '&#x2F;': '/',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#039;': "'"
-  };
-
-  const decodeOnce = s =>
-    s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
-
-  let last = str;
-  for (let i = 0; i < 10; i++) {
-    const decoded = decodeOnce(last);
-    if (decoded === last) break;
-    last = decoded;
-  }
-
-  return last;
-}
-
 
 // ======== Fetch user details ======== 
 function fetchUser() {
@@ -65,9 +41,6 @@ function fetchReservations() {
           const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
           const now = new Date();
           const isPastReservation = now >= reservationDateTime;
-
-          console.log("[DEBUG] Encoded specialRequest from backend:", reservation.specialRequest);
-          console.log("[DEBUG] Decoded specialRequest for rendering:", decodeHtmlEntities(reservation.specialRequest || ''));
 
           const row = document.createElement('tr');
           const storeCell = document.createElement('td');
@@ -103,7 +76,7 @@ function fetchReservations() {
           }
           row.appendChild(statusCell);
           const specialRequestCell = document.createElement('td');
-          specialRequestCell.textContent = decodeHtmlEntities(reservation.specialRequest || '');
+          specialRequestCell.textContent = reservation.specialRequest || '';
           row.appendChild(specialRequestCell);
 
           const editCell = document.createElement('td');
@@ -148,9 +121,6 @@ function fetchReviews() {
       tableBody.innerHTML = '';
 
       data.forEach(review => {
-        console.log("[DEBUG] Encoded review.description from backend:", review.description);
-        console.log("[DEBUG] Decoded review.description for rendering:", decodeHtmlEntities(review.description));
-
         const row = document.createElement('tr');
 
         const storeNameCell = document.createElement('td');
@@ -160,7 +130,7 @@ function fetchReviews() {
         ratingCell.textContent = review.rating;
 
         const descriptionCell = document.createElement('td');
-        descriptionCell.textContent = decodeHtmlEntities(review.description);
+        descriptionCell.textContent = review.description;
 
         row.appendChild(storeNameCell);
         row.appendChild(ratingCell);
@@ -244,14 +214,14 @@ function setupNameEditHandlers() {
 
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
-      inputGroup.classList.remove('d-none');
+      inputGroup.classList.remove('hidden');
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
 
 
     cancelBtn.addEventListener('click', () => {
-      inputGroup.classList.add('d-none');
+      inputGroup.classList.add('hidden');
       inputField.value = '';
     });
 
@@ -313,13 +283,13 @@ function setupFirstNameEditHandler() {
 
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
-      inputGroup.classList.remove('d-none');
+      inputGroup.classList.remove('hidden');
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
 
     cancelBtn.addEventListener('click', () => {
-      inputGroup.classList.add('d-none');
+      inputGroup.classList.add('hidden');
       inputField.value = '';
     });
 
@@ -345,7 +315,7 @@ function setupFirstNameEditHandler() {
         if (response.ok) {
           alert('First name updated successfully.');
           nameDisplay.textContent = newFirstName;
-          inputGroup.classList.add('d-none');
+          inputGroup.classList.add('hidden');
         } else {
           showNameErrorModal(result.message || 'Failed to update first name.');
         }
@@ -368,13 +338,13 @@ function setupLastNameEditHandler() {
 
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
-      inputGroup.classList.remove('d-none');
+      inputGroup.classList.remove('hidden');
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
 
     cancelBtn.addEventListener('click', () => {
-      inputGroup.classList.add('d-none');
+      inputGroup.classList.add('hidden');
       inputField.value = '';
     });
 
@@ -411,12 +381,6 @@ function setupLastNameEditHandler() {
     });
   }
 }
-
-// Call these when page loads
-setupFirstNameEditHandler();
-setupLastNameEditHandler();
-
-
 
 
 // ======== edit reservation ==========
