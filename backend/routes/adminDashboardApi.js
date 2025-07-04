@@ -44,8 +44,41 @@ const handleValidation = require('../middleware/handleHybridValidation');
 
 router.use(authenticateToken, requireAdmin);
 
+// Helper function for pagination
+function getPaginationParams(req) {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(5, parseInt(req.query.limit) || 10));
+    const offset = (page - 1) * limit;
+    return { page, limit, offset };
+}
+
+function createPaginationResponse(data, total, page, limit) {
+    const totalPages = Math.ceil(total / limit);
+    return {
+        data,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        }
+    };
+}
+
 router.get('/pending-restaurants', authenticateToken, requireAdmin, async (req, res) => {
     try {
+        const { page, limit, offset } = getPaginationParams(req);
+
+        // Get total count
+        const totalResult = await db('stores')
+            .where('status', 'pending')
+            .count('* as count')
+            .first();
+        const total = parseInt(totalResult.count);
+
+        // Get paginated data
         const pendingRestaurants = await db('stores as s')
             .join('users as u', 's.owner_id', 'u.user_id')
             .select(
@@ -57,7 +90,9 @@ router.get('/pending-restaurants', authenticateToken, requireAdmin, async (req, 
                 db.raw('s.submitted_at::TEXT as submitted_at')
             )
             .where('s.status', 'pending')
-            .orderBy('s.submitted_at', 'asc');
+            .orderBy('s.submitted_at', 'asc')
+            .limit(limit)
+            .offset(offset);
 
         const restaurants = pendingRestaurants.map(restaurant => ({
             ...restaurant,
@@ -66,7 +101,7 @@ router.get('/pending-restaurants', authenticateToken, requireAdmin, async (req, 
                 : 'static/img/restaurants/no-image.png'
         }));
 
-        res.json(restaurants);
+        res.json(createPaginationResponse(restaurants, total, page, limit));
     } catch (error) {
         console.error('Error fetching pending restaurants:', error);
         res.status(500).json({ error: 'Failed to fetch pending restaurants' });
@@ -208,14 +243,14 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRe
 
         // Send email
         const rejectionEmail = `
-            Dear ${sanitizeForEmail(restaurant.firstname)},
+            Dear ${restaurant.firstname},
 
             Thank you for your interest in joining Kirby Chope.
 
             Unfortunately, we cannot approve your restaurant "${restaurant.storeName}" at this time.
 
             📋 Reason for Rejection:
-            ${sanitizeForEmail(rejection_reason)}
+            ${rejection_reason}
 
             🔄 Next Steps:
             - Please review the feedback above
@@ -229,9 +264,9 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRe
         `;
 
         await transporter.sendMail({
-            from: `"Kirby Chope" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
+            from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
             to: restaurant.owner_email,
-            subject: `Application Update - ${sanitizeForEmail(restaurant.storeName)}`,
+            subject: `Application Update - ${restaurant.storeName}`,
             text: rejectionEmail
         });
 
@@ -315,12 +350,12 @@ router.post('/users/:id/send-reset-email', authenticateToken, requireAdmin, asyn
 
         // Send email
         await transporter.sendMail({
-            from: `"Kirby Chope Admin" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
+            from: `"Kirby Chope Admin" <${process.env.EMAIL_USER}>`,
             to: user.email,
             subject: 'Password Reset Request - Initiated by Administrator',
             html: `
                 <h2>Password Reset Request</h2>
-                <p>Hello ${sanitizeForEmail(user.firstname) || sanitizeForEmail(user.name)},</p>
+                <p>Hello ${user.firstname || user.name},</p>
                 <p>An administrator has initiated a password reset for your Kirby Chope account.</p>
                 <p>Click the link below to set a new password:</p>
                 <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
@@ -384,10 +419,24 @@ router.get('/dashboard-stats', async (req, res) => {
 // ======== MANAGE USERS ========
 router.get('/users', async (req, res) => {
     try {
+        const { page, limit, offset } = getPaginationParams(req);
+
+        // Get total count
+        const totalResult = await db('users')
+            .whereNot('role', 'admin')
+            .count('* as count')
+            .first();
+        const total = parseInt(totalResult.count);
+
+        // Get paginated data
         const users = await db('users')
             .select('user_id', 'name', 'email', 'role', 'firstname', 'lastname')
-            .whereNot('role', 'admin');
-        res.json(users);
+            .whereNot('role', 'admin')
+            .orderBy('user_id', 'desc')
+            .limit(limit)
+            .offset(offset);
+
+        res.json(createPaginationResponse(users, total, page, limit));
     } catch (err) {
         console.error('Error fetching users:', err);
         res.status(500).json({ error: 'Internal server error' });
@@ -397,7 +446,9 @@ router.get('/users', async (req, res) => {
 // Add a new user (default password Pass123)
 router.post(
     '/users',
-    fieldLevelAccess(['name', 'email', 'role', 'fname', 'lname']),
+    fieldLevelAccess({
+        admin: ['name', 'email', 'role', 'fname', 'lname']
+    }),
     addUserValidator,
     handleValidation,
     requireRecentReauth,
@@ -829,6 +880,16 @@ router.get('/download/:filename', (req, res) => {
 // Get all restaurants
 router.get('/restaurants', async (req, res) => {
     try {
+        const { page, limit, offset } = getPaginationParams(req);
+
+        // Get total count
+        const totalResult = await db('stores as s')
+            .join('users as u', 's.owner_id', 'u.user_id')
+            .count('* as count')
+            .first();
+        const total = parseInt(totalResult.count);
+
+        // Get paginated data
         const restaurants = await db('stores as s')
             .join('users as u', 's.owner_id', 'u.user_id')
             .select(
@@ -836,9 +897,12 @@ router.get('/restaurants', async (req, res) => {
                 's.storeName',
                 's.location',
                 'u.name as ownerName'
-            );
+            )
+            .orderBy('s.store_id', 'desc')
+            .limit(limit)
+            .offset(offset);
 
-        res.json(restaurants);
+        res.json(createPaginationResponse(restaurants, total, page, limit));
     } catch (err) {
         console.error('Error fetching restaurants:', err);
         res.status(500).json({ error: 'Internal server error' });
@@ -941,10 +1005,9 @@ router.put(
     '/restaurants/:id',
     upload.single('image'),
     validateUploadedImage,
-    fieldLevelAccess([
-        'storeName', 'address', 'postalCode', 'cuisine', 'location',
-        'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id'
-    ]),
+    fieldLevelAccess({
+        admin: ['storeName', 'address', 'postalCode', 'cuisine', 'location', 'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id']
+    }),
     requireRecentReauth,
     updateRestaurantValidator,
     handleValidation,
@@ -1183,6 +1246,15 @@ router.get('/reviews', async (req, res) => {
 // ======== RESERVATIONS ========
 router.get('/reservations', async (req, res) => {
     try {
+        const { page, limit, offset } = getPaginationParams(req);
+
+        // Get total count
+        const totalResult = await db('reservations')
+            .count('* as count')
+            .first();
+        const total = parseInt(totalResult.count);
+
+        // Get paginated data
         const reservations = await db('reservations as r')
             .join('users as u', 'r.user_id', 'u.user_id')
             .join('stores as s', 'r.store_id', 's.store_id')
@@ -1197,26 +1269,28 @@ router.get('/reservations', async (req, res) => {
                 's.storeName as restaurantName'
             )
             .orderBy('r.reservationDate', 'desc')
-            .orderBy('r.reservationTime', 'desc');
+            .orderBy('r.reservationTime', 'desc')
+            .limit(limit)
+            .offset(offset);
 
-        res.json(reservations);
+        res.json(createPaginationResponse(reservations, total, page, limit));
     } catch (err) {
         console.error('Error fetching reservations:', err);
         res.status(500).json({ error: 'Failed to fetch reservations' });
     }
 });
 
-// Cancel reservation
+// Cancel reservation (FIXED: Ensure this route exists for admin)
 router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
     const reservationId = req.params.id;
-    const ownerId = req.user.userId;
+    const adminUserId = req.user.userId; // Admin user, not owner
 
     try {
-        // Securely verify ownership before allowing cancellation
+        // Get reservation details with owner info
         const reservation = await db('reservations as r')
             .join('users as u', 'r.user_id', 'u.user_id')
             .join('stores as s', 'r.store_id', 's.store_id')
-            .select('r.*', 'u.email as user_email', 'u.name as user_name', 's.storeName')
+            .select('r.*', 'u.email as user_email', 'u.name as user_name', 's.storeName', 's.owner_id')
             .where('r.reservation_id', reservationId)
             .first();
 
@@ -1225,10 +1299,8 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
-        // Check if the reservation belongs to a restaurant owned by the user (IDOR protection)
-        if (reservation.owner_id !== ownerId) {
-            return res.status(403).json({ error: 'Forbidden: You do not have permission to cancel this reservation.' });
-        }
+        // Admin can cancel any reservation (no ownership check needed)
+        console.log(`[ADMIN CANCEL] Admin ${adminUserId} cancelling reservation ${reservationId}`);
 
         // Cancel the reservation
         await db('reservations')
@@ -1241,20 +1313,21 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
 
         // Compose email
         const mailOptions = {
-            from: `"Kirby Chope" <${sanitizeForEmail(process.env.EMAIL_USER)}>`,
+            from: '"Kirby Chope Admin" <yourapp@example.com>',
             to: reservation.user_email,
-            subject: `Your reservation at ${sanitizeForEmail(reservation.storeName)} has been cancelled`,
+            subject: `Your reservation at ${reservation.storeName} has been cancelled`,
             html: `
-                <p>Hello ${sanitizeForEmail(reservation.user_name) || ''},</p>
-                <p>We regret to inform you that your reservation has been <strong>cancelled</strong> by the restaurant.</p>
+                <p>Hello ${reservation.user_name || ''},</p>
+                <p>We regret to inform you that your reservation has been <strong>cancelled</strong> by the administration.</p>
                 <h4>Reservation Details:</h4>
                 <ul>
-                    <li><strong>Restaurant:</strong> ${sanitizeForEmail(reservation.storeName)}</li>
+                    <li><strong>Restaurant:</strong> ${reservation.storeName}</li>
                     <li><strong>Date:</strong> ${date}</li>
                     <li><strong>Time:</strong> ${time}</li>
                     <li><strong>Number of Guests:</strong> ${reservation.noOfGuest}</li>
-                    ${reservation.specialRequest ? `<li><strong>Special Request:</strong> ${sanitizeForEmail(reservation.specialRequest)}</li>` : ''}
+                    ${reservation.specialRequest ? `<li><strong>Special Request:</strong> ${reservation.specialRequest}</li>` : ''}
                 </ul>
+                <p>If you have any questions, please contact our support team.</p>
                 <p>We apologize for the inconvenience.</p>
             `
         };
@@ -1267,6 +1340,15 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
                 console.error(`Failed to send email to ${reservation.user_email}:`, error);
             });
 
+        // Log admin action
+        logBusiness('admin_reservation_cancelled', 'reservation', {
+            reservation_id: reservationId,
+            admin_id: adminUserId,
+            admin_name: req.user.name,
+            customer_email: reservation.user_email,
+            restaurant_name: reservation.storeName
+        }, req);
+
         res.json({ message: 'Reservation cancelled and email sent', reservation });
 
     } catch (err) {
@@ -1277,6 +1359,15 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
 
 router.get('/pending-actions', async (req, res) => {
     try {
+        const { page, limit, offset } = getPaginationParams(req);
+
+        // Get total count
+        const totalResult = await db('pending_actions')
+            .count('* as count')
+            .first();
+        const total = parseInt(totalResult.count);
+
+        // Get paginated data
         const pendingActions = await db('pending_actions as pa')
             .leftJoin('users as u', 'pa.requested_by', 'u.user_id')
             .leftJoin('stores as s', function() {
@@ -1292,9 +1383,11 @@ router.get('/pending-actions', async (req, res) => {
                 'u.name as requested_by_name',
                 db.raw('COALESCE(s."storeName", u2.name) as target_name')
             )
-            .orderBy('pa.created_at', 'desc');
+            .orderBy('pa.created_at', 'desc')
+            .limit(limit)
+            .offset(offset);
 
-        res.json(pendingActions);
+        res.json(createPaginationResponse(pendingActions, total, page, limit));
     } catch (err) {
         console.error('Error fetching pending actions:', err);
         res.status(500).json({ error: 'Failed to fetch pending actions' });

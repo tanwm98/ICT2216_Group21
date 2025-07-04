@@ -11,415 +11,415 @@
 </head>
 
 <body>
-  <div class="container-fluid">
-    <div class="row">
-      <!-- Sidebar -->
-      <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column p-3">
-        <h4 class="text-white">Admin Panel</h4>
-        <a href="#" data-section="dashboard" class="nav-link active">
-          <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        <a href="#" data-section="restaurants" class="nav-link">
-          <i class="bi bi-shop"></i> Restaurants
-        </a>
-        <a href="#" data-section="users" class="nav-link">
-          <i class="bi bi-people"></i> Users
-        </a>
-        <a href="#" data-section="reservations" class="nav-link">
-          <i class="bi bi-calendar-check"></i> Reservations
-        </a>
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column p-3">
+      <h4 class="text-white">Admin Panel</h4>
+      <a href="#" data-section="dashboard" class="nav-link active">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <a href="#" data-section="restaurants" class="nav-link">
+        <i class="bi bi-shop"></i> Restaurants
+      </a>
+      <a href="#" data-section="users" class="nav-link">
+        <i class="bi bi-people"></i> Users
+      </a>
+      <a href="#" data-section="reservations" class="nav-link">
+        <i class="bi bi-calendar-check"></i> Reservations
+      </a>
 
-        <a href="#" data-section="pending" class="nav-link">
-          <i class="bi bi-clock-history"></i> Pending Approval
-          <span id="pendingCount" class="badge bg-warning ms-2">0</span>
+      <a href="#" data-section="pending" class="nav-link">
+        <i class="bi bi-clock-history"></i> Pending Approval
+        <span id="pendingCount" class="badge bg-warning ms-2">0</span>
+      </a>
+
+      <div class="mt-auto">
+        <hr class="text-secondary">
+        <a href="/logout" class="text-danger">
+          <i class="bi bi-box-arrow-right"></i> Logout
         </a>
+      </div>
+    </nav>
 
-        <div class="mt-auto">
-          <hr class="text-secondary">
-          <a href="/logout" class="text-danger">
-            <i class="bi bi-box-arrow-right"></i> Logout
-          </a>
-        </div>
-      </nav>
-
-      <!-- Main Content -->
-      <main class="col-md-9 ms-sm-auto col-lg-10 content">
-        <!-- Dashboard -->
-        <div id="dashboard" class="section active">
-          <h1>Welcome, Admin</h1>
-          <div class="row text-center">
-            <div class="col-md-3">
-              <div class="card bg-primary text-white mb-3">
-                <div class="card-body">
-                  <h5 class="card-title">Total Users</h5>
-                  <p id="totalUsers" class="card-text fs-4">0</p>
-                </div>
+    <!-- Main Content -->
+    <main class="col-md-9 ms-sm-auto col-lg-10 content">
+      <!-- Dashboard -->
+      <div id="dashboard" class="section active">
+        <h1>Welcome, Admin</h1>
+        <div class="row text-center">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Total Users</h5>
+                <p id="totalUsers" class="card-text fs-4">0</p>
               </div>
             </div>
-            <div class="col-md-3">
-              <div class="card bg-success text-white mb-3">
-                <div class="card-body">
-                  <h5 class="card-title">Total Restaurants</h5>
-                  <p id="totalRestaurants" class="card-text fs-4">0</p>
-                </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Total Restaurants</h5>
+                <p id="totalRestaurants" class="card-text fs-4">0</p>
               </div>
             </div>
-            <div class="col-md-3">
-              <div class="card bg-warning text-dark mb-3">
-                <div class="card-body">
-                  <h5 class="card-title">Top Rating</h5>
-                  <p id="topReviews" class="card-text fs-5">
-                    <strong id="topReviewCount">0</strong> Rating<br>
-                    <small id="topRestaurantName">N/A</small>
-                  </p>
-                </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-warning text-dark mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Top Rating</h5>
+                <p id="topReviews" class="card-text fs-5">
+                  <strong id="topReviewCount">0</strong> Rating<br>
+                  <small id="topRestaurantName">N/A</small>
+                </p>
               </div>
             </div>
-            <div class="col-md-3">
-              <div class="card bg-info text-white mb-3">
-                <div class="card-body">
-                  <h5 class="card-title">Total Reservations</h5>
-                  <p id="totalReservations" class="card-text fs-4">0</p>
-                </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-info text-white mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Total Reservations</h5>
+                <p id="totalReservations" class="card-text fs-4">0</p>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Restaurants Section -->
-        <div id="restaurants" class="section">
-          <h2>Manage Restaurants</h2>
-          <p class="d-flex justify-content-end">
-            <button class="btn btn-primary btn-sm" id="addRestaurantBtn">
-              <i class="bi bi-plus-circle"></i> Add Restaurant
+      <!-- Restaurants Section -->
+      <div id="restaurants" class="section">
+        <h2>Manage Restaurants</h2>
+        <p class="d-flex justify-content-end">
+          <button class="btn btn-primary btn-sm" id="addRestaurantBtn">
+            <i class="bi bi-plus-circle"></i> Add Restaurant
+          </button>
+        </p>
+
+        <!-- Restaurant List -->
+        <div id="restaurantList">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead>
+              <tr>
+                <th class="col-name">Name</th>
+                <th class="col-location">Location</th>
+                <th class="col-name">Owner</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+              </thead>
+              <tbody>
+              <!-- Will be populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Section -->
+      <div id="users" class="section">
+        <h2>Manage Users</h2>
+        <p class="d-flex justify-content-end">
+          <button class="btn btn-primary btn-sm" id="addUserBtn">
+            <i class="bi bi-plus-circle"></i> Add User
+          </button>
+        </p>
+
+        <!-- User List -->
+        <div id="userList">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead>
+              <tr>
+                <th class="col-name">Username</th>
+                <th class="col-name">First Name</th>
+                <th class="col-name">Last Name</th>
+                <th class="col-email">Email</th>
+                <th class="col-role">Role</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+              </thead>
+              <tbody>
+              <!-- Will be populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="pending" class="section">
+        <h2>Pending Restaurant Approvals</h2>
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i>
+          Review and approve/reject restaurant applications before they go live on the platform.
+        </div>
+
+        <!-- Pending Restaurant List -->
+        <div id="pendingRestaurantList">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead>
+              <tr>
+                <th class="col-id">Image</th>
+                <th class="col-name">Restaurant Name</th>
+                <th class="col-name">Owner</th>
+                <th class="col-location">Location</th>
+                <th class="col-cuisine">Cuisine</th>
+                <th class="col-date">Submitted</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+              </thead>
+              <tbody>
+              <!-- Will be populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <h2 class="mt-5">Pending Admin Actions</h2>
+        <div class="alert alert-warning">
+          <i class="bi bi-shield-lock"></i>
+          Multi‑admin approval required for sensitive actions like password resets and deletions.
+        </div>
+
+        <div id="pendingActionList">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead>
+              <tr>
+                <th class="col-name">Action</th>
+                <th class="col-name">Target</th>
+                <th class="col-role">Type</th>
+                <th class="col-name">Requested By</th>
+                <th class="col-id">Approvals</th>
+                <th class="col-id">Rejections</th>
+                <th class="col-actions">Decision</th>
+              </tr>
+              </thead>
+              <tbody>
+              <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restaurant Detail Modal for Review -->
+      <div id="reviewModal" class="modal-overlay hidden">
+        <div class="modal-content" id = "reviewModalContent">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 id="reviewModalTitle">Review Restaurant Application</h5>
+            <button type="button" class="btn-close" id="closeReviewModalBtn"></button>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Restaurant Details</h6>
+              <table class="table table-sm">
+                <tr><td><strong>Name:</strong></td><td id="reviewStoreName"></td></tr>
+                <tr><td><strong>Address:</strong></td><td id="reviewAddress"></td></tr>
+                <tr><td><strong>Postal Code:</strong></td><td id="reviewPostalCode"></td></tr>
+                <tr><td><strong>Location:</strong></td><td id="reviewLocation"></td></tr>
+                <tr><td><strong>Cuisine:</strong></td><td id="reviewCuisine"></td></tr>
+                <tr><td><strong>Price Range:</strong></td><td id="reviewPriceRange"></td></tr>
+                <tr><td><strong>Capacity:</strong></td><td id="reviewCapacity"></td></tr>
+                <tr><td><strong>Hours:</strong></td><td id="reviewHours"></td></tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h6>Owner Details</h6>
+              <table class="table table-sm">
+                <tr><td><strong>Name:</strong></td><td id="reviewOwnerName"></td></tr>
+                <tr><td><strong>Email:</strong></td><td id="reviewOwnerEmail"></td></tr>
+                <tr><td><strong>Submitted:</strong></td><td id="reviewSubmitted"></td></tr>
+              </table>
+
+              <h6>Restaurant Image</h6>
+              <img id="reviewImage" src="" alt="Restaurant image" class="img-fluid">
+            </div>
+          </div>
+
+          <!-- Rejection Reason -->
+          <div id="rejectionSection" class="mt-3">
+            <label for="rejectionReason" class="form-label">Rejection Reason (Required)</label>
+            <textarea id="rejectionReason" class="form-control" rows="3"
+                      placeholder="Please provide a clear reason for rejection..."></textarea>
+          </div>
+
+          <div class="d-flex justify-content-end mt-3">
+            <button type="button" class="btn btn-success me-2" id="approveBtn">
+              <i class="bi bi-check-circle"></i> Approve
             </button>
-          </p>
-
-          <!-- Restaurant List -->
-          <div id="restaurantList">
-            <div class="table-responsive">
-              <table class="table table-bordered">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Location</th>
-                    <th>Owner</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Will be populated by JS -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Users Section -->
-        <div id="users" class="section">
-          <h2>Manage Users</h2>
-          <p class="d-flex justify-content-end">
-            <button class="btn btn-primary btn-sm" id="addUserBtn">
-              <i class="bi bi-plus-circle"></i> Add User
+            <button type="button" class="btn btn-danger me-2" id="rejectBtn">
+              <i class="bi bi-x-circle"></i> Reject
             </button>
-          </p>
-
-          <!-- User List -->
-          <div id="userList">
-            <div class="table-responsive">
-              <table class="table table-bordered">
-                <thead>
-                  <tr>
-                    <th>Username</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Will be populated by JS -->
-                </tbody>
-              </table>
-            </div>
+            <button type="button" class="btn btn-secondary" id="cancelReviewBtn">Cancel</button>
           </div>
         </div>
-        <div id="pending" class="section">
-          <h2>Pending Restaurant Approvals</h2>
-          <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
-            Review and approve/reject restaurant applications before they go live on the platform.
-          </div>
+      </div>
 
-          <!-- Pending Restaurant List -->
-          <div id="pendingRestaurantList">
-            <div class="table-responsive">
-              <table class="table table-bordered">
-                <thead>
-                <tr>
-                  <th>Image</th>
-                  <th>Restaurant Name</th>
-                  <th>Owner</th>
-                  <th>Location</th>
-                  <th>Cuisine</th>
-                  <th>Submitted</th>
-                  <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                <!-- Will be populated by JS -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <h2 class="mt-5">Pending Admin Actions</h2>
-          <div class="alert alert-warning">
-            <i class="bi bi-shield-lock"></i>
-            Multi‑admin approval required for sensitive actions like password resets and deletions.
-          </div>
+      <!-- Reservations Section -->
+      <div id="reservations" class="section">
+        <h2>Manage Reservations</h2>
 
-          <div id="pendingActionList">
-            <div class="table-responsive">
-              <table class="table table-bordered">
-                <thead>
-                  <tr>
-                    <th>Action</th>
-                    <th>Target ID</th>
-                    <th>Target Type</th>
-                    <th>Requested By</th>
-                    <th>Approvals</th>
-                    <th>Rejections</th>
-                    <th>Decision</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Populated by JS -->
-                </tbody>
-              </table>
-            </div>
+        <!-- Reservation List -->
+        <div id="reservationList">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead>
+              <tr>
+                <th class="col-name">User</th>
+                <th class="col-name">Restaurant</th>
+                <th class="col-id">Pax</th>
+                <th class="col-date">Date</th>
+                <th class="col-time">Time</th>
+                <th class="col-status">Status</th>
+                <th class="col-special-request">Request</th>
+                <th class="col-actions">Action</th>
+              </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
         </div>
-
-        <!-- Restaurant Detail Modal for Review -->
-        <div id="reviewModal" class="modal-overlay hidden">
-          <div class="modal-content" id = "reviewModalContent">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h5 id="reviewModalTitle">Review Restaurant Application</h5>
-              <button type="button" class="btn-close" id="closeReviewModalBtn"></button>
-            </div>
-
-            <div class="row">
-              <div class="col-md-6">
-                <h6>Restaurant Details</h6>
-                <table class="table table-sm">
-                  <tr><td><strong>Name:</strong></td><td id="reviewStoreName"></td></tr>
-                  <tr><td><strong>Address:</strong></td><td id="reviewAddress"></td></tr>
-                  <tr><td><strong>Postal Code:</strong></td><td id="reviewPostalCode"></td></tr>
-                  <tr><td><strong>Location:</strong></td><td id="reviewLocation"></td></tr>
-                  <tr><td><strong>Cuisine:</strong></td><td id="reviewCuisine"></td></tr>
-                  <tr><td><strong>Price Range:</strong></td><td id="reviewPriceRange"></td></tr>
-                  <tr><td><strong>Capacity:</strong></td><td id="reviewCapacity"></td></tr>
-                  <tr><td><strong>Hours:</strong></td><td id="reviewHours"></td></tr>
-                </table>
-              </div>
-              <div class="col-md-6">
-                <h6>Owner Details</h6>
-                <table class="table table-sm">
-                  <tr><td><strong>Name:</strong></td><td id="reviewOwnerName"></td></tr>
-                  <tr><td><strong>Email:</strong></td><td id="reviewOwnerEmail"></td></tr>
-                  <tr><td><strong>Submitted:</strong></td><td id="reviewSubmitted"></td></tr>
-                </table>
-
-                <h6>Restaurant Image</h6>
-                <img id="reviewImage" src="" alt="Restaurant image" class="img-fluid">
-              </div>
-            </div>
-
-            <!-- Rejection Reason -->
-            <div id="rejectionSection" class="mt-3">
-              <label for="rejectionReason" class="form-label">Rejection Reason (Required)</label>
-              <textarea id="rejectionReason" class="form-control" rows="3"
-                        placeholder="Please provide a clear reason for rejection..."></textarea>
-            </div>
-
-            <div class="d-flex justify-content-end mt-3">
-              <button type="button" class="btn btn-success me-2" id="approveBtn">
-                <i class="bi bi-check-circle"></i> Approve
-              </button>
-              <button type="button" class="btn btn-danger me-2" id="rejectBtn">
-                <i class="bi bi-x-circle"></i> Reject
-              </button>
-              <button type="button" class="btn btn-secondary" id="cancelReviewBtn">Cancel</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Reservations Section -->
-        <div id="reservations" class="section">
-          <h2>Manage Reservations</h2>
-
-          <!-- Reservation List -->
-          <div id="reservationList">
-            <div class="table-responsive">
-              <table class="table table-bordered">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Restaurant</th>
-                    <th>Guests</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Status</th>
-                    <th>Request</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
   </div>
+</div>
 
-  <!-- Restaurant Modal -->
-  <div id="myModal" class="modal-overlay hidden">
-    <div class="modal-content">
+<!-- Restaurant Modal -->
+<div id="myModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="d-flex justify-content-end">
+      <button type="button" class="btn-close" aria-label="Close" id="closeRestaurantModalBtn"></button>
+    </div>
+    <h5 class="mb-3" id="restaurantModalTitle">Add New Restaurant</h5>
+
+    <form id="restaurantForm" enctype="multipart/form-data">
+      <input type="hidden" id="restaurantId">
+
+      <div class="mb-3">
+        <label for="storeName" class="form-label">Store Name</label>
+        <input class="form-control" id="storeName" name="storeName" required>
+      </div>
+      <div class="mb-3">
+        <label for="ownerSelect" class="form-label">Owner</label>
+        <select id="ownerSelect" class="form-control" required>
+          <option value="">Select Owner</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="address" class="form-label">Address</label>
+        <input class="form-control" id="address" name="address" required>
+      </div>
+      <div class="mb-3">
+        <label for="postalCode" class="form-label">Postal Code</label>
+        <input class="form-control" id="postalCode" name="postalCode" required>
+      </div>
+      <div class="mb-3">
+        <label for="cuisine" class="form-label">Cuisine</label>
+        <input class="form-control" id="cuisine" name="cuisine" required>
+      </div>
+      <div class="mb-3">
+        <label for="location" class="form-label">Location</label>
+        <input class="form-control" id="location" name="location" required>
+      </div>
+      <div class="mb-3">
+        <label for="priceRange" class="form-label">Price Range</label>
+        <select class="form-select" id="priceRange" name="priceRange" required>
+          <option value="">Select...</option>
+          <option value="$">$</option>
+          <option value="$$">$$</option>
+          <option value="$$$">$$$</option>
+          <option value="$$$$">$$$$</option>
+          <option value="$$$$$">$$$$$</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="totalCapacity" class="form-label">Total Capacity</label>
+        <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
+      </div>
+      <div class="mb-3">
+        <label for="opening" class="form-label">Opening Hour</label>
+        <input type="time" class="form-control" id="opening" name="opening" required>
+      </div>
+      <div class="mb-3">
+        <label for="closing" class="form-label">Closing Hour</label>
+        <input type="time" class="form-control" id="closing" name="closing" required>
+      </div>
+      <div class="mb-3">
+        <label for="image" class="form-label">Upload Image</label>
+        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+        <div class="form-text">Optional: Upload a restaurant image</div>
+      </div>
+
       <div class="d-flex justify-content-end">
-        <button type="button" class="btn-close" aria-label="Close" id="closeRestaurantModalBtn"></button>
+        <button type="submit" class="btn btn-success" id="restaurantModalBtn">Add Restaurant</button>
       </div>
-      <h5 class="mb-3" id="restaurantModalTitle">Add New Restaurant</h5>
-
-      <form id="restaurantForm" enctype="multipart/form-data">
-        <input type="hidden" id="restaurantId">
-
-        <div class="mb-3">
-          <label for="storeName" class="form-label">Store Name</label>
-          <input class="form-control" id="storeName" name="storeName" required>
-        </div>
-        <div class="mb-3">
-          <label for="ownerSelect" class="form-label">Owner</label>
-          <select id="ownerSelect" class="form-control" required>
-            <option value="">Select Owner</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label for="address" class="form-label">Address</label>
-          <input class="form-control" id="address" name="address" required>
-        </div>
-        <div class="mb-3">
-          <label for="postalCode" class="form-label">Postal Code</label>
-          <input class="form-control" id="postalCode" name="postalCode" required>
-        </div>
-        <div class="mb-3">
-          <label for="cuisine" class="form-label">Cuisine</label>
-          <input class="form-control" id="cuisine" name="cuisine" required>
-        </div>
-        <div class="mb-3">
-          <label for="location" class="form-label">Location</label>
-          <input class="form-control" id="location" name="location" required>
-        </div>
-        <div class="mb-3">
-          <label for="priceRange" class="form-label">Price Range</label>
-          <select class="form-select" id="priceRange" name="priceRange" required>
-            <option value="">Select...</option>
-            <option value="$">$</option>
-            <option value="$$">$$</option>
-            <option value="$$$">$$$</option>
-            <option value="$$$$">$$$$</option>
-            <option value="$$$$$">$$$$$</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label for="totalCapacity" class="form-label">Total Capacity</label>
-          <input type="number" class="form-control" id="totalCapacity" name="totalCapacity" min="1" required>
-        </div>
-        <div class="mb-3">
-          <label for="opening" class="form-label">Opening Hour</label>
-          <input type="time" class="form-control" id="opening" name="opening" required>
-        </div>
-        <div class="mb-3">
-          <label for="closing" class="form-label">Closing Hour</label>
-          <input type="time" class="form-control" id="closing" name="closing" required>
-        </div>
-        <div class="mb-3">
-          <label for="image" class="form-label">Upload Image</label>
-          <input type="file" class="form-control" id="image" name="image" accept="image/*">
-          <div class="form-text">Optional: Upload a restaurant image</div>
-        </div>
-
-        <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-success" id="restaurantModalBtn">Add Restaurant</button>
-        </div>
-      </form>
-    </div>
+    </form>
   </div>
+</div>
 
-  <!-- User Modal -->
-  <div id="userModal" class="modal-overlay hidden">
-    <div class="modal-content">
+<!-- User Modal -->
+<div id="userModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="d-flex justify-content-end">
+      <button type="button" class="btn-close" aria-label="Close" id="closeUserModalBtn"></button>
+    </div>
+    <h5 class="mb-3" id="userModalTitle">Add New User</h5>
+    <form id="userForm">
+      <input type="hidden" id="userId">
+
+      <div class="mb-3">
+        <label for="name" class="form-label">Username</label>
+        <input class="form-control" id="name" name="name" required>
+      </div>
+      <div class="mb-3">
+        <label for="firstname" class="form-label">First Name</label>
+        <input class="form-control" id="firstname" name="firstname" required>
+      </div>
+      <div class="mb-3">
+        <label for="lastname" class="form-label">Last Name</label>
+        <input class="form-control" id="lastname" name="lastname" required>
+      </div>
+      <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <input type="email" class="form-control" id="email" name="email" required>
+      </div>
+      <div class="mb-3">
+        <label for="role" class="form-label">Role</label>
+        <select class="form-select" id="role" name="role" required>
+          <option value="">Select...</option>
+          <option value="user">User</option>
+          <option value="owner">Owner</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
       <div class="d-flex justify-content-end">
-        <button type="button" class="btn-close" aria-label="Close" id="closeUserModalBtn"></button>
+        <button type="submit" class="btn btn-success" id="userModalBtn">Add User</button>
       </div>
-      <h5 class="mb-3" id="userModalTitle">Add New User</h5>
-      <form id="userForm">
-        <input type="hidden" id="userId">
-
-        <div class="mb-3">
-          <label for="name" class="form-label">Username</label>
-          <input class="form-control" id="name" name="name" required>
-        </div>
-        <div class="mb-3">
-          <label for="firstname" class="form-label">First Name</label>
-          <input class="form-control" id="firstname" name="firstname" required>
-        </div>
-        <div class="mb-3">
-          <label for="lastname" class="form-label">Last Name</label>
-          <input class="form-control" id="lastname" name="lastname" required>
-        </div>
-        <div class="mb-3">
-          <label for="email" class="form-label">Email</label>
-          <input type="email" class="form-control" id="email" name="email" required>
-        </div>
-        <div class="mb-3">
-          <label for="role" class="form-label">Role</label>
-          <select class="form-select" id="role" name="role" required>
-            <option value="">Select...</option>
-            <option value="user">User</option>
-            <option value="owner">Owner</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-success" id="userModalBtn">Add User</button>
-        </div>
-      </form>
-    </div>
+    </form>
   </div>
+</div>
 
-  <!-- Reauthentication Modal -->
-  <div id="reauthModal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5>Reauthentication Required</h5>
-        <button type="button" class="btn-close" id="closeReauthModalBtn"></button>
+<!-- Reauthentication Modal -->
+<div id="reauthModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5>Reauthentication Required</h5>
+      <button type="button" class="btn-close" id="closeReauthModalBtn"></button>
+    </div>
+    <form id="reauthForm">
+      <div class="mb-3">
+        <label for="reauthPassword" class="form-label">Please enter your password:</label>
+        <input type="password" class="form-control" id="reauthPassword" name="reauthPassword" required>
       </div>
-      <form id="reauthForm">
-        <div class="mb-3">
-          <label for="reauthPassword" class="form-label">Please enter your password:</label>
-          <input type="password" class="form-control" id="reauthPassword" name="reauthPassword" required>
-        </div>
-        <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-primary">Confirm</button>
-        </div>
-      </form>
-    </div>
+      <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">Confirm</button>
+      </div>
+    </form>
   </div>
+</div>
 
-  <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
-  <script src="/js/admin.js"></script>
+<script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/js/admin.js"></script>
 
 </body>
 

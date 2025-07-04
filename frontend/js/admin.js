@@ -18,12 +18,94 @@ function hideModal(modalId) {
     modal.classList.add('hidden');
 }
 
+// Pagination state management
+const paginationState = {
+    restaurants: { page: 1, limit: 10 },
+    users: { page: 1, limit: 10 },
+    reservations: { page: 1, limit: 10 },
+    'pending-restaurants': { page: 1, limit: 10 },
+    'pending-actions': { page: 1, limit: 10 }
+};
+
+function createPaginationControls(containerId, pagination, onPageChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // Clear existing pagination
+    let paginationDiv = container.querySelector('.pagination-controls');
+    if (paginationDiv) {
+        paginationDiv.remove();
+    }
+
+    if (pagination.totalPages <= 1) return;
+
+    paginationDiv = document.createElement('div');
+    paginationDiv.className = 'pagination-controls d-flex justify-content-between align-items-center mt-3';
+
+    // Info text
+    const infoDiv = document.createElement('div');
+    const start = ((pagination.page - 1) * pagination.limit) + 1;
+    const end = Math.min(pagination.page * pagination.limit, pagination.total);
+    infoDiv.innerHTML = `<small class="text-muted">Showing ${start}-${end} of ${pagination.total} entries</small>`;
+
+    // Pagination buttons
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'btn-group';
+
+    // Previous button
+    const prevBtn = document.createElement('button');
+    prevBtn.className = `btn btn-sm btn-outline-primary ${!pagination.hasPrev ? 'disabled' : ''}`;
+    prevBtn.innerHTML = '&laquo; Previous';
+    prevBtn.disabled = !pagination.hasPrev;
+    if (pagination.hasPrev) {
+        prevBtn.addEventListener('click', () => onPageChange(pagination.page - 1));
+    }
+
+    // Page numbers
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = `btn btn-sm ${i === pagination.page ? 'btn-primary' : 'btn-outline-primary'}`;
+        pageBtn.textContent = i;
+        if (i !== pagination.page) {
+            pageBtn.addEventListener('click', () => onPageChange(i));
+        }
+        pageNumbers.push(pageBtn);
+    }
+
+    // Next button
+    const nextBtn = document.createElement('button');
+    nextBtn.className = `btn btn-sm btn-outline-primary ${!pagination.hasNext ? 'disabled' : ''}`;
+    nextBtn.innerHTML = 'Next &raquo;';
+    nextBtn.disabled = !pagination.hasNext;
+    if (pagination.hasNext) {
+        nextBtn.addEventListener('click', () => onPageChange(pagination.page + 1));
+    }
+
+    // Assemble buttons
+    buttonsDiv.appendChild(prevBtn);
+    pageNumbers.forEach(btn => buttonsDiv.appendChild(btn));
+    buttonsDiv.appendChild(nextBtn);
+
+    paginationDiv.appendChild(infoDiv);
+    paginationDiv.appendChild(buttonsDiv);
+    container.appendChild(paginationDiv);
+}
+
 function showSection(id) {
     // Hide all sections
     document.querySelectorAll('.section').forEach(section => {
         section.classList.remove('active');
     });
-    
+
     // Remove active class from all nav links
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
@@ -32,6 +114,11 @@ function showSection(id) {
     // Show selected section
     document.getElementById(id).classList.add('active');
     document.querySelector(`[data-section="${id}"]`).classList.add('active');
+
+    // Reset pagination for new section
+    if (paginationState[id]) {
+        paginationState[id].page = 1;
+    }
 
     // Load data for the section
     switch(id) {
@@ -53,99 +140,108 @@ function showSection(id) {
             break;
     }
 }
-async function loadPendingRestaurants() {
+
+async function loadPendingRestaurants(page = 1) {
     try {
-        const response = await fetch('/api/admin/pending-restaurants');
-        const pendingRestaurants = await response.json();
+        paginationState['pending-restaurants'].page = page;
+        const params = new URLSearchParams({
+            page: page,
+            limit: paginationState['pending-restaurants'].limit
+        });
+
+        const response = await fetch(`/api/admin/pending-restaurants?${params}`);
+        const result = await response.json();
 
         const tbody = document.querySelector('#pending tbody');
         tbody.textContent = '';
 
-        // Update badge count
+        // Update badge count (show total, not just current page)
         const badge = document.getElementById('pendingCount');
-        if (pendingRestaurants.length > 0) {
-            badge.textContent = pendingRestaurants.length;
-            badge.classList.remove('d-none');  // Bootstrap class
-            badge.classList.add('d-inline');   // Bootstrap class
+        if (result.pagination.total > 0) {
+            badge.textContent = result.pagination.total;
+            badge.classList.remove('d-none');
+            badge.classList.add('d-inline');
         } else {
-            badge.classList.add('d-none');     // Bootstrap class
+            badge.classList.add('d-none');
             badge.classList.remove('d-inline');
         }
 
-        if (pendingRestaurants.length === 0) {
+        if (result.data.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" class="text-center text-muted">No pending applications</td>';
             tbody.appendChild(row);
-            return;
+        } else {
+            result.data.forEach(restaurant => {
+                const row = document.createElement('tr');
+
+                // Image cell
+                const imageCell = document.createElement('td');
+                const img = document.createElement('img');
+                img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
+                img.alt = 'Restaurant image';
+                img.className = 'rounded';
+                imageCell.appendChild(img);
+                row.appendChild(imageCell);
+
+                // Restaurant name
+                const nameCell = document.createElement('td');
+                const nameStrong = document.createElement('strong');
+                nameStrong.textContent = restaurant.storeName;
+                nameCell.appendChild(nameStrong);
+                row.appendChild(nameCell);
+
+                // Owner
+                const ownerCell = document.createElement('td');
+                ownerCell.textContent = `${restaurant.firstname} ${restaurant.lastname}`;
+                row.appendChild(ownerCell);
+
+                // Location
+                const locationCell = document.createElement('td');
+                locationCell.textContent = restaurant.location;
+                row.appendChild(locationCell);
+
+                // Cuisine
+                const cuisineCell = document.createElement('td');
+                const cuisineBadge = document.createElement('span');
+                cuisineBadge.className = 'badge bg-secondary';
+                cuisineBadge.textContent = restaurant.cuisine;
+                cuisineCell.appendChild(cuisineBadge);
+                row.appendChild(cuisineCell);
+
+                // Submitted date
+                const submittedCell = document.createElement('td');
+                const submittedDate = new Date(restaurant.submitted_at);
+                submittedCell.textContent = submittedDate.toLocaleDateString();
+                submittedCell.title = submittedDate.toLocaleString();
+                row.appendChild(submittedCell);
+
+                // Actions
+                const actionsCell = document.createElement('td');
+                const reviewBtn = document.createElement('button');
+                reviewBtn.className = 'btn btn-sm btn-primary me-1';
+                reviewBtn.innerHTML = '<i class="bi bi-eye"></i> Review';
+                reviewBtn.addEventListener('click', () => reviewRestaurant(restaurant));
+                actionsCell.appendChild(reviewBtn);
+                row.appendChild(actionsCell);
+
+                tbody.appendChild(row);
+            });
         }
 
-        pendingRestaurants.forEach(restaurant => {
-            const row = document.createElement('tr');
+        // Create pagination controls
+        createPaginationControls('pendingRestaurantList', result.pagination, loadPendingRestaurants);
 
-            // Image cell
-            const imageCell = document.createElement('td');
-            const img = document.createElement('img');
-            img.src = restaurant.imageUrl || '/static/img/restaurants/no-image.png';
-            img.alt = 'Restaurant image';
-            img.className = 'rounded';
-            imageCell.appendChild(img);
-            row.appendChild(imageCell);
-
-            // Restaurant name
-            const nameCell = document.createElement('td');
-            const nameStrong = document.createElement('strong');
-            nameStrong.textContent = restaurant.storeName;  // textContent auto-escapes
-            nameCell.appendChild(nameStrong);
-            row.appendChild(nameCell);
-
-            // Owner
-            const ownerCell = document.createElement('td');
-            ownerCell.textContent = `${restaurant.firstname} ${restaurant.lastname}`;
-            row.appendChild(ownerCell);
-
-            // Location
-            const locationCell = document.createElement('td');
-            locationCell.textContent = restaurant.location;
-            row.appendChild(locationCell);
-
-            // Cuisine
-            const cuisineCell = document.createElement('td');
-            const cuisineBadge = document.createElement('span');
-            cuisineBadge.className = 'badge bg-secondary';
-            cuisineBadge.textContent = restaurant.cuisine;  // textContent auto-escapes
-            cuisineCell.appendChild(cuisineBadge);
-            row.appendChild(cuisineCell);
-
-            // Submitted date
-            const submittedCell = document.createElement('td');
-            const submittedDate = new Date(restaurant.submitted_at);
-            submittedCell.textContent = submittedDate.toLocaleDateString();
-            submittedCell.title = submittedDate.toLocaleString();
-            row.appendChild(submittedCell);
-
-            // Actions
-            const actionsCell = document.createElement('td');
-
-            const reviewBtn = document.createElement('button');
-            reviewBtn.className = 'btn btn-sm btn-primary me-1';
-            reviewBtn.innerHTML = '<i class="bi bi-eye"></i> Review';
-            reviewBtn.addEventListener('click', () => reviewRestaurant(restaurant));
-
-            actionsCell.appendChild(reviewBtn);
-            row.appendChild(actionsCell);
-
-            tbody.appendChild(row);
-        });
     } catch (error) {
         console.error('Error loading pending restaurants:', error);
         showError('Failed to load pending restaurants');
     }
 }
+
 async function loadDashboardStats() {
     try {
         const response = await fetch('/api/admin/dashboard-stats');
         const data = await response.json();
-        
+
         document.getElementById('totalUsers').textContent = data.totalUsers;
         document.getElementById('totalRestaurants').textContent = data.totalRestaurants;
         document.getElementById('totalReservations').textContent = data.totalReservations;
@@ -157,148 +253,229 @@ async function loadDashboardStats() {
     }
 }
 
-async function loadRestaurants() {
+async function loadRestaurants(page = 1) {
     try {
-        const response = await fetch('/api/admin/restaurants');
-        const restaurants = await response.json();
-        
+        paginationState.restaurants.page = page;
+        const params = new URLSearchParams({
+            page: page,
+            limit: paginationState.restaurants.limit
+        });
+
+        const response = await fetch(`/api/admin/restaurants?${params}`);
+        const result = await response.json();
+
         const tbody = document.querySelector('#restaurants tbody');
         tbody.textContent = '';
 
-        restaurants.forEach(restaurant => {
+        result.data.forEach(restaurant => {
             const row = document.createElement('tr');
-            
-            // Create cells with escaped content
+
+            // Create cells with text truncation
             const nameCell = document.createElement('td');
+            nameCell.className = 'text-truncate-cell';
             nameCell.textContent = restaurant.storeName;
+            nameCell.title = restaurant.storeName;
             row.appendChild(nameCell);
-            
+
             const locationCell = document.createElement('td');
+            locationCell.className = 'text-truncate-cell';
             locationCell.textContent = restaurant.location;
+            locationCell.title = restaurant.location;
             row.appendChild(locationCell);
-            
+
             const ownerCell = document.createElement('td');
+            ownerCell.className = 'text-truncate-cell';
             ownerCell.textContent = restaurant.ownerName;
+            ownerCell.title = restaurant.ownerName;
             row.appendChild(ownerCell);
-            
+
             // Actions cell
             const actionsCell = document.createElement('td');
-            
+            actionsCell.className = 'col-actions';
+
             const editBtn = document.createElement('button');
-            editBtn.className = 'btn btn-sm btn-warning me-2';
+            editBtn.className = 'btn btn-sm btn-warning me-1';
             editBtn.textContent = 'Edit';
             editBtn.dataset.id = restaurant.store_id;
             editBtn.addEventListener('click', () => editRestaurant(restaurant.store_id));
-            
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn btn-sm btn-danger';
             deleteBtn.textContent = 'Delete';
             deleteBtn.addEventListener('click', () => deleteRestaurant(restaurant.store_id));
-            
+
             actionsCell.appendChild(editBtn);
             actionsCell.appendChild(deleteBtn);
             row.appendChild(actionsCell);
-            
+
             tbody.appendChild(row);
         });
+
+        // Create pagination controls
+        createPaginationControls('restaurantList', result.pagination, loadRestaurants);
+
     } catch (error) {
         console.error('Error loading restaurants:', error);
         showError('Failed to load restaurants');
     }
 }
 
-async function loadUsers() {
+async function loadUsers(page = 1) {
     try {
-        const response = await fetch('/api/admin/users');
-        const users = await response.json();
-        
+        paginationState.users.page = page;
+        const params = new URLSearchParams({
+            page: page,
+            limit: paginationState.users.limit
+        });
+
+        const response = await fetch(`/api/admin/users?${params}`);
+        const result = await response.json();
+
         const tbody = document.querySelector('#users tbody');
         tbody.textContent = '';
 
-        users.forEach(user => {
+        result.data.forEach(user => {
             const row = document.createElement('tr');
-            
-            const cells = [
-                user.name,
-                user.firstname,
-                user.lastname,
-                user.email,
-                user.role
-            ];
 
-            cells.forEach(cellContent => {
-                const td = document.createElement('td');
-                td.textContent = escapeHtml(cellContent);
-                row.appendChild(td);
-            });
-            
-            // Actions cell
+            // Create cells with proper classes and truncation
+            const nameCell = document.createElement('td');
+            nameCell.className = 'text-truncate-cell';
+            nameCell.textContent = user.name; // textContent already escapes HTML
+            nameCell.title = user.name;
+            row.appendChild(nameCell);
+
+            const firstNameCell = document.createElement('td');
+            firstNameCell.className = 'text-truncate-cell';
+            firstNameCell.textContent = user.firstname;
+            firstNameCell.title = user.firstname;
+            row.appendChild(firstNameCell);
+
+            const lastNameCell = document.createElement('td');
+            lastNameCell.className = 'text-truncate-cell';
+            lastNameCell.textContent = user.lastname;
+            lastNameCell.title = user.lastname;
+            row.appendChild(lastNameCell);
+
+            const emailCell = document.createElement('td');
+            emailCell.className = 'text-truncate-cell';
+            emailCell.textContent = user.email;
+            emailCell.title = user.email;
+            row.appendChild(emailCell);
+
+            const roleCell = document.createElement('td');
+            roleCell.textContent = user.role;
+            row.appendChild(roleCell);
+
+            // Actions cell with fixed width
             const actionsCell = document.createElement('td');
-            
+            actionsCell.className = 'col-actions';
+
             const editBtn = document.createElement('button');
-            editBtn.className = 'btn btn-sm btn-warning me-2';
+            editBtn.className = 'btn btn-sm btn-warning me-1';
             editBtn.textContent = 'Edit';
             editBtn.addEventListener('click', () => editUser(user.user_id));
-            
+
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn btn-sm btn-danger me-2';
+            deleteBtn.className = 'btn btn-sm btn-danger me-1';
             deleteBtn.textContent = 'Delete';
             deleteBtn.addEventListener('click', () => deleteUser(user.user_id));
-            
+
             const resetBtn = document.createElement('button');
-            resetBtn.className = 'btn btn-sm btn-info me-2';
-            resetBtn.textContent = 'Reset Pass';
+            resetBtn.className = 'btn btn-sm btn-info me-1';
+            resetBtn.textContent = 'Reset';
             resetBtn.addEventListener('click', () => resetUserPassword(user.user_id));
 
             const logoutBtn = document.createElement('button');
             logoutBtn.className = 'btn btn-sm btn-secondary';
             logoutBtn.textContent = 'Kick';
             logoutBtn.addEventListener('click', () => terminateSession(user.user_id));
-            
+
             actionsCell.appendChild(editBtn);
             actionsCell.appendChild(deleteBtn);
             actionsCell.appendChild(resetBtn);
             actionsCell.appendChild(logoutBtn);
             row.appendChild(actionsCell);
-            
+
             tbody.appendChild(row);
         });
+
+        // Create pagination controls
+        createPaginationControls('userList', result.pagination, loadUsers);
+
     } catch (error) {
         console.error('Error loading users:', error);
         showError('Failed to load users');
     }
 }
 
-async function loadReservations() {
+async function loadReservations(page = 1) {
     try {
-        const response = await fetch('/api/admin/reservations');
-        const reservations = await response.json();
-        
+        paginationState.reservations.page = page;
+        const params = new URLSearchParams({
+            page: page,
+            limit: paginationState.reservations.limit
+        });
+
+        const response = await fetch(`/api/admin/reservations?${params}`);
+        const result = await response.json();
+
         const tbody = document.querySelector('#reservations tbody');
         tbody.textContent = '';
 
-        reservations.forEach(reservation => {
+        result.data.forEach(reservation => {
             const row = document.createElement('tr');
-            
-            const cells = [
-                reservation.userName,
-                reservation.restaurantName,
-                reservation.noOfGuest?.toString(),
-                new Date(reservation.reservationDate).toLocaleDateString(),
-                reservation.reservationTime,
-                reservation.status,
-                reservation.specialRequest || ''
-            ];
 
-            cells.forEach(cellContent => {
-                const td = document.createElement('td');
-                td.textContent = escapeHtml(cellContent);
-                row.appendChild(td);
-            });
-            
+            // User name
+            const userCell = document.createElement('td');
+            userCell.className = 'text-truncate-cell';
+            userCell.textContent = reservation.userName;
+            userCell.title = reservation.userName;
+            row.appendChild(userCell);
+
+            // Restaurant name
+            const restaurantCell = document.createElement('td');
+            restaurantCell.className = 'text-truncate-cell';
+            restaurantCell.textContent = reservation.restaurantName;
+            restaurantCell.title = reservation.restaurantName;
+            row.appendChild(restaurantCell);
+
+            // Number of guests
+            const guestCell = document.createElement('td');
+            guestCell.textContent = reservation.noOfGuest?.toString() || '';
+            row.appendChild(guestCell);
+
+            // Date
+            const dateCell = document.createElement('td');
+            dateCell.textContent = new Date(reservation.reservationDate).toLocaleDateString();
+            row.appendChild(dateCell);
+
+            // Time
+            const timeCell = document.createElement('td');
+            timeCell.textContent = reservation.reservationTime;
+            row.appendChild(timeCell);
+
+            // Status
+            const statusCell = document.createElement('td');
+            statusCell.textContent = reservation.status;
+            row.appendChild(statusCell);
+
+            // Special request with special handling for long text
+            const requestCell = document.createElement('td');
+            if (reservation.specialRequest && reservation.specialRequest.trim()) {
+                const requestSpan = document.createElement('span');
+                requestSpan.className = 'special-request-text';
+                requestSpan.textContent = reservation.specialRequest;
+                requestSpan.title = reservation.specialRequest;
+                requestCell.appendChild(requestSpan);
+            } else {
+                requestCell.textContent = '-';
+            }
+            row.appendChild(requestCell);
+
             // Actions cell
             const actionsCell = document.createElement('td');
-            
+            actionsCell.className = 'col-actions';
+
             if (reservation.status === 'Confirmed') {
                 const cancelBtn = document.createElement('button');
                 cancelBtn.className = 'btn btn-sm btn-danger';
@@ -308,10 +485,14 @@ async function loadReservations() {
             } else {
                 actionsCell.textContent = '-';
             }
-            
+
             row.appendChild(actionsCell);
             tbody.appendChild(row);
         });
+
+        // Create pagination controls
+        createPaginationControls('reservationList', result.pagination, loadReservations);
+
     } catch (error) {
         console.error('Error loading reservations:', error);
         showError('Failed to load reservations');
@@ -322,10 +503,10 @@ async function loadOwners() {
     try {
         const response = await fetch('/api/admin/owners');
         const owners = await response.json();
-        
+
         const select = document.getElementById('ownerSelect');
         select.innerHTML = '<option value="">Select Owner</option>';
-        
+
         owners.forEach(owner => {
             const option = document.createElement('option');
             option.value = owner.user_id;
@@ -337,6 +518,7 @@ async function loadOwners() {
         showError('Failed to load owners');
     }
 }
+
 function reviewRestaurant(restaurant) {
     // Populate modal with restaurant details
     document.getElementById('reviewStoreName').textContent = restaurant.storeName;
@@ -371,8 +553,6 @@ function reviewRestaurant(restaurant) {
 
     // Store restaurant ID for later use
     document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
-
-
 
     // Store restaurant ID for rejection
     document.getElementById('reviewModal').dataset.restaurantId = restaurant.store_id;
@@ -427,7 +607,7 @@ async function approveRestaurant(restaurantId) {
         const result = await response.json();
         alert(result.message);
         closeReviewModal();
-        loadPendingRestaurants();
+        loadPendingRestaurants(paginationState['pending-restaurants'].page);
 
     } catch (error) {
         console.error('Error approving restaurant:', error);
@@ -451,7 +631,7 @@ async function rejectRestaurant(restaurantId, reason) {
         const result = await response.json();
         alert(result.message);
         closeReviewModal();
-        loadPendingRestaurants();
+        loadPendingRestaurants(paginationState['pending-restaurants'].page);
     } catch (error) {
         console.error('Error rejecting restaurant:', error);
         alert(error.message);
@@ -511,7 +691,7 @@ async function submitRestaurantForm() {
       : '/api/admin/restaurants';
     const method = restaurantId ? 'PUT' : 'POST';
 
-    const response = await callSensitiveJson(url, method, formData, true); // <-- use this
+    const response = await callSensitiveJson(url, method, formData, true);
 
     const result = await response.json();
     if (!response.ok) {
@@ -520,13 +700,12 @@ async function submitRestaurantForm() {
 
     alert(result.message || 'Restaurant saved successfully!');
     closeModal();
-    loadRestaurants();
+    loadRestaurants(paginationState.restaurants.page);
   } catch (error) {
     console.error('Error saving restaurant:', error);
     alert(`Failed to save restaurant: ${error.message}`);
   }
 }
-
 
 async function submitUserForm() {
     const form = document.getElementById('userForm');
@@ -556,7 +735,7 @@ async function submitUserForm() {
         const result = await response.json();
         alert(result.message || 'User saved successfully!');
         closeUserModal();
-        loadUsers();
+        loadUsers(paginationState.users.page);
     } catch (error) {
         console.error('Error saving user:', error);
         alert(`Failed to save user: ${error.message}`);
@@ -567,10 +746,10 @@ async function editRestaurant(id) {
     try {
         const response = await fetch(`/api/admin/restaurants/${id}`);
         const restaurant = await response.json();
-        
+
         // Load owners first
         await loadOwners();
-        
+
         // Populate form
         document.getElementById('restaurantId').value = restaurant.store_id;
         document.getElementById('storeName').value = restaurant.storeName;
@@ -583,7 +762,7 @@ async function editRestaurant(id) {
         document.getElementById('totalCapacity').value = restaurant.totalCapacity;
         document.getElementById('opening').value = restaurant.opening;
         document.getElementById('closing').value = restaurant.closing;
-        
+
         document.getElementById('restaurantModalTitle').textContent = 'Edit Restaurant';
         document.getElementById('restaurantModalBtn').textContent = 'Update Restaurant';
         showModal('myModal');
@@ -597,7 +776,7 @@ async function editUser(id) {
     try {
         const response = await fetch(`/api/admin/users/${id}`);
         const user = await response.json();
-        
+
         // Populate form
         document.getElementById('userId').value = user.user_id;
         document.getElementById('name').value = user.name;
@@ -605,7 +784,7 @@ async function editUser(id) {
         document.getElementById('lastname').value = user.lastname;
         document.getElementById('email').value = user.email;
         document.getElementById('role').value = user.role;
-        
+
         document.getElementById('userModalTitle').textContent = 'Edit User';
         document.getElementById('userModalBtn').textContent = 'Update User';
         showModal('userModal');
@@ -619,19 +798,19 @@ async function deleteRestaurant(id) {
     if (!confirm('Are you sure you want to delete this restaurant? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/admin/restaurants/${id}`, {
             method: 'DELETE'
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to delete restaurant');
         }
-        
+
         const result = await response.json();
         alert(result.message || 'Restaurant deleted successfully!');
-        loadRestaurants();
+        loadRestaurants(paginationState.restaurants.page);
     } catch (error) {
         console.error('Error deleting restaurant:', error);
         alert('Failed to delete restaurant');
@@ -642,19 +821,19 @@ async function deleteUser(id) {
     if (!confirm('Are you sure you want to delete this user? This will also delete all their reservations and reviews.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/admin/users/${id}`, {
             method: 'DELETE'
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to delete user');
         }
-        
+
         const result = await response.json();
         alert(result.message || 'User deleted successfully!');
-        loadUsers();
+        loadUsers(paginationState.users.page);
     } catch (error) {
         console.error('Error deleting user:', error);
         alert('Failed to delete user');
@@ -709,79 +888,134 @@ async function resetUserPassword(id) {
     }
 }
 
-
 async function cancelReservation(id) {
     if (!confirm('Are you sure you want to cancel this reservation?')) {
         return;
     }
-    
+
     try {
-        const response = await fetch(`/api/admin/reservations/${id}/cancel`, {
-            method: 'PUT'
+        // Ensure ID is properly formatted as number/string without HTML encoding
+        const reservationId = String(id).replace(/[^0-9]/g, ''); // Only allow numbers
+
+        console.log('Cancelling reservation with ID:', reservationId); // Debug log
+
+        const response = await fetch(`/api/admin/reservations/${reservationId}/cancel`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
-        
+
         if (!response.ok) {
-            throw new Error('Failed to cancel reservation');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to cancel reservation');
         }
-        
+
         const result = await response.json();
         alert(result.message || 'Reservation cancelled successfully!');
-        loadReservations();
+        loadReservations(paginationState.reservations.page);
     } catch (error) {
         console.error('Error cancelling reservation:', error);
-        alert('Failed to cancel reservation');
+        alert(`Failed to cancel reservation: ${error.message}`);
     }
 }
 
 function showError(message) {
     console.error(message);
-    alert(message); 
+    alert(message);
 }
 
 // Load pending sensitive admin actions
-async function loadPendingActions() {
+async function loadPendingActions(page = 1) {
   try {
-    const res = await fetch('/api/admin/pending-actions');
+    paginationState['pending-actions'].page = page;
+    const params = new URLSearchParams({
+        page: page,
+        limit: paginationState['pending-actions'].limit
+    });
+
+    const res = await fetch(`/api/admin/pending-actions?${params}`);
     if (!res.ok) throw new Error('Failed to fetch pending actions');
-    const actions = await res.json();
+    const result = await res.json();
 
     const tbody = document.querySelector('#pendingActionList tbody');
     tbody.innerHTML = '';
 
-    actions.forEach(action => {
-      const tr = document.createElement('tr');
+    if (result.data.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="7" class="text-center text-muted">No pending actions</td>';
+        tbody.appendChild(row);
+    } else {
+        result.data.forEach(action => {
+          const tr = document.createElement('tr');
 
-      const decisionCell = document.createElement('td');
-      if (action.status === 'pending') {
-        const approveBtn = document.createElement('button');
-        approveBtn.className = 'btn btn-sm btn-success me-1';
-        approveBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
-        approveBtn.title = 'Approve';
-        approveBtn.addEventListener('click', () => approveAction(action));
+          // Action type
+          const actionCell = document.createElement('td');
+          actionCell.textContent = action.action_type;
+          tr.appendChild(actionCell);
 
-        const rejectBtn = document.createElement('button');
-        rejectBtn.className = 'btn btn-sm btn-danger';
-        rejectBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
-        rejectBtn.title = 'Reject';
-        rejectBtn.addEventListener('click', () => rejectAction(action));
+          // Target with truncation
+          const targetCell = document.createElement('td');
+          targetCell.className = 'text-truncate-cell';
+          const targetText = `${action.target_id} - ${action.target_name || 'Unknown'}`;
+          targetCell.textContent = targetText;
+          targetCell.title = targetText;
+          tr.appendChild(targetCell);
 
-        decisionCell.appendChild(approveBtn);
-        decisionCell.appendChild(rejectBtn);
-      } else {
-        decisionCell.textContent = action.status;
-      }
+          // Target type
+          const typeCell = document.createElement('td');
+          typeCell.textContent = action.target_type;
+          tr.appendChild(typeCell);
 
-      tr.innerHTML = `
-        <td>${action.action_type}</td>
-        <td>${action.target_id} - ${action.target_name || 'Unknown'}</td>
-        <td>${action.target_type}</td>
-        <td>${action.requested_by} - ${action.requested_by_name || 'Unknown'}</td>
-        <td>${(action.approved_by || []).length}</td>
-        <td>${(action.rejected_by || []).length}</td>
-      `;
-      tr.appendChild(decisionCell);
-      tbody.appendChild(tr);
-    });
+          // Requested by with truncation
+          const requestedCell = document.createElement('td');
+          requestedCell.className = 'text-truncate-cell';
+          const requestedText = `${action.requested_by} - ${action.requested_by_name || 'Unknown'}`;
+          requestedCell.textContent = requestedText;
+          requestedCell.title = requestedText;
+          tr.appendChild(requestedCell);
+
+          // Approvals count
+          const approvalsCell = document.createElement('td');
+          approvalsCell.textContent = (action.approved_by || []).length;
+          tr.appendChild(approvalsCell);
+
+          // Rejections count
+          const rejectionsCell = document.createElement('td');
+          rejectionsCell.textContent = (action.rejected_by || []).length;
+          tr.appendChild(rejectionsCell);
+
+          // Decision buttons
+          const decisionCell = document.createElement('td');
+          decisionCell.className = 'col-actions';
+
+          if (action.status === 'pending') {
+            const approveBtn = document.createElement('button');
+            approveBtn.className = 'btn btn-sm btn-success me-1';
+            approveBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
+            approveBtn.title = 'Approve';
+            approveBtn.addEventListener('click', () => approveAction(action));
+
+            const rejectBtn = document.createElement('button');
+            rejectBtn.className = 'btn btn-sm btn-danger';
+            rejectBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
+            rejectBtn.title = 'Reject';
+            rejectBtn.addEventListener('click', () => rejectAction(action));
+
+            decisionCell.appendChild(approveBtn);
+            decisionCell.appendChild(rejectBtn);
+          } else {
+            decisionCell.textContent = action.status;
+          }
+
+          tr.appendChild(decisionCell);
+          tbody.appendChild(tr);
+        });
+    }
+
+    // Create pagination controls
+    createPaginationControls('pendingActionList', result.pagination, loadPendingActions);
+
   } catch (err) {
     console.error('Error loading pending admin actions:', err);
     alert('Failed to load pending actions.');
@@ -807,7 +1041,7 @@ async function approveAction(action) {
     const data = await res.json();
     if (res.ok) {
       alert(data.message);
-      showSection('pending');
+      loadPendingActions(paginationState['pending-actions'].page);
     } else {
       alert(data.error || data.message || 'Failed to approve');
     }
@@ -836,7 +1070,7 @@ async function rejectAction(action) {
     const data = await res.json();
     if (res.ok) {
       alert(data.message);
-      showSection('pending');
+      loadPendingActions(paginationState['pending-actions'].page);
     } else {
       alert(data.error || data.message || 'Failed to reject');
     }

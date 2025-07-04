@@ -38,6 +38,80 @@ img.rounded {
 .d-inline { display: inline !important; }
 .badge-visible { display: inline !important; }
 .badge-hidden { display: none !important; }
+
+/* Pagination Controls Styling */
+.pagination-controls {
+    padding: 1rem 0;
+    border-top: 1px solid #dee2e6;
+    margin-top: 1rem;
+}
+
+.pagination-controls .btn-group {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.pagination-controls .btn-group .btn {
+    border-radius: 0;
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.pagination-controls .btn-group .btn:first-child {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+}
+
+.pagination-controls .btn-group .btn:last-child {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+
+.pagination-controls .btn-group .btn:hover:not(.disabled) {
+    transform: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 1px rgba(0, 0, 0, 0.075);
+}
+
+.pagination-controls .btn-group .btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.pagination-controls .btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    font-weight: 600;
+}
+
+.pagination-controls .btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.pagination-controls .btn-outline-primary:hover:not(.disabled) {
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.pagination-controls .text-muted {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Responsive pagination for mobile */
+@media (max-width: 576px) {
+    .pagination-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+
+    .pagination-controls .btn-group .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -135,23 +209,211 @@ img.rounded {
     transform: translateY(-2px);
 }
 
+/* Loading state for tables */
+.table-loading {
+    position: relative;
+    opacity: 0.6;
+}
+
+.table-loading::after {
+    content: "Loading...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    z-index: 10;
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 2rem;
+}
+
+.empty-state i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Badge styling improvements */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+.badge.bg-warning {
+    color: #000;
+}
+
+/* Table responsive design and text truncation */
+.table {
+    table-layout: fixed;
+    word-wrap: break-word;
+}
+
+/* Text truncation for long content */
+.text-truncate-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.text-truncate-cell:hover {
+    overflow: visible;
+    white-space: normal;
+    position: relative;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 10;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* Column width constraints */
+.table th,
+.table td {
+    vertical-align: middle;
+}
+
+/* Specific column widths */
+.col-id { width: 60px; }
+.col-name { width: 120px; }
+.col-email { width: 180px; }
+.col-role { width: 80px; }
+.col-location { width: 100px; }
+.col-cuisine { width: 100px; }
+.col-date { width: 100px; }
+.col-time { width: 80px; }
+.col-status { width: 100px; }
+.col-actions {
+    width: 200px;
+    min-width: 200px;
+    white-space: nowrap;
+}
+
+/* Ensure action buttons stay visible */
+.table td.col-actions {
+    position: sticky;
+    right: 0;
+    background: inherit;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+}
+
+/* Action buttons in tables */
+.table td .btn {
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.table td .btn:last-child {
+    margin-right: 0;
+}
+
+/* Special handling for special request column */
+.col-special-request {
+    max-width: 200px;
+}
+
+.special-request-text {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    cursor: help;
+}
+
+.special-request-text:hover {
+    overflow: visible;
+    white-space: normal;
+    position: absolute;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    z-index: 20;
+    max-width: 300px;
+}
+
+/* Status indicators */
+.status-pending {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.status-approved {
+    color: #10b981;
+    font-weight: 500;
+}
+
+.status-rejected {
+    color: #ef4444;
+    font-weight: 500;
+}
+
 @media (max-width: 768px) {
     .modal-content {
         width: 95%;
         margin: 1rem;
     }
-    
+
     .section {
         padding: 1rem;
     }
-    
+
     .table {
         font-size: 0.875rem;
     }
-    
+
     .btn-sm {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
+    }
+
+    /* Make table horizontally scrollable on mobile */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ensure action column is always visible */
+    .table .col-actions {
+        position: sticky;
+        right: 0;
+        background: white;
+        box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+        min-width: 180px;
+    }
+
+    /* Stack action buttons vertically on smaller screens */
+    .table td.col-actions .btn {
+        display: inline-block;
+        width: auto;
+        margin-bottom: 0.25rem;
+        margin-right: 0.25rem;
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+    }
+
+    /* Truncate text more aggressively on mobile */
+    .text-truncate-cell {
+        max-width: 100px;
+    }
+
+    .special-request-text {
+        max-width: 120px;
     }
 }
 
@@ -160,12 +422,34 @@ img.rounded {
         padding: 0.5rem;
         font-size: 0.875rem;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .btn {
         font-size: 0.75rem;
+    }
+
+    /* More aggressive text truncation */
+    .text-truncate-cell {
+        max-width: 80px;
+    }
+
+    .special-request-text {
+        max-width: 100px;
+    }
+
+    /* Compact pagination on very small screens */
+    .pagination-controls .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    /* Ultra-compact action buttons on very small screens */
+    .table td.col-actions .btn {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.3rem;
+        margin-right: 0.15rem;
     }
 }
