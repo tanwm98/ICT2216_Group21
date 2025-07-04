@@ -6,7 +6,7 @@ const sharp = require('sharp');
 const FileType = require('file-type');
 const AdmZip = require('adm-zip');
 const extract = require('extract-zip');
-const pool = require('../../db');
+const db = require('../../db');
 
 const uploadDir = path.join(__dirname, '../../frontend/static/img/restaurants');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -102,9 +102,22 @@ const validateUploadedImage = async (req, res, next) => {
             return res.status(400).json({ error: 'Symlink uploads not allowed.' });
         }
 
-        const userId = req.user.id;
-        const resQuota = await pool.query('SELECT COALESCE(SUM(octet_length(image_filename)), 0) as total_size FROM stores WHERE owner_id = $1', [userId]);
-        const usedBytes = parseInt(resQuota.rows[0].total_size, 10) || 0;
+        // Check if user is authenticated
+        if (!req.user || !req.user.userId) {
+            console.error('User not authenticated in file upload validation');
+            fs.unlinkSync(filePath);
+            return res.status(401).json({ error: 'Authentication required for file upload.' });
+        }
+
+        const userId = req.user.userId;
+
+        // Convert to Knex query builder syntax
+        const quotaResult = await db('stores')
+            .select(db.raw('COALESCE(SUM(octet_length(image_filename)), 0) as total_size'))
+            .where('owner_id', userId)
+            .first();
+
+        const usedBytes = parseInt(quotaResult?.total_size, 10) || 0;
         const uploadSize = req.file.size;
 
         if (usedBytes + uploadSize > 20 * 1024 * 1024) {
@@ -115,6 +128,9 @@ const validateUploadedImage = async (req, res, next) => {
         next();
     } catch (err) {
         console.error('Image validation error:', err);
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
         res.status(500).json({ error: 'Failed during image validation' });
     }
 };
