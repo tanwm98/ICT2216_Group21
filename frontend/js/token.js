@@ -6,28 +6,36 @@ async function authenticateToken(req, res, next) {
   const token = req.cookies.token; // token stored in cookie
 
   if (!token) {
-    return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    const error = new Error('Unauthorized: No token provided');
+    error.statusCode = 401;
+    return next(error);
   }
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     console.log(payload);
-    
+
     const result = await pool.query('SELECT user_id, token_version FROM users WHERE user_id = $1', [payload.userId]);
 
     if (result.rows.length === 0) {
-      return res.status(403).json({ message: 'User account no longer exists' });
+      const error = new Error('User account no longer exists');
+      error.statusCode = 403;
+      return next(error);
     }
 
     const currentTokenVersion = result.rows[0].token_version;
     if (payload.tokenVersion !== currentTokenVersion) {
-      return res.status(403).json({ message: 'Session invalidated. Please re-login.' });
+      const error = new Error('Session invalidated. Please re-login.');
+      error.statusCode = 403;
+      return next(error);
     }
-    
+
     req.user = payload; // attach payload (userId, role, name) to request
     next();
   } catch (err) {
-    return res.status(403).json({ message: 'Forbidden - Invalid or expired token' });
+    const error = new Error('Forbidden - Invalid or expired token');
+    error.statusCode = 403;
+    return next(error);
   }
 }
 
