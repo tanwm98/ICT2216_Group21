@@ -242,6 +242,8 @@ router.put('/edit/lastname', userLastNameValidator, handleValidation, async (req
 
 // ======== Cancel reservation ======== 
 router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidation, async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const reservationId = req.params.id;
     const userId = req.user.userId;
@@ -250,53 +252,52 @@ router.put('/reservations/:id/cancel', cancelReservationValidator, handleValidat
       return res.status(401).json({ error: 'Unauthorized: No user info found' });
     }
 
-    // Fetch reservation info
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    // Fetch reservation
+    const result = await client.query(
       `SELECT r.*, s."storeName"
-             FROM reservations r
-             JOIN stores s ON r."store_id" = s."store_id"
-             WHERE r."reservation_id" = $1 AND r."user_id" = $2`,
+       FROM reservations r
+       JOIN stores s ON r."store_id" = s."store_id"
+       WHERE r."reservation_id" = $1 AND r."user_id" = $2`,
       [reservationId, userId]
     );
 
     if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Reservation not found or does not belong to you' });
     }
 
     const reservation = result.rows[0];
-
-    // Combine date and time into one Date object
     const reservationDateTime = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
     const now = new Date();
 
     if (now >= reservationDateTime) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Cannot cancel a past or ongoing reservation' });
     }
 
-    // Log reservation details
-    console.log('User Cancellation Attempt:');
-    console.log(`User ID: ${userId}`);
-    console.log(`Restaurant: ${reservation.storeName}`);
-    console.log(`Date: ${reservation.reservationDate}`);
-    console.log(`Time: ${reservation.reservationTime}`);
-
     // Cancel reservation
-    await pool.query(
-      `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,
-      [reservationId]
+    await client.query(
+      `UPDATE reservations SET status = 'Cancelled' WHERE reservation_id = $1`,[reservationId]
     );
 
     // Add back pax to current capacity
-    await pool.query(
+    await client.query(
       `UPDATE stores SET "currentCapacity" = "currentCapacity" + $1 WHERE store_id = $2`,
       [reservation.noOfGuest, reservation.store_id]
     );
 
+    await client.query('COMMIT');
+
     res.json({ message: 'Reservation cancelled successfully', reservation });
 
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Error during user cancellation:', err);
     res.status(500).json({ error: 'Failed to cancel reservation' });
+  } finally {
+    client.release();
   }
 });
 

@@ -1,6 +1,6 @@
 // utils/breachCheck.js
 const crypto = require('crypto');
-const fetch = require('node-fetch');
+//const fetch = require('node-fetch');
 
 async function isBreachedPassword(password) {
     const sha1 = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();

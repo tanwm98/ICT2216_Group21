@@ -14,13 +14,13 @@ const {
 	fieldLevelAccess
 } = require('../middleware/fieldAccessControl');
 
-// Configure email
+// Configure email 
 const transporter = nodemailer.createTransport({
-	service: 'Gmail',
-	auth: {
-		user: process.env.EMAIL_USER,
-		pass: process.env.EMAIL_PASS,
-	},
+  service: 'Gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 // SECURITY: Validate and generate secure image URLs
@@ -93,53 +93,42 @@ function sanitizeString(str) {
 		.substring(0, 255); // Limit length
 }
 
-const {
-	reserveValidator,
-	updateReservationValidator,
-	reviewValidator
-} = require('../middleware/validators');
+const { reserveValidator, updateReservationValidator, reviewValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleHybridValidation');
-const {
-	decodeHtmlEntities
-} = require('../middleware/htmlDecoder');
-const {
-	debugDecode
-} = require('../middleware/htmlDecoder');
+const { decodeHtmlEntities } = require('../middleware/htmlDecoder');
+const { debugDecode } = require('../middleware/htmlDecoder');
 
 // Route to display data
 router.get('/display_specific_store', async (req, res) => {
-	try {
-		// SECURITY: Validate required parameters
-		const {
-			name,
-			location,
-			reservationid
-		} = req.query;
+  try {
+    // SECURITY: Validate required parameters
+    const { name, location, reservationid } = req.query;
 
-		if (!name || !location) {
-			return res.status(400).json({
-				error: 'Missing required parameters',
-				required: ['name', 'location']
-			});
-		}
+    if (!name || !location) {
+        return res.status(400).json({
+            error: 'Missing required parameters',
+            required: ['name', 'location']
+        });
+    }
 
-		// SECURITY: Validate input lengths
-		if (name.length > 100 || location.length > 100) {
-			return res.status(400).json({
-				error: 'Parameter length exceeds maximum allowed'
-			});
-		}
+    // SECURITY: Validate input lengths
+    if (name.length > 100 || location.length > 100) {
+        return res.status(400).json({
+            error: 'Parameter length exceeds maximum allowed'
+        });
+    }
 
-		let result;
+    let result;
 
-		// FIXED: Corrected SQL query structure and selected specific columns
-		if (reservationid) {
-			const reservationIdNum = parseInt(reservationid);
-			if (isNaN(reservationIdNum)) {
-				return res.status(400).json({
-					error: 'Invalid reservation ID format'
-				});
-			}
+    // FIXED: Corrected SQL query structure and selected specific columns
+    if (reservationid) {
+        // SECURITY: Validate reservationid if provided
+        const reservationIdNum = parseInt(reservationid);
+        if (isNaN(reservationIdNum)) {
+            return res.status(400).json({
+                error: 'Invalid reservation ID format'
+            });
+        }
 
 			result = await db('stores as s')
 				.innerJoin('reservations as r', 'r.store_id', 's.store_id')
@@ -220,34 +209,31 @@ router.get('/display_specific_store', async (req, res) => {
 			altText: sanitizeAltText(store.image_alt_text, store.storeName)
 		}));
 
-		// SECURITY: Add security headers
-		res.set({
-			'X-Content-Type-Options': 'nosniff',
-			'Cache-Control': 'public, max-age=300'
-		});
+    // SECURITY: Add security headers
+    res.set({
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'public, max-age=300'
+    });
 
-		res.json(transformedStores);
+    res.json(transformedStores);
 
-	} catch (err) {
-		console.error('Error querying database:', err);
-		res.status(500).json({
-			error: 'Failed to fetch data'
-		});
-	}
+  } catch (err) {
+    console.error('Error querying database:', err);
+    res.status(500).json({ error: 'Failed to fetch data' });
+  }
 });
 
 
 // Route to get reviews for the selected shop
 router.get('/display_reviews', async (req, res) => {
-	try {
-		const storeid = req.query.storeid;
+  try {
+    const storeid = req.query.storeid;
 
-		const storeIdNum = parseInt(storeid);
-		if (isNaN(storeIdNum) || storeIdNum <= 0) {
-			return res.status(400).json({
-				error: 'Invalid store ID'
-			});
-		}
+    // Input validation
+    const storeIdNum = parseInt(storeid);
+    if (isNaN(storeIdNum) || storeIdNum <= 0) {
+      return res.status(400).json({ error: 'Invalid store ID' });
+    }
 
 		const storeCheck = await db('stores')
 			.select(1)
@@ -294,8 +280,23 @@ router.get('/reserve', reserveValidator, handleValidation, async (req, res) => {
             specialrequest, storename, adultpax, childpax
         } = req.query;
 
-        // 1. Cooldown check (unchanged)
-        const cooldownCheck = await trx('reservations')
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+
+    const reservationDateTimeSGT = new Date(Date.UTC(
+      parseInt(year), parseInt(month) - 1, parseInt(day),
+      parseInt(hour) - 8, parseInt(minute)
+    ));
+
+    const nowSGT = getCurrentSGTDate();
+
+    if (reservationDateTimeSGT < nowSGT) {
+      return res.status(400).json({ message: "Cannot make a reservation in the past." });
+    }
+
+
+    // 1. Enforce 1-hour cooldown since last reservation creation
+       const cooldownCheck = await trx('reservations')
             .select(1)
             .where('user_id', userid)
             .where('created_at', '>', trx.raw("NOW() - INTERVAL '1 hour'"))
@@ -414,19 +415,55 @@ router.post('/update_reservation', fieldLevelAccess([
     try {
         const { pax, time, date, firstname, lastname, specialrequest, reservationid, adultpax, childpax, storename, userid } = req.body;
 
-        // 1. Get original reservation with lock
-        const originalRes = await trx('reservations')
-            .select('store_id', 'noOfGuest', 'reservationDate', 'reservationTime', 'specialRequest', 'status')
-            .where('reservation_id', reservationid)
-            .forUpdate() // LOCK reservation row
-            .first();
+    // Step 1: Get original reservation to restore its pax
+    const originalRes = await trx('reservations')
+        .select('store_id', 'noOfGuest', 'reservationDate', 'reservationTime', 'specialRequest', 'status')
+        .where('reservation_id', reservationid)
+        .forUpdate() // LOCK reservation row
+        .first();
 
-        if (!originalRes || originalRes.status === 'Cancelled') {
-            await trx.rollback();
-            return res.status(404).json({ message: 'Reservation not found or cancelled' });
-        }
+    if (!originalRes || originalRes.status === 'Cancelled') {
+        await trx.rollback();
+        return res.status(404).json({ message: 'Reservation not found or cancelled' });
+    }
 
-        // 2. Check edit limit (using DB timezone)
+    const storeId = originalRes.rows[0].store_id;
+    const originalPax = originalRes.rows[0].noOfGuest;
+
+    const original = originalRes.rows[0];
+    const formatTime = t => (t ? t.slice(0, 5) : ''); // Extract HH:MM from both "12:30:00" or "12:30"
+    const originalSpecial = decodeHtmlEntities(original.specialRequest || '');
+    const decodedRequestSpecial = decodeHtmlEntities(specialrequest || '');
+
+    // Final comparison
+    const isSame =
+      parseInt(pax) === original.noOfGuest &&
+      date === original.reservationDate.toISOString().split('T')[0] &&
+      formatTime(time) === formatTime(original.reservationTime) &&
+      decodedRequestSpecial === originalSpecial;
+
+    console.log('Compare original vs new:', {
+      pax: [original.noOfGuest, pax],
+      date: [original.reservationDate.toISOString().split('T')[0], date],
+      time: [formatTime(original.reservationTime), formatTime(time)],
+      specialrequest: [originalSpecial, decodedRequestSpecial]
+    });
+
+    if (isSame) {
+      return res.status(400).json({ message: 'No changes detected in reservation.' });
+    }
+
+    console.log('Compare original vs new:', {
+      pax: [original.noOfGuest, pax],
+      date: [original.reservationDate?.toISOString().split('T')[0], date],
+      time: [original.reservationTime, time],
+      specialrequest: [original.specialRequest, specialrequest]
+    });
+
+    // Step 1.5: Enforce 3 edits/day/user/reservation
+    const nowSGT = getCurrentSGTDate();
+    const today = nowSGT.toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' });
+
         const editCount = await trx('reservation_edits')
             .count('* as count')
             .where('user_id', userid)
@@ -809,7 +846,6 @@ router.get('/check-reservation', async (req, res) => {
 	}
 });
 
-
 // add review
 router.post('/add-review', fieldLevelAccess(['userid', 'storeid', 'rating', 'review']), reviewValidator, handleValidation, async (req, res) => {
 	const {
@@ -865,3 +901,4 @@ router.post('/add-review', fieldLevelAccess(['userid', 'storeid', 'rating', 'rev
 });
 
 module.exports = router;
+

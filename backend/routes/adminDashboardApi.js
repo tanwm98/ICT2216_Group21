@@ -75,6 +75,8 @@ router.get('/pending-restaurants', authenticateToken, requireAdmin, async (req, 
 });
 
 router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, requireRecentReauth, async (req, res) => {
+    const client = await pool.connect();
+
     try {
         const storeId = parseInt(req.params.id);
         const adminId = req.user.userId;
@@ -83,8 +85,10 @@ router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, requireR
             return res.status(400).json({ error: 'Invalid store ID' });
         }
 
-        // Get restaurant details for notification
-        const restaurantResult = await pool.query(`
+        await client.query('BEGIN');
+
+        // Get restaurant details
+        const restaurantResult = await client.query(`
             SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
             FROM stores s
             JOIN users u ON s.owner_id = u.user_id
@@ -92,19 +96,22 @@ router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, requireR
         `, [storeId]);
 
         if (restaurantResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Pending restaurant not found' });
         }
 
         const restaurant = restaurantResult.rows[0];
 
-        // Update restaurant status to approved
-        await pool.query(`
+        // Update status to approved
+        await client.query(`
             UPDATE stores
             SET status = 'approved', approved_at = NOW(), approved_by = $1
             WHERE store_id = $2
         `, [adminId, storeId]);
 
-        // Send approval email to owner
+        await client.query('COMMIT'); // Commit the DB update before sending email
+
+        // Email
         const approvalEmail = `
             Congratulations ${restaurant.firstname}!
 
@@ -135,7 +142,6 @@ router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, requireR
             text: approvalEmail
         });
 
-        // Log the approval
         logBusiness('restaurant_approved', 'restaurant', {
             store_id: storeId,
             store_name: restaurant.storeName,
@@ -154,12 +160,17 @@ router.post('/approve-restaurant/:id', authenticateToken, requireAdmin, requireR
         });
 
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error approving restaurant:', error);
         res.status(500).json({ error: 'Failed to approve restaurant' });
+    } finally {
+        client.release();
     }
 });
 
 router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRecentReauth, async (req, res) => {
+    const client = await pool.connect();
+
     try {
         const storeId = parseInt(req.params.id);
         const adminId = req.user.userId;
@@ -173,8 +184,10 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRe
             return res.status(400).json({ error: 'Rejection reason must be at least 10 characters' });
         }
 
-        // Get restaurant details for notification
-        const restaurantResult = await pool.query(`
+        await client.query('BEGIN');
+
+        // Fetch restaurant info
+        const restaurantResult = await client.query(`
             SELECT s.*, u.email as owner_email, u.firstname, u.lastname, u.name as owner_name
             FROM stores s
             JOIN users u ON s.owner_id = u.user_id
@@ -182,19 +195,22 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRe
         `, [storeId]);
 
         if (restaurantResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Pending restaurant not found' });
         }
 
         const restaurant = restaurantResult.rows[0];
 
-        // Update restaurant status to rejected
-        await pool.query(`
+        // Update status to rejected
+        await client.query(`
             UPDATE stores
             SET status = 'rejected', rejection_reason = $1, approved_by = $2
             WHERE store_id = $3
         `, [rejection_reason.trim(), adminId, storeId]);
 
-        // Send rejection email to owner
+        await client.query('COMMIT');
+
+        // Send email
         const rejectionEmail = `
             Dear ${restaurant.firstname},
 
@@ -223,7 +239,7 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRe
             text: rejectionEmail
         });
 
-        // Log the rejection
+        // Log action
         logBusiness('restaurant_rejected', 'restaurant', {
             store_id: storeId,
             store_name: restaurant.storeName,
@@ -244,8 +260,11 @@ router.post('/reject-restaurant/:id', authenticateToken, requireAdmin, requireRe
         });
 
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error rejecting restaurant:', error);
         res.status(500).json({ error: 'Failed to reject restaurant' });
+    } finally {
+        client.release();
     }
 });
 
@@ -863,7 +882,10 @@ router.put(
     '/restaurants/:id',
     upload.single('image'),
     validateUploadedImage,
-    fieldLevelAccess(['storeName', 'address', 'postalCode', 'cuisine', 'location', 'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id']),
+    fieldLevelAccess([
+        'storeName', 'address', 'postalCode', 'cuisine', 'location',
+        'priceRange', 'totalCapacity', 'opening', 'closing', 'owner_id'
+    ]),
     requireRecentReauth,
     updateRestaurantValidator,
     handleValidation,
@@ -874,15 +896,26 @@ router.put(
             priceRange, totalCapacity, opening, closing, owner_id
         } = req.body;
 
+        const client = await pool.connect();
+        let oldImagePathToDelete = null;
+
         try {
-            const storeCheck = await pool.query('SELECT owner_id, image_filename FROM stores WHERE store_id = $1', [id]);
+            await client.query('BEGIN');
+
+            const storeCheck = await client.query(
+                'SELECT owner_id, image_filename FROM stores WHERE store_id = $1',
+                [id]
+            );
+
             if (storeCheck.rowCount === 0) {
+                await client.query('ROLLBACK');
                 return res.status(404).json({ error: 'Restaurant not found' });
             }
-            // Logging IDOR attempts
+
             const currentRestaurant = storeCheck.rows[0];
             if (req.user.role !== 'admin' && currentRestaurant.owner_id !== req.user.userId) {
                 logSecurity(`IDOR attempt: user ${req.user.userId} tried to update store ${id}`);
+                await client.query('ROLLBACK');
                 return res.status(403).json({ error: 'Unauthorized to update this restaurant' });
             }
 
@@ -891,44 +924,56 @@ router.put(
 
             if (req.file) {
                 if (currentRestaurant.image_filename) {
-                    const oldImagePath = path.join(__dirname, '../../frontend/static/img/restaurants', currentRestaurant.image_filename);
-                    try {
-                        if (fs.existsSync(oldImagePath)) {
-                            fs.unlinkSync(oldImagePath);
-                        }
-                    } catch (deleteErr) {
-                        console.warn('Failed to delete old image:', deleteErr);
-                    }
+                    oldImagePathToDelete = path.join(
+                        __dirname,
+                        '../../frontend/static/img/restaurants',
+                        currentRestaurant.image_filename
+                    );
                 }
                 imageFilename = req.file.filename;
             }
 
-            await pool.query(`
-          UPDATE stores SET
-              "storeName" = $1,
-              address = $2,
-              "postalCode" = $3,
-              cuisine = $4,
-              location = $5,
-              "priceRange" = $6,
-              "totalCapacity" = $7,
-              "currentCapacity" = $7,
-              opening = $8,
-              closing = $9,
-              owner_id = $10,
-              image_filename = $11,
-              image_alt_text = $12
-          WHERE store_id = $13
-      `, [
+            await client.query(`
+                UPDATE stores SET
+                    "storeName" = $1,
+                    address = $2,
+                    "postalCode" = $3,
+                    cuisine = $4,
+                    location = $5,
+                    "priceRange" = $6,
+                    "totalCapacity" = $7,
+                    "currentCapacity" = $7,
+                    opening = $8,
+                    closing = $9,
+                    owner_id = $10,
+                    image_filename = $11,
+                    image_alt_text = $12
+                WHERE store_id = $13
+            `, [
                 storeName, address, postalCode, cuisine, location,
                 priceRange, totalCapacity, opening, closing,
                 owner_id, imageFilename, altText, id
             ]);
 
+            await client.query('COMMIT');
+
+            // Only delete old image after successful commit
+            if (oldImagePathToDelete && fs.existsSync(oldImagePathToDelete)) {
+                try {
+                    fs.unlinkSync(oldImagePathToDelete);
+                } catch (deleteErr) {
+                    console.warn('Failed to delete old image:', deleteErr);
+                }
+            }
+
             res.json({ message: 'Restaurant updated successfully' });
+
         } catch (err) {
+            await client.query('ROLLBACK');
             console.error('Error updating restaurant:', err);
             res.status(500).json({ error: 'Internal server error' });
+        } finally {
+            client.release();
         }
     }
 );
