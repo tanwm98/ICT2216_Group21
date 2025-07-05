@@ -633,10 +633,17 @@ async function submitReview(userId, storeId) {
 
     try {
         const checkRes = await fetch(`/check-reservation?userid=${encodeURIComponent(userId)}&storeid=${encodeURIComponent(storeId)}`);
+
+        if (!checkRes.ok) {
+            errorMsg.textContent = "Unable to verify reservation eligibility. Please try again.";
+            return;
+        }
+
         const resData = await checkRes.json();
 
         if (!resData.hasReserved) {
-            errorMsg.textContent = "You must reserve before submitting a review.";
+            // ✅ UPDATED: More accurate error message
+            errorMsg.textContent = "You must have a completed reservation at this restaurant before submitting a review.";
             return;
         }
 
@@ -655,7 +662,7 @@ async function submitReview(userId, storeId) {
 
         if (response.ok) {
             errorMsg.textContent = "";
-            alert("Review submitted!");
+            alert("Review submitted successfully!");
 
             const modal = bootstrap.Modal.getInstance(document.getElementById("reviewModal"));
             modal.hide();
@@ -663,12 +670,12 @@ async function submitReview(userId, storeId) {
             document.getElementById("reviewForm").reset();
             location.reload();
         } else {
-            errorMsg.textContent = data.error || "Something went wrong.";
+            errorMsg.textContent = data.error || "Something went wrong. Please try again.";
         }
 
     } catch (err) {
         console.error("Error submitting review:", err);
-        errorMsg.textContent = "Server error while submitting review.";
+        errorMsg.textContent = "Server error while submitting review. Please try again.";
     }
 }
 

@@ -812,21 +812,60 @@ router.get('/getUser', async (req, res) => {
 
 // Check reservation
 router.get('/check-reservation', async (req, res) => {
-    const {
-        userid,
-        storeid
-    } = req.query;
+    const { userid, storeid } = req.query;
+
+    // Input validation
+    if (!userid || !storeid) {
+        return res.status(400).json({
+            error: 'Missing required parameters: userid and storeid'
+        });
+    }
+
+    const userIdNum = parseInt(userid);
+    const storeIdNum = parseInt(storeid);
+
+    if (isNaN(userIdNum) || isNaN(storeIdNum) || userIdNum <= 0 || storeIdNum <= 0) {
+        return res.status(400).json({
+            error: 'Invalid userid or storeid format'
+        });
+    }
 
     try {
-        const reservation = await db('reservations')
-            .select('*')
-            .where('user_id', userid)
-            .andWhere('store_id', storeid)
+        if (req.session?.userId && req.session.userId !== userIdNum) {
+            return res.status(403).json({
+                error: 'Access denied. You can only check your own reservations.'
+            });
+        }
+
+        // ✅ FIXED: Only check for COMPLETED reservations
+        const completedReservation = await db('reservations')
+            .select('reservation_id', 'reservationDate', 'reservationTime', 'status', 'noOfGuest')
+            .where('user_id', userIdNum)
+            .andWhere('store_id', storeIdNum)
+            .andWhere('status', 'Completed')
             .first();
 
+        // Additional validation: Ensure the reservation actually happened in the past
+        let hasValidCompletedReservation = false;
+
+        if (completedReservation) {
+            const reservationDateTime = new Date(`${completedReservation.reservationDate}T${completedReservation.reservationTime}`);
+            const now = new Date();
+
+            // ✅ Double-check: Reservation must be in the past
+            hasValidCompletedReservation = reservationDateTime < now;
+        }
+
         res.json({
-            hasReserved: !!reservation
+            hasReserved: hasValidCompletedReservation,
+            // Optional: Provide additional context (remove in production if not needed)
+            details: completedReservation ? {
+                reservationId: completedReservation.reservation_id,
+                date: completedReservation.reservationDate,
+                status: completedReservation.status
+            } : null
         });
+
     } catch (err) {
         console.error("Error checking reservation:", err);
         res.status(500).json({

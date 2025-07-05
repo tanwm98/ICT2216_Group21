@@ -55,15 +55,82 @@ const loggedUser = require('./backend/routes/userProfileApi');
 const { verify } = require('crypto');
 const csrf = require('csurf');
 
-// CSRF middleware with cookie-based token
-app.use(csrf({ cookie: true }));
+const csrfProtection = csrf({
+    cookie: {
+        httpOnly: false, // ✅ Must be false so frontend can read it
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        key: '_csrf' // Custom cookie name
+    },
+    value: function (req) {
+        // Allow CSRF token from header or body
+        return req.body._csrf ||
+               req.query._csrf ||
+               req.headers['x-csrf-token'] ||
+               req.headers['x-xsrf-token'];
+    }
+});
+
+const csrfExemptRoutes = [
+    '/api/health',
+    '/api/session',
+    '/api/session/validation-errors'
+];
 
 app.use((req, res, next) => {
-    res.locals.csrfToken = req.csrfToken(); // for Pug/EJS views
-    res.cookie('XSRF-TOKEN', req.csrfToken()); // for frontend JS to read
+    // Skip CSRF for exempt routes
+    if (csrfExemptRoutes.some(route => req.path.startsWith(route))) {
+        return next();
+    }
+
+    // Skip CSRF for GET requests to static assets
+    if (req.method === 'GET' && (
+        req.path.startsWith('/static/') ||
+        req.path.startsWith('/js/') ||
+        req.path.startsWith('/common/') ||
+        req.path.startsWith('/public/')
+    )) {
+        return next();
+    }
+
+    // Apply CSRF protection
+    csrfProtection(req, res, next);
+});
+
+app.use((req, res, next) => {
+    // Only set CSRF token if CSRF protection was applied
+    if (req.csrfToken) {
+        res.locals.csrfToken = req.csrfToken();
+        // Set both cookies for different frontend reading methods
+        res.cookie('XSRF-TOKEN', req.csrfToken(), {
+            httpOnly: false, // Must be readable by JS
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+    }
     next();
 });
 
+// Serve frontend static files - AFTER CSRF setup
+app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
+app.use('/common', express.static(path.join(__dirname, 'frontend/common')));
+app.use('/static', express.static(path.join(__dirname, 'frontend/static')));
+app.use('/public', express.static(path.join(__dirname, 'frontend/public')));
+
+app.get('/api/csrf-token', (req, res) => {
+    if (req.csrfToken) {
+        res.json({
+            csrfToken: req.csrfToken(),
+            success: true
+        });
+    } else {
+        res.json({
+            csrfToken: null,
+            success: false,
+            message: 'CSRF protection not active for this route'
+        });
+    }
+});
 // using the routes
 app.use(homeRoutes);
 app.use(selectedResRoutes);
@@ -157,8 +224,30 @@ app.get('/request-reset', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/public/request-reset.html'));
 });
 
-app.get('/reset-password', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/public/reset-password.html'));
+app.get('/reset-password', async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.redirect('/request-reset?error=missing-token');
+    }
+
+    try {
+        // Verify token exists and hasn't expired
+        const user = await db('users')
+            .where('reset_token', token)
+            .where('reset_token_expires', '>', db.fn.now())
+            .first();
+
+        if (!user) {
+            return res.redirect('/request-reset?error=invalid-token');
+        }
+
+        // Token is valid, serve the reset page
+        res.sendFile(path.join(__dirname, 'frontend/public/reset-password.html'));
+    } catch (err) {
+        console.error('Reset password validation error:', err);
+        res.redirect('/request-reset?error=server-error');
+    }
 });
 
 app.get('/mfa-verify', (req, res) => {
@@ -342,15 +431,21 @@ app.use((err, req, res, next) => {
         path: req.originalUrl,
         method: req.method,
         user_agent: req.get('User-Agent'),
-        referer: req.get('Referer')
+        referer: req.get('Referer'),
+        has_csrf_header: !!req.headers['x-csrf-token'],
+        has_xsrf_header: !!req.headers['x-xsrf-token'],
+        csrf_cookie: !!req.cookies._csrf
     }, req);
 
-    // Handle CSRF token error here
     const isApi = req.originalUrl.startsWith('/api/');
     const acceptsJson = req.get('Accept')?.includes('application/json');
 
     if (isApi || acceptsJson) {
-        return res.status(403).json({ error: true, message: 'Invalid or missing CSRF token' });
+        return res.status(403).json({
+            error: true,
+            message: 'Invalid or missing CSRF token',
+            code: 'CSRF_TOKEN_INVALID'
+        });
     }
     res.status(403);
     res.sendFile(path.join(__dirname, 'frontend/errors/403.html'));
