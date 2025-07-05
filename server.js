@@ -9,8 +9,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
+const { isBreachedPassword } = require('./backend/utils/breachCheck');
+
 
 const redis = require('redis');
+const { refreshAccessToken, validateAccessToken } = require('./frontend/js/token');
+
 const isProd = process.env.NODE_ENV === 'production';
 
 // Redis client configuration
@@ -283,7 +287,6 @@ app.post('/api/auth/refresh', async (req, res) => {
             });
         }
 
-        const { refreshAccessToken } = require('./frontend/js/token');
         const result = await refreshAccessToken(refreshToken, req);
 
         if (result.success) {
@@ -323,10 +326,7 @@ app.get('/api/session', async (req, res) => {
                 reason: 'no_access_token' 
             });
         }
-
-        const { validateAccessToken } = require('./frontend/js/token');
         const validation = await validateAccessToken(accessToken);
-
         if (validation.valid) {
             res.json({
                 loggedIn: true,

@@ -13,7 +13,7 @@ const TOKEN_CONFIG = {
         expiresIn: '1h',        // 1 hour
         maxAgeMs: 60 * 60 * 1000
     },
-    inactivityTimeout: 7 * 60 * 1000  // 15 minutes
+    inactivityTimeout: 15 * 60 * 1000  // 15 minutes
 };
 
 // Redis key patterns
