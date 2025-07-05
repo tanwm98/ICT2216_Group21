@@ -1,29 +1,18 @@
 async function checkSession() {
-  console.log('[SESSION] Checking session validity...');
+    const response = await fetch('/api/session');
+    const data = await response.json();
 
-  try {
-    const res = await fetch('/api/session');
-    const data = await res.json();
-
-    console.log('[SESSION] Response data:', data);
-
-    // ✅ User is NOT logged in and there's no token → allow access to public content
-    if (!data.loggedIn) {
-      const tokenExists = document.cookie.includes('token=');
-      if (tokenExists) {
-        console.warn('[SESSION] Token exists but session is invalid. Redirecting to login.');
-        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        window.location.href = '/login?expired=1';
-      } else {
-        console.info('[SESSION] No token found. Public access allowed.');
-      }
-      return;
+    if (!data.loggedIn && data.reason === 'no_access_token') {
+        // Try to refresh token
+        const refreshResponse = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (refreshResponse.ok) {
+            return; // Token refreshed, continue
+        }
     }
 
-    console.log('[SESSION] Valid session. User:', data.userId, 'Role:', data.role);
-  } catch (err) {
-    console.error('[SESSION] Error while checking session:', err);
-  }
+    if (!data.loggedIn) {
+        window.location.href = '/login'; // Only logout if refresh also failed
+    }
 }
 
 // Run check on load + every 30s

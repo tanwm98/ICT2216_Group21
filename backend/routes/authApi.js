@@ -13,12 +13,17 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
-const { sanitizeInput } = require('../middleware/sanitization');
+const { sanitizeInput, sanitizeForEmail } = require('../middleware/sanitization');
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
 const { isBreachedPassword } = require('../utils/breachCheck');
+const {
+    generateTokenPair,
+    logoutUser,
+    revokeAllUserSessions,
+    TOKEN_CONFIG
+} = require('../../frontend/js/token');
 
-//const AppError = require('../AppError'); 
 
 // Secure file storage configuration for restaurant images
 const storage = multer.diskStorage({
@@ -40,7 +45,6 @@ const storage = multer.diskStorage({
     }
 });
 
-// Enhanced file validation following Node.js best practices
 const fileFilter = (req, file, cb) => {
     // Restricted to jpeg, jpg, png only as requested
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
@@ -122,14 +126,11 @@ function sanitizeAndValidate(input, fieldName, required = true) {
 }
 
 
-
-
 // POST /login
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
-        // Fail fast validation
         if (!email || !password) {
             throw new AppError('Email and password are required', 400);
         }
@@ -145,12 +146,12 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
             }, req);
             return res.redirect('/login?error=1');
         }
-        const isMatch = await argon2.verify(user.password, password);
 
+        const isMatch = await argon2.verify(user.password, password);
 
         if (isMatch) {
             req.session.lastVerified = Date.now();
-            const mfaCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+            const mfaCode = crypto.randomInt(100000, 1000000).toString();
             const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
             await db('users')
@@ -164,19 +165,18 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 html: `<p>Your MFA code is: <b>${mfaCode}</b></p><p>⏱ Expires in 5 minutes.</p>`,
             });
 
-
             logAuth('login_pending_mfa', true, {
                 user_id: user.user_id,
                 email: email,
                 role: user.role
             }, req);
 
-            // Store userId and role temporarily next step :  MFA Verify
+            // Store data for hybrid token generation
             req.session.pendingMfa = {
                 userId: user.user_id,
                 role: user.role,
                 name: user.name,
-                tokenVersion: user.token_version
+                refreshTokenVersion: user.refresh_token_version || 0
             };
 
             return res.redirect('/mfa-verify');
@@ -217,45 +217,74 @@ router.post('/verify-mfa', async (req, res, next) => {
             return res.status(401).json({ message: 'Invalid or expired MFA code' });
         }
 
-        // remove MFA data from db after verification completes
+        // Clear MFA data and update activity
         await db('users')
             .where({ user_id: user.user_id })
-            .update({ mfa_code: null, mfa_expires: null });
+            .update({
+                mfa_code: null,
+                mfa_expires: null,
+                last_activity: new Date()
+            });
 
-        // Issue JWT token -----------------
-        const token = jwt.sign({
-            userId: user.user_id,
-            role: sessionData.role,
-            name: sessionData.name,
-            tokenVersion: sessionData.tokenVersion
-        }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '1h' });
+        // Generate hybrid token pair
+        try {
+            const tokens = await generateTokenPair(
+                user.user_id,
+                sessionData.role,
+                sessionData.name,
+                sessionData.refreshTokenVersion,
+                req
+            );
 
-        // Set token in HTTP-only cookie with secure settings
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            maxAge: 3600000
-        });
+            // Set secure HTTP-only cookies
+            res.cookie('access_token', tokens.accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: TOKEN_CONFIG.access.maxAgeMs
+            });
 
-        delete req.session.pendingMfa;
+            res.cookie('refresh_token', tokens.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: TOKEN_CONFIG.refresh.maxAgeMs
+            });
 
-        logAuth('login', true, {
-            user_id: user.user_id,
-            email: user.email,
-            role: user.role,
-            redirect_to: user.role === 'admin' ? '/admin' : user.role === 'owner' ? '/resOwner' : '/'
-        }, req);
+            delete req.session.pendingMfa;
 
-        // Role-based redirection
-        if (user.role === 'admin') {
-            return res.redirect('/admin');
-        } else if (user.role === 'user') {
-            return res.redirect('/');
-        } else if (user.role === 'owner') {
-            return res.redirect('/resOwner');
+            logAuth('login_success', true, {
+                user_id: user.user_id,
+                email: user.email,
+                role: user.role,
+                access_jti: tokens.accessJti,
+                refresh_jti: tokens.refreshJti,
+                tokens_expire_in: tokens.expiresIn
+            }, req);
+
+            // Role-based redirection
+            if (user.role === 'admin') {
+                return res.redirect('/admin');
+            } else if (user.role === 'user') {
+                return res.redirect('/');
+            } else if (user.role === 'owner') {
+                return res.redirect('/resOwner');
+            }
+
+        } catch (tokenError) {
+            console.error('❌ Token generation error:', tokenError);
+
+            // Fallback: redirect to login with error
+            logSystem('error', 'Token generation failed during MFA verification', {
+                user_id: user.user_id,
+                error: tokenError.message
+            });
+
+            return res.redirect('/login?error=token-generation-failed');
         }
+
     } catch (err) {
+        console.error('❌ MFA verification error:', err);
         next(err);
     }
 });
@@ -312,7 +341,9 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
                 password: hashedPassword,
                 role: 'user',
                 firstname: firstname,
-                lastname: lastname
+                lastname: lastname,
+                last_activity: new Date(),
+                refresh_token_version: 0  // ADDED: Initialize refresh token version
             })
             .returning(['user_id']);
 
@@ -620,16 +651,123 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         next(err);
     }
 });
-// POST /logout (preferred)
-router.post('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.redirect('/');
+
+router.post('/logout', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
+        const refreshToken = req.cookies.refresh_token;
+
+        await logoutUser(accessToken, refreshToken, req, res);
+
+        logAuth('logout', true, {
+            method: 'user_initiated',
+            ip: req.ip
+        }, req);
+
+    } catch (error) {
+        console.error('❌ Logout error:', error);
+        // Still clear cookies and redirect even if cleanup fails
+        res.clearCookie('access_token');
+        res.clearCookie('refresh_token');
+        res.redirect('/');
+    }
 });
 
-// GET /logout (backward compatibility)
-router.get('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.redirect('/');
+router.get('/logout', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
+        const refreshToken = req.cookies.refresh_token;
+
+        await logoutUser(accessToken, refreshToken, req, res);
+
+    } catch (error) {
+        console.error('❌ Logout error:', error);
+        res.clearCookie('access_token');
+        res.clearCookie('refresh_token');
+        res.redirect('/');
+    }
+});
+
+router.post('/admin/revoke-user-sessions', async (req, res) => {
+    try {
+        const { userId, reason } = req.body;
+
+        // TODO: Add proper admin authentication check
+        // if (req.user.role !== 'admin') return res.status(403).json({error: 'Admin only'});
+
+        const success = await revokeAllUserSessions(userId, reason || 'admin_revocation');
+
+        if (success) {
+            logSecurity('admin_revoked_user_sessions', 'high', {
+                target_user_id: userId,
+                admin_user_id: req.user?.userId,
+                reason: reason
+            }, req);
+
+            res.json({
+                success: true,
+                message: 'All user sessions revoked successfully'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to revoke user sessions'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Error in admin session revocation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during session revocation'
+        });
+    }
+});
+
+// =============================================
+// TEST ENDPOINT: Simple authentication test
+// =============================================
+
+router.get('/test-auth', async (req, res) => {
+    try {
+        // Import the authentication middleware
+        const { authenticateToken } = require('../../frontend/js/token');
+
+        // Apply authentication
+        authenticateToken(req, res, (err) => {
+            if (err) {
+                return res.status(err.statusCode || 401).json({
+                    success: false,
+                    error: err.message,
+                    authenticated: false
+                });
+            }
+
+            // Authentication successful
+            res.json({
+                success: true,
+                message: 'Authentication successful!',
+                authenticated: true,
+                user: {
+                    userId: req.user.userId,
+                    role: req.user.role,
+                    name: req.user.name,
+                    tokenType: req.user.type,
+                    jti: req.user.jti,
+                    iat: req.user.iat,
+                    exp: req.user.exp
+                },
+                timestamp: new Date().toISOString()
+            });
+        });
+
+    } catch (error) {
+        console.error('❌ Test auth endpoint error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            authenticated: false
+        });
+    }
 });
 
 router.use((err, req, res, next) => {
@@ -667,5 +805,90 @@ router.use((err, req, res, next) => {
 
     res.status(500).json({ error: 'Internal server error' });
 });
+router.get('/test-inactivity', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
 
+        if (!accessToken) {
+            return res.json({ error: 'No access token found' });
+        }
+
+        const payload = jwt.decode(accessToken);
+        if (!payload) {
+            return res.json({ error: 'Invalid token' });
+        }
+
+        // Manually set last activity to 16 minutes ago (simulate inactivity)
+        const sixteenMinutesAgo = Date.now() - (16 * 60 * 1000);
+
+        if (global.redisHelpers && global.redisHelpers.isAvailable()) {
+            const activityKey = `activity:${payload.userId}`;
+            await global.redisClient.setEx(activityKey, 30 * 60, sixteenMinutesAgo.toString());
+
+            res.json({
+                success: true,
+                message: 'Simulated 16 minutes of inactivity',
+                userId: payload.userId,
+                simulatedLastActivity: new Date(sixteenMinutesAgo).toISOString(),
+                note: 'Next request should trigger inactivity timeout'
+            });
+        } else {
+            res.json({ error: 'Redis not available' });
+        }
+
+    } catch (error) {
+        console.error('❌ Test inactivity error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Test endpoint to check current activity status
+router.get('/test-activity-status', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
+
+        if (!accessToken) {
+            return res.json({ error: 'No access token found' });
+        }
+
+        const payload = jwt.decode(accessToken);
+        if (!payload) {
+            return res.json({ error: 'Invalid token' });
+        }
+
+        if (global.redisHelpers && global.redisHelpers.isAvailable()) {
+            const activityKey = `activity:${payload.userId}`;
+            const lastActivityStr = await global.redisClient.get(activityKey);
+
+            if (lastActivityStr) {
+                const lastActivity = parseInt(lastActivityStr);
+                const timeSinceActivity = Date.now() - lastActivity;
+                const inactivityThreshold = 15 * 60 * 1000; // 15 minutes
+
+                res.json({
+                    userId: payload.userId,
+                    lastActivity: new Date(lastActivity).toISOString(),
+                    timeSinceActivityMs: timeSinceActivity,
+                    timeSinceActivityMinutes: Math.floor(timeSinceActivity / 60000),
+                    inactivityThresholdMs: inactivityThreshold,
+                    isInactive: timeSinceActivity > inactivityThreshold,
+                    timeUntilInactiveMs: Math.max(0, inactivityThreshold - timeSinceActivity),
+                    timeUntilInactiveMinutes: Math.max(0, Math.ceil((inactivityThreshold - timeSinceActivity) / 60000))
+                });
+            } else {
+                res.json({
+                    userId: payload.userId,
+                    error: 'No activity record found',
+                    note: 'This means user should be considered inactive'
+                });
+            }
+        } else {
+            res.json({ error: 'Redis not available' });
+        }
+
+    } catch (error) {
+        console.error('❌ Activity status error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 module.exports = router;

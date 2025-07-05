@@ -9,27 +9,173 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
-const { authenticateToken, requireAdmin, requireOwner, requireUser, requireUserOnly } = require('./frontend/js/token');
-const { sanitizeInput, sanitizeOutput, createRateLimiter } = require('./backend/middleware/sanitization');
 
-if (process.env.NODE_ENV === 'production') {
-  console.log = () => {};
-  console.info = () => {};
-  // Keep console.error and console.warn for debugging production issues
+const redis = require('redis');
+const isProd = process.env.NODE_ENV === 'production';
+
+// Redis client configuration
+const redisConfig = {
+  username: process.env.REDIS_USERNAME,
+  password: process.env.REDIS_PASSWORD,
+  database: Number(process.env.REDIS_DB),
+
+  socket: {
+    host: process.env.REDIS_HOST,
+    port: Number(process.env.REDIS_PORT),
+    tls: isProd,
+    keepAlive: true,
+    family: 4,
+    connectTimeout: 10000,
+  },
+  retryStrategy: (attempts) => {
+    const baseDelay = 100;
+    return Math.min(baseDelay * attempts, 2000);
+  },
+
+  enableReadyCheck: true,
+  maxRetriesPerRequest: 3,
+  lazyConnect: true,
+};
+
+
+// Create Redis client
+const redisClient = redis.createClient(redisConfig);
+redisClient.on('connect', () => {
+    console.log('🔗 Redis client connected');
+});
+
+redisClient.on('ready', () => {
+    console.log('✅ Redis client ready for commands');
+});
+
+redisClient.on('error', (err) => {
+    console.error('❌ Redis connection error:', err);
+    logger.logSystem('error', 'Redis connection error', {
+        error: err.message,
+        stack: err.stack,
+        redis_config: {
+            host: redisConfig.host,
+            port: redisConfig.port,
+            db: redisConfig.db
+        }
+    });
+});
+
+redisClient.on('end', () => {
+    console.log('🔌 Redis connection closed');
+});
+
+redisClient.on('reconnecting', (params) => {
+    console.log(`🔄 Redis reconnecting... Attempt: ${params.attempt}, Delay: ${params.delay}ms`);
+});
+
+// Connect to Redis
+async function connectRedis() {
+    try {
+        await redisClient.connect();
+        console.log('🚀 Redis connection established successfully');
+        
+        // Test Redis connectivity
+        await redisClient.ping();
+        console.log('📡 Redis ping successful');
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to connect to Redis:', error);
+        logger.logSystem('error', 'Redis connection failed', {
+            error: error.message,
+            stack: error.stack
+        });
+        
+        if (process.env.NODE_ENV === 'production') {
+            console.error('🚨 CRITICAL: Redis unavailable in production');
+        }
+        return false;
+    }
 }
 
-// Cookie with JWT
+const redisHelpers = {
+    // Safely execute Redis commands with error handling
+    async safeExecute(command, ...args) {
+        try {
+            return await redisClient[command](...args);
+        } catch (error) {
+            console.error(`❌ Redis ${command} error:`, error);
+            logger.logSystem('error', `Redis ${command} command failed`, {
+                command,
+                args: args.slice(0, 2),
+                error: error.message
+            });
+            throw error;
+        }
+    },
+
+    async getJSON(key) {
+        try {
+            const value = await this.safeExecute('get', key);
+            return value ? JSON.parse(value) : null;
+        } catch (error) {
+            if (error.name === 'SyntaxError') {
+                console.error(`❌ Invalid JSON in Redis key: ${key}`);
+                return null;
+            }
+            throw error;
+        }
+    },
+
+    async setJSON(key, value, ttlSeconds = null) {
+        const jsonValue = JSON.stringify(value);
+        if (ttlSeconds) {
+            return await this.safeExecute('setEx', key, ttlSeconds, jsonValue);
+        } else {
+            return await this.safeExecute('set', key, jsonValue);
+        }
+    },
+
+    isAvailable() {
+        return redisClient && redisClient.isReady;
+    }
+};
+
+global.redisClient = redisClient;
+global.redisHelpers = redisHelpers;
+
+if (process.env.NODE_ENV === 'production') {
+    console.log = () => {};
+    console.info = () => {};
+}
+
+// Cookie parser for JWT tokens
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
-// Session to keep user_id
+// Session middleware (ONLY for MFA flow - simplified)
 const session = require('express-session');
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 10 * 60 * 1000, // 10 minutes - only for MFA flow
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+    },
+    name: 'mfa_session' // Specific name to avoid confusion with JWT auth
 }));
-// Then rate limiter uses req.user if available
+
+// Import middleware and authentication (UPDATED imports)
+const { 
+    authenticateToken,           // NEW: Validates access token, auto-refreshes if needed
+    requireAdmin, 
+    requireOwner, 
+    requireUser, 
+    requireUserOnly 
+} = require('./frontend/js/token');
+
+const { sanitizeInput, sanitizeOutput, createRateLimiter } = require('./backend/middleware/sanitization');
+
+// Apply rate limiting (can now use Redis for distributed rate limiting)
 app.use(createRateLimiter());
 
 // Serve frontend static files
@@ -41,22 +187,20 @@ app.use('/public', express.static(path.join(__dirname, 'frontend/public')));
 // Body parsers
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(sanitizeInput);    // Sanitize all incoming data
-app.use(sanitizeOutput);   // Sanitize all outgoing responses
+app.use(sanitizeInput);
+app.use(sanitizeOutput);
 
-// import route files
-const authRoutes = require('./backend/routes/authApi')
-const { router: adminDash } = require('./backend/routes/adminDashboardApi')
+// Import route files
+const authRoutes = require('./backend/routes/authApi');
+const { router: adminDash } = require('./backend/routes/adminDashboardApi');
 const ownerApi = require('./backend/routes/ownerDashboardApi');
 const homeRoutes = require('./backend/routes/homeApi');
 const selectedResRoutes = require('./backend/routes/selectedResApi');
 const search = require('./backend/routes/searchApi');
 const loggedUser = require('./backend/routes/userProfileApi');
-const { verify } = require('crypto');
 const csrf = require('csurf');
 
 app.use((req, res, next) => {
-    // Exempt authentication routes from CSRF
     if (req.path === '/login' ||
         req.path === '/register' ||
         req.path === '/request-reset' ||
@@ -64,28 +208,28 @@ app.use((req, res, next) => {
         req.path === '/verify-mfa' ||
         req.path === '/signup-owner' ||
         req.path.startsWith('/api/session') ||
+        req.path.startsWith('/api/auth') ||
         req.path.startsWith('/api/health') ||
+        req.path.startsWith('/test-') ||
         req.method === 'GET') {
         return next();
     }
 
-    // Apply CSRF to other POST/PUT/DELETE routes
     csrf({
         cookie: {
             httpOnly: false,
-            secure: true,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict'
         }
     })(req, res, next);
 });
 
-// Set CSRF token only when middleware was applied
 app.use((req, res, next) => {
     if (req.csrfToken) {
         res.locals.csrfToken = req.csrfToken();
         res.cookie('XSRF-TOKEN', req.csrfToken(), {
             httpOnly: false,
-            secure: true,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict'
         });
     }
@@ -106,14 +250,15 @@ app.get('/api/csrf-token', (req, res) => {
         });
     }
 });
-// using the routes
+
+
 app.use(homeRoutes);
 app.use(selectedResRoutes);
 app.use('/', authRoutes);
 app.use(search);
 
+// Home route with token authentication
 app.get('/', authenticateToken, (req, res) => {
-    // Role-based redirect
     if (req.user.role === 'admin') {
         return res.redirect('/admin');
     } else if (req.user.role === 'owner') {
@@ -123,58 +268,132 @@ app.get('/', authenticateToken, (req, res) => {
     }
 });
 
-app.get('/api/session', async (req, res) => {
-     const token = req.cookies.token;
-    if (!token) return res.json({ loggedIn: false });
+// =============================================
+// API Routes
+// =============================================
 
+app.post('/api/auth/refresh', async (req, res) => {
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await db('users')
-            .select('token_version')
-            .where('user_id', decoded.userId)
-            .first();
-
-        if (!user || user.token_version !== decoded.tokenVersion) {
-            return res.json({ loggedIn: false });
+        const refreshToken = req.cookies.refresh_token;
+        
+        if (!refreshToken) {
+            return res.status(401).json({ 
+                error: 'No refresh token provided',
+                code: 'REFRESH_TOKEN_MISSING'
+            });
         }
 
-        res.json({
-            loggedIn: true,
-            userId: decoded.userId,
-            role: decoded.role,
-            permissions: {
-                canAccessAdmin: decoded.role === 'admin',
-                canAccessOwner: ['owner', 'admin'].includes(decoded.role),
-                canAccessUser: decoded.role === 'user'
-            }
+        const { refreshAccessToken } = require('./frontend/js/token');
+        const result = await refreshAccessToken(refreshToken, req);
+
+        if (result.success) {
+            res.cookie('access_token', result.accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 5 * 60 * 1000 // 5 minutes
+            });
+
+            res.json({
+                success: true,
+                expiresIn: 300
+            });
+        } else {
+            res.status(401).json({
+                error: result.error,
+                code: result.code
+            });
+        }
+    } catch (error) {
+        console.error('❌ Token refresh error:', error);
+        res.status(500).json({
+            error: 'Internal server error during token refresh',
+            code: 'REFRESH_ERROR'
         });
-    } catch {
-        res.json({ loggedIn: false });
     }
 });
 
-app.get('/api/session/validation-errors', (req, res) => {
-  const errors = req.session.validationErrors || [];
-  req.session.validationErrors = null;
-  res.json({ errors });
+app.get('/api/session', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
+        
+        if (!accessToken) {
+            return res.json({ 
+                loggedIn: false, 
+                reason: 'no_access_token' 
+            });
+        }
+
+        const { validateAccessToken } = require('./frontend/js/token');
+        const validation = await validateAccessToken(accessToken);
+
+        if (validation.valid) {
+            res.json({
+                loggedIn: true,
+                userId: validation.payload.userId,
+                role: validation.payload.role,
+                expiresAt: validation.payload.exp,
+                permissions: {
+                    canAccessAdmin: validation.payload.role === 'admin',
+                    canAccessOwner: ['owner', 'admin'].includes(validation.payload.role),
+                    canAccessUser: validation.payload.role === 'user'
+                }
+            });
+        } else {
+            res.json({ 
+                loggedIn: false, 
+                reason: validation.reason 
+            });
+        }
+    } catch (error) {
+        console.error('❌ Session validation error:', error);
+        res.json({ 
+            loggedIn: false, 
+            reason: 'validation_error' 
+        });
+    }
 });
 
-// PROTECTED API ROUTES (AFTER SESSION ROUTES)
-app.use('/api/admin', adminDash);
-app.use('/api/owner', ownerApi);  
-app.use('/api/user', loggedUser); 
+// Health check with Redis status
+app.get('/api/health', async (req, res) => {
+    const redisStatus = redisHelpers.isAvailable() ? 'connected' : 'disconnected';
+    
+    let redisPing = false;
+    try {
+        if (redisHelpers.isAvailable()) {
+            await redisClient.ping();
+            redisPing = true;
+        }
+    } catch (error) {
+        // Redis ping failed
+    }
 
-// ======== PUBLIC ROUTES ========
-
-app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        service: 'Kirby Chope Backend'
+        service: 'Kirby Chope Backend',
+        redis: {
+            status: redisStatus,
+            ping: redisPing
+        }
     });
 });
 
+app.get('/api/session/validation-errors', (req, res) => {
+    const errors = req.session.validationErrors || [];
+    req.session.validationErrors = null;
+    res.json({ errors });
+});
+
+// PROTECTED API ROUTES
+app.use('/api/admin', adminDash);
+app.use('/api/owner', ownerApi);  
+app.use('/api/user', loggedUser); 
+
+// =============================================
+// Public Routes
+// =============================================
 app.get('/search', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/search.html'));
 });
@@ -196,9 +415,10 @@ app.get('/selectedRes', (req, res) => {
 });
 
 app.get('/request-reset', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/public/request-reset.html'));
+    res.sendFile(path.join(__dirname, 'frontend/public/request-reset.html'));
 });
 
+// Password reset routes
 app.get('/reset-password', async (req, res) => {
     const { token } = req.query;
 
@@ -207,7 +427,6 @@ app.get('/reset-password', async (req, res) => {
     }
 
     try {
-        // Verify token exists and hasn't expired
         const user = await db('users')
             .where('reset_token', token)
             .where('reset_token_expires', '>', db.fn.now())
@@ -217,7 +436,6 @@ app.get('/reset-password', async (req, res) => {
             return res.redirect('/request-reset?error=invalid-token');
         }
 
-        // Token is valid, serve the reset page
         res.sendFile(path.join(__dirname, 'frontend/public/reset-password.html'));
     } catch (err) {
         console.error('Reset password validation error:', err);
@@ -241,8 +459,6 @@ app.get('/mfa-verify', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/mfa-verify.html'));
 });
 
-
-// =========== Route request
 app.post('/request-reset', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email is required' });
@@ -279,7 +495,7 @@ app.post('/request-reset', async (req, res) => {
         try {
             await transporter.sendMail({
                 from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
-                to: email, 
+                to: email,
                 subject: 'Password Reset Request - Kirby Chope',
                 html: `
           <h2>Password Reset Request</h2>
@@ -339,8 +555,9 @@ app.put('/reset-password', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
-// ======== VERIFICATION REQUIRED ======== 
-
+// =============================================
+// Protected Routes
+// =============================================
 app.get('/admin', authenticateToken, requireAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/admindashboard.html'));
 });
@@ -357,12 +574,13 @@ app.get('/reserveform', authenticateToken, requireUserOnly, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/html/reserve.html'));
 });
 
-
+// =============================================
+// Error Handlers
+// =============================================
 app.use((req, res, next) => {
     const isApi = req.originalUrl.startsWith('/api/');
     const acceptsJson = req.get('Accept')?.includes('application/json');
     
-    // Log the 404 for monitoring
     logger.logEvent('http_404', `404 Not Found: ${req.originalUrl}`, {
         ip: req.ip,
         user_agent: req.get('User-Agent'),
@@ -371,7 +589,6 @@ app.use((req, res, next) => {
     }, req);
     
     if (isApi || acceptsJson) {
-        // API or AJAX request - return JSON
         return res.status(404).json({ 
             error: 'Not Found', 
             message: 'API endpoint not found',
@@ -380,33 +597,8 @@ app.use((req, res, next) => {
         });
     }
     
-    // Web request - return custom HTML error page
     res.status(404);
     res.sendFile(path.join(__dirname, 'frontend/errors/404.html'));
-});
-
-
-app.use('/images', (req, res, next) => {
-    // Security headers for images
-    res.set({
-        'Cache-Control': 'public, max-age=31536000', // 1 year cache
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'"
-    });
-    next();
-}, express.static(path.join(__dirname, 'uploads')));
-
-// Image validation middleware
-app.use('/static/img/restaurants/:filename', (req, res, next) => {
-    const filename = req.params.filename;
-    const imagePath = path.join(__dirname, '/static/img/restaurants', filename);
-    if (fs.existsSync(imagePath)) {
-        res.sendFile(imagePath);
-    } else {
-        console.log('❌ File not found, serving fallback');
-        // Serve fallback image
-        res.sendFile(path.join(__dirname, '/static/img/restaurants/no-image.png'));
-    }
 });
 
 // CSRF error handler
@@ -438,7 +630,7 @@ app.use((err, req, res, next) => {
     res.sendFile(path.join(__dirname, 'frontend/errors/403.html'));
 });
 
-// Enhanced general error handler
+// General error handler
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || err.status || 500;
     
@@ -481,6 +673,58 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server
-app.listen(port, () => {
+// =============================================
+// Server Startup with Redis Connection
+// =============================================
+async function startServer() {
+    try {
+        // Connect to Redis first
+        const redisConnected = await connectRedis();
+        
+        if (!redisConnected && process.env.NODE_ENV === 'production') {
+            console.error('🚨 CRITICAL: Cannot start server without Redis in production');
+            process.exit(1);
+        } else if (!redisConnected) {
+            console.warn('⚠️  Server starting without Redis (development mode)');
+        }
+
+        // Start HTTP server
+        app.listen(port, () => {
+            console.log(`🚀 Server running on port ${port}`);
+            console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`🔗 Redis: ${redisConnected ? 'Connected' : 'Disconnected'}`);
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('🛑 SIGTERM received, shutting down gracefully');
+    
+    if (redisClient && redisClient.isReady) {
+        await redisClient.quit();
+        console.log('🔌 Redis connection closed');
+    }
+    
+    process.exit(0);
 });
+
+process.on('SIGINT', async () => {
+    console.log('🛑 SIGINT received, shutting down gracefully');
+    
+    if (redisClient && redisClient.isReady) {
+        await redisClient.quit();
+        console.log('🔌 Redis connection closed');
+    }
+    
+    process.exit(0);
+});
+
+// Start the server
+startServer();
+
+module.exports = app;
