@@ -13,16 +13,16 @@ test.describe('User Authentication Flow', () => {
     await expect(page.getByLabel('Password')).toBeVisible();
     
     // Fill login form with valid credentials
-    await page.getByLabel('Email').fill('tanwm98@gmail.com');
-    await page.getByLabel('Password').fill('1234qwer');
+    await page.getByLabel('Email').fill('curryplace@test.com');
+    await page.getByLabel('Password').fill('test123');
     
     // Submit login form
     await page.getByRole('button', { name: 'Log in' }).click();
     
     // Verify successful login redirect
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/mfa-verify');
     
-    await expect(page.getByText('Profile')).toBeVisible();
+    await expect(page.getByText('MFA Authentication')).toBeVisible();
   });
 
   test('should show error for invalid credentials', async ({ page }) => {
