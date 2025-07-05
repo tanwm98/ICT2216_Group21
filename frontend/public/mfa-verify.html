@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFA Verification</title>
+    <link href="https://fonts.googleapis.com/css?family=Poppins:100,200,300,400,500,600,700|Quicksand:300,400,500,700|Shadows+Into+Light+Two" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles/mfa.css">
+
+</head>
+<body>
+<div class="mfa-container">
+    <div class="mfa-header">
+        <h2>Verify Your Identity</h2>
+        <p>Enter the 6-digit code from your authenticator app</p>
+    </div>
+
+    <form method="POST" action="/verify-mfa">
+        <div class="form-group">
+            <label for="mfa-code">Authentication Code</label>
+            <input
+                    type="text"
+                    id="mfa-code"
+                    name="code"
+                    class="mfa-input"
+                    maxlength="6"
+                    placeholder="000000"
+                    required
+                    autocomplete="off"
+                    pattern="[0-9]{6}"
+            />
+        </div>
+
+        <button type="submit" class="verify-btn">
+            Verify Code
+        </button>
+    </form>
+
+    <div class="security-note">
+        <i>🔒</i> Your Kirby Chope code expires within 5 minutes.
+    </div>
+</div>
+<script src="/js/mfa_verify.js"></script>
+
+</body>
+</html>
