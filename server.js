@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
-const { isBreachedPassword } = require('./backend/utils/breachCheck');
+const { isBreachedPassword } = require('./backend/middleware/breachCheck');
 
 
 const redis = require('redis');
