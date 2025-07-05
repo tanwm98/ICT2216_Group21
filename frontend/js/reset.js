@@ -5,10 +5,16 @@ document.getElementById('requestResetForm').addEventListener('submit', async (e)
     const messageDiv = document.getElementById('requestMessage');
 
     try {
+        const csrfToken = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
         const res = await fetch('/request-reset', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'CSRF-Token': csrfToken
             },
             body: JSON.stringify({
                 email

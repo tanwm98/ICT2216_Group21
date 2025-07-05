@@ -53,6 +53,16 @@ const selectedResRoutes = require('./backend/routes/selectedResApi');
 const search = require('./backend/routes/searchApi');
 const loggedUser = require('./backend/routes/userProfileApi');
 const { verify } = require('crypto');
+const csrf = require('csurf');
+
+// CSRF middleware with cookie-based token
+app.use(csrf({ cookie: true }));
+
+app.use((req, res, next) => {
+    res.locals.csrfToken = req.csrfToken(); // for Pug/EJS views
+    res.cookie('XSRF-TOKEN', req.csrfToken()); // for frontend JS to read
+    next();
+});
 
 // using the routes
 app.use(homeRoutes);
@@ -317,6 +327,29 @@ app.use('/static/img/restaurants/:filename', (req, res, next) => {
         // Serve fallback image
         res.sendFile(path.join(__dirname, '/static/img/restaurants/no-image.png'));
     }
+});
+
+// CSRF error handler
+app.use((err, req, res, next) => {
+    if (err.code !== 'EBADCSRFTOKEN') return next(err);
+
+    logger.logEvent('security_csrf', 'CSRF token validation failed', {
+        ip: req.ip,
+        path: req.originalUrl,
+        method: req.method,
+        user_agent: req.get('User-Agent'),
+        referer: req.get('Referer')
+    }, req);
+
+    // Handle CSRF token error here
+    const isApi = req.originalUrl.startsWith('/api/');
+    const acceptsJson = req.get('Accept')?.includes('application/json');
+
+    if (isApi || acceptsJson) {
+        return res.status(403).json({ error: true, message: 'Invalid or missing CSRF token' });
+    }
+    res.status(403);
+    res.sendFile(path.join(__dirname, 'frontend/errors/403.html'));
 });
 
 // Enhanced general error handler

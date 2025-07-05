@@ -23,7 +23,7 @@ services:
       
 
     env_file:
-      - .idea/.env
+      - .env
     networks:
       - infrastructure
     restart: unless-stopped
