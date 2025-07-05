@@ -647,9 +647,8 @@ async function submitReview(userId, storeId) {
             return;
         }
 
-        const response = await fetch('/add-review', {
+        const response = await window.csrfFetch('/add-review', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 userid: userId,
                 storeid: storeId,

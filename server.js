@@ -55,68 +55,43 @@ const loggedUser = require('./backend/routes/userProfileApi');
 const { verify } = require('crypto');
 const csrf = require('csurf');
 
-const csrfProtection = csrf({
-    cookie: {
-        httpOnly: false, // ✅ Must be false so frontend can read it
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        key: '_csrf' // Custom cookie name
-    },
-    value: function (req) {
-        // Allow CSRF token from header or body
-        return req.body._csrf ||
-               req.query._csrf ||
-               req.headers['x-csrf-token'] ||
-               req.headers['x-xsrf-token'];
-    }
-});
-
-const csrfExemptRoutes = [
-    '/api/health',
-    '/api/session',
-    '/api/session/validation-errors'
-];
-
 app.use((req, res, next) => {
-    // Skip CSRF for exempt routes
-    if (csrfExemptRoutes.some(route => req.path.startsWith(route))) {
+    // Exempt authentication routes from CSRF
+    if (req.path === '/login' ||
+        req.path === '/register' ||
+        req.path === '/request-reset' ||
+        req.path === '/reset-password' ||
+        req.path === '/verify-mfa' ||
+        req.path === '/signup-owner' ||
+        req.path.startsWith('/api/session') ||
+        req.path.startsWith('/api/health') ||
+        req.method === 'GET') {
         return next();
     }
 
-    // Skip CSRF for GET requests to static assets
-    if (req.method === 'GET' && (
-        req.path.startsWith('/static/') ||
-        req.path.startsWith('/js/') ||
-        req.path.startsWith('/common/') ||
-        req.path.startsWith('/public/')
-    )) {
-        return next();
-    }
-
-    // Apply CSRF protection
-    csrfProtection(req, res, next);
+    // Apply CSRF to other POST/PUT/DELETE routes
+    csrf({
+        cookie: {
+            httpOnly: false,
+            secure: true,
+            sameSite: 'strict'
+        }
+    })(req, res, next);
 });
 
+// Set CSRF token only when middleware was applied
 app.use((req, res, next) => {
-    // Only set CSRF token if CSRF protection was applied
     if (req.csrfToken) {
         res.locals.csrfToken = req.csrfToken();
-        // Set both cookies for different frontend reading methods
         res.cookie('XSRF-TOKEN', req.csrfToken(), {
-            httpOnly: false, // Must be readable by JS
-            secure: process.env.NODE_ENV === 'production',
+            httpOnly: false,
+            secure: true,
             sameSite: 'strict'
         });
     }
     next();
 });
-
-// Serve frontend static files - AFTER CSRF setup
-app.use('/js', express.static(path.join(__dirname, 'frontend/js')));
-app.use('/common', express.static(path.join(__dirname, 'frontend/common')));
-app.use('/static', express.static(path.join(__dirname, 'frontend/static')));
-app.use('/public', express.static(path.join(__dirname, 'frontend/public')));
-
+owne
 app.get('/api/csrf-token', (req, res) => {
     if (req.csrfToken) {
         res.json({
@@ -251,6 +226,18 @@ app.get('/reset-password', async (req, res) => {
 });
 
 app.get('/mfa-verify', (req, res) => {
+    if (!req.session.pendingMfa) {
+        return res.redirect('/login?error=session-expired');
+    }
+
+    const now = Date.now();
+    const sessionAge = now - (req.session.lastVerified || 0);
+
+    if (sessionAge > 10 * 60 * 1000) { // 10 minutes
+        delete req.session.pendingMfa;
+        return res.redirect('/login?error=session-expired');
+    }
+
     res.sendFile(path.join(__dirname, 'frontend/public/mfa-verify.html'));
 });
 

@@ -178,11 +178,8 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
             try {
                 if (reservationid) {
                     console.log('updating reservation');
-                    response = await fetch('/update_reservation', {
+                    response = await window.csrfFetch('/update_reservation', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             pax: totalpeople,
                             adultpax,
@@ -198,11 +195,8 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                         })
                     });
                 } else {
-                    response = await fetch('/reserve', { // Changed to POST
+                    response = await window.csrfFetch('/reserve', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             pax: totalpeople,
                             date,

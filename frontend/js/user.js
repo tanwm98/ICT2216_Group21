@@ -100,7 +100,7 @@ function fetchReservations() {
 }
 // ========== CANCEL RESERVATION ==========
 function cancelUserReservation(reservationId) {
-  fetch(`/api/user/reservations/${reservationId}/cancel`, {
+  window.csrfFetch(`/api/user/reservations/${reservationId}/cancel`, {
     method: 'PUT'
   })
     .then(res => res.json())
@@ -166,9 +166,8 @@ function setupResetPasswordHandler() {
       }
 
       try {
-        const response = await fetch('/api/user/reset-password', {
+        const response = await window.csrfFetch('/api/user/reset-password', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ currentPassword, newPassword })
         });
 
@@ -233,14 +232,10 @@ function setupNameEditHandlers() {
       }
 
       try {
-        const response = await fetch('/api/user/edit/username', {
+        const response = await window.csrfFetch('/api/user/edit/username', {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
           body: JSON.stringify({ name: newName })
         });
-
         const result = await response.json();
 
         if (response.ok) {
@@ -305,9 +300,8 @@ function setupFirstNameEditHandler() {
       }
 
       try {
-        const response = await fetch('/api/user/edit/firstname', {
+        const response = await window.csrfFetch('/api/user/edit/firstname', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ firstname: newFirstName })
         });
         const result = await response.json();
@@ -360,9 +354,8 @@ function setupLastNameEditHandler() {
       }
 
       try {
-        const response = await fetch('/api/user/edit/lastname', {
+        const response = await window.csrfFetch('/api/user/edit/lastname', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lastname: newLastName })
         });
         const result = await response.json();

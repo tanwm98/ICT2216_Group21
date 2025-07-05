@@ -554,7 +554,7 @@ router.post('/update_reservation', fieldLevelAccess([
     }
 });
 
-cron.schedule('0 * * * *', async () => {
+cron.schedule('*/10 * * * *', async () => {
     console.log('Running scheduled tasks...', new Date());
 
     try {
