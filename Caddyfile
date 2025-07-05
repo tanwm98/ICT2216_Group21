@@ -93,7 +93,7 @@ kirbychope.xyz {
 		`
 	}
 	header {
-	        #Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 	        X-Content-Type-Options "nosniff"
 	        X-Frame-Options "DENY"
 	        Cross-Origin-Embedder-Policy "require-corp"
