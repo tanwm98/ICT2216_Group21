@@ -21,7 +21,36 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             if (res.ok) {
-                window.location.href = '/';
+                // Check user session to get role for proper redirect
+                try {
+                    const sessionRes = await fetch('/api/session', {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+
+                    if (sessionRes.ok) {
+                        const sessionData = await sessionRes.json();
+
+                        if (sessionData.loggedIn) {
+                            // Role-based redirection
+                            if (sessionData.role === 'admin') {
+                                window.location.href = '/admin';
+                            } else if (sessionData.role === 'owner') {
+                                window.location.href = '/resOwner';
+                            } else {
+                                window.location.href = '/';
+                            }
+                        } else {
+                            window.location.href = '/';
+                        }
+                    } else {
+                        // Fallback to root if session check fails
+                        window.location.href = '/';
+                    }
+                } catch (sessionErr) {
+                    console.error('Session check failed:', sessionErr);
+                    window.location.href = '/';
+                }
             } else {
                 const data = await res.json();
                 showError(data.message || 'Invalid or expired code.');
