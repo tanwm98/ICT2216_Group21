@@ -1,0 +1,180 @@
+/* used in mfa-verify.html*/
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* MFA Container */
+.mfa-container {
+    background: white;
+    border-radius: 30px;
+    padding: 50px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+}
+
+/* Header Section */
+.mfa-header {
+    margin-bottom: 30px;
+}
+
+.mfa-header h2 {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    color: #232d37;
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.mfa-header p {
+    color: #51545f;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 30px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    color: #232d37;
+    font-weight: 500;
+    margin-bottom: 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+/* MFA Input Field */
+.mfa-input {
+    width: 100%;
+    height: 50px;
+    border: 2px solid #ebebeb;
+    border-radius: 25px;
+    padding: 0 20px;
+    font-size: 18px;
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+    letter-spacing: 8px;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.mfa-input:focus {
+    border-color: #fc6c3f;
+    box-shadow: 0 0 0 3px rgba(252, 108, 63, 0.1);
+}
+
+.mfa-input::placeholder {
+    color: #b5aec4;
+    letter-spacing: 2px;
+}
+
+/* Verify Button */
+.verify-btn {
+    width: 100%;
+    height: 50px;
+    background-color: #fc6c3f;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+}
+
+.verify-btn:hover {
+    background-color: #e55a36;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(252, 108, 63, 0.3);
+}
+
+.verify-btn:active {
+    transform: translateY(0);
+}
+
+/* Security Note */
+.security-note {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 15px;
+    color: #51545f;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.security-note i {
+    color: #fc6c3f;
+    margin-right: 8px;
+}
+
+/* Message Display */
+.message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Loading State */
+.verify-btn:disabled {
+    background-color: #b5aec4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.verify-btn:disabled:hover {
+    background-color: #b5aec4;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+    .mfa-container {
+        padding: 30px 20px;
+    }
+
+    .mfa-header h2 {
+        font-size: 24px;
+    }
+
+    .mfa-input {
+        font-size: 16px;
+        letter-spacing: 6px;
+    }
+}

@@ -161,6 +161,10 @@ app.get('/reset-password', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/public/reset-password.html'));
 });
 
+app.get('/mfa-verify', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/mfa-verify.html'));
+});
+
 
 // =========== Route request
 app.post('/request-reset', async (req, res) => {

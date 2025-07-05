@@ -68,6 +68,7 @@ const upload = multer({
     }
 });
 
+
 // Email transporter
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
@@ -121,6 +122,8 @@ function sanitizeAndValidate(input, fieldName, required = true) {
 }
 
 
+
+
 // POST /login
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
@@ -144,44 +147,39 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
         }
         const isMatch = await argon2.verify(user.password, password);
 
-        if (isMatch) {
-            // Reauthentication flag
-            req.session.lastVerified = Date.now();
-            // Create JWT token
-            const token = jwt.sign(
-                {
-                    userId: user.user_id,
-                    role: user.role,
-                    name: user.name,
-                    tokenVersion: user.token_version
-                },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
-            );
 
-            // Set token in HTTP-only cookie with secure settings
-            res.cookie('token', token, {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: 3600000 // 1 hour
+        if (isMatch) {
+            req.session.lastVerified = Date.now();
+            const mfaCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+            const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+
+            await db('users')
+                .where('user_id', user.user_id)
+                .update({ mfa_code: mfaCode, mfa_expires: expires });
+
+            await transporter.sendMail({
+                from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: 'Your Multi-Factor Authentication Code - Kirby Chope',
+                html: `<p>Your MFA code is: <b>${mfaCode}</b></p><p>⏱ Expires in 5 minutes.</p>`,
             });
 
-            logAuth('login', true, {
+
+            logAuth('login_pending_mfa', true, {
                 user_id: user.user_id,
                 email: email,
-                role: user.role,
-                redirect_to: user.role === 'admin' ? '/admin' : user.role === 'owner' ? '/resOwner' : '/'
+                role: user.role
             }, req);
 
-            // Role-based redirection
-            if (user.role === 'admin') {
-                return res.redirect('/admin');
-            } else if (user.role === 'user') {
-                return res.redirect('/');
-            } else if (user.role === 'owner') {
-                return res.redirect('/resOwner');
-            }
+            // Store userId and role temporarily next step :  MFA Verify
+            req.session.pendingMfa = {
+                userId: user.user_id,
+                role: user.role,
+                name: user.name,
+                tokenVersion: user.token_version
+            };
+
+            return res.redirect('/mfa-verify');
         } else {
             logAuth('login', false, {
                 email: email,
@@ -200,6 +198,68 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
         next(error);
     }
 });
+
+router.post('/verify-mfa', async (req, res, next) => {
+    try {
+        const { code } = req.body;
+        const sessionData = req.session.pendingMfa;
+
+        if (!sessionData) {
+            return res.status(401).json({ message: 'No MFA session found' });
+        }
+
+        const user = await db('users')
+            .where({ user_id: sessionData.userId })
+            .andWhere('mfa_expires', '>', new Date())
+            .first();
+
+        if (!user || user.mfa_code !== code) {
+            return res.status(401).json({ message: 'Invalid or expired MFA code' });
+        }
+
+        // remove MFA data from db after verification completes
+        await db('users')
+            .where({ user_id: user.user_id })
+            .update({ mfa_code: null, mfa_expires: null });
+
+        // Issue JWT token -----------------
+        const token = jwt.sign({
+            userId: user.user_id,
+            role: sessionData.role,
+            name: sessionData.name,
+            tokenVersion: sessionData.tokenVersion
+        }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '1h' });
+
+        // Set token in HTTP-only cookie with secure settings
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            maxAge: 3600000
+        });
+
+        delete req.session.pendingMfa;
+
+        logAuth('login', true, {
+            user_id: user.user_id,
+            email: user.email,
+            role: user.role,
+            redirect_to: user.role === 'admin' ? '/admin' : user.role === 'owner' ? '/resOwner' : '/'
+        }, req);
+
+        // Role-based redirection
+        if (user.role === 'admin') {
+            return res.redirect('/admin');
+        } else if (user.role === 'user') {
+            return res.redirect('/');
+        } else if (user.role === 'owner') {
+            return res.redirect('/resOwner');
+        }
+    } catch (err) {
+        next(err);
+    }
+});
+
 
 // POST /register for user
 router.post('/register', registerValidator, handleValidation, async (req, res, next) => {
