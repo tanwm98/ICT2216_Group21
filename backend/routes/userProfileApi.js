@@ -8,7 +8,7 @@ const { userPasswordValidator, userNameValidator, userFirstNameValidator, userLa
 const handleValidation = require('../middleware/handleHybridValidation');
 const { encodeHTML } = require('../middleware/sanitization');
 const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
-const { isBreachedPassword } = require('../utils/breachCheck');
+const { isBreachedPassword } = require('../middleware/breachCheck');
 
 router.use(authenticateToken, requireUser);
 

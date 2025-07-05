@@ -16,7 +16,7 @@ const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
 const { sanitizeInput } = require('../middleware/sanitization');
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
-const { isBreachedPassword } = require('../utils/breachCheck');
+const { isBreachedPassword } = require('../middleware/breachCheck');
 
 //const AppError = require('../AppError'); 
 
