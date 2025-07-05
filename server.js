@@ -3,14 +3,8 @@ const app = express();
 const port = 3000;
 const path = require('path');
 const db = require('./db');
-const argon2 = require('argon2');
 require('dotenv').config();
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const logger = require('./backend/logger');
-const { isBreachedPassword } = require('./backend/middleware/breachCheck');
-
 
 const redis = require('redis');
 const { refreshAccessToken, validateAccessToken } = require('./frontend/js/token');
@@ -26,8 +20,6 @@ const redisConfig = {
   socket: {
     host: process.env.REDIS_HOST,
     port: Number(process.env.REDIS_PORT),
-    tls: isProd,
-    keepAlive: true,
     family: 4,
     connectTimeout: 10000,
   },
