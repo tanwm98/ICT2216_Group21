@@ -1,8 +1,8 @@
 {
-	email ict2216@gmail.com
-	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
-
-	# Order the WAF directive early in the middleware chain
+	email ict2216kirby@gmail.com
+    storage file_system {
+        root /data/caddy
+    }
 	order coraza_waf first
 }
 

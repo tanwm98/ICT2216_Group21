@@ -13,10 +13,16 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const { logAuth, logBusiness, logSystem, logSecurity } = require('../logger');
-const { sanitizeInput } = require('../middleware/sanitization');
+const { sanitizeInput, sanitizeForEmail } = require('../middleware/sanitization');
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
-const { isBreachedPassword } = require('../middleware/breachCheck');
+const { isBreachedPassword } = require('../utils/breachCheck');
+const {
+    generateTokenPair,
+    logoutUser,
+    revokeAllUserSessions,
+    TOKEN_CONFIG
+} = require('../../frontend/js/token');
 
 //const AppError = require('../AppError'); 
 
@@ -150,7 +156,7 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
 
         if (isMatch) {
             req.session.lastVerified = Date.now();
-            const mfaCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+            const mfaCode = crypto.randomInt(100000, 1000000).toString();
             const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
             await db('users')
@@ -176,7 +182,7 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 userId: user.user_id,
                 role: user.role,
                 name: user.name,
-                tokenVersion: user.token_version
+                refreshTokenVersion: user.refresh_token_version || 0
             };
 
             return res.redirect('/mfa-verify');
@@ -217,45 +223,74 @@ router.post('/verify-mfa', async (req, res, next) => {
             return res.status(401).json({ message: 'Invalid or expired MFA code' });
         }
 
-        // remove MFA data from db after verification completes
+        // Clear MFA data and update activity
         await db('users')
             .where({ user_id: user.user_id })
-            .update({ mfa_code: null, mfa_expires: null });
+            .update({
+                mfa_code: null,
+                mfa_expires: null,
+                last_activity: new Date()
+            });
 
-        // Issue JWT token -----------------
-        const token = jwt.sign({
-            userId: user.user_id,
-            role: sessionData.role,
-            name: sessionData.name,
-            tokenVersion: sessionData.tokenVersion
-        }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '1h' });
+        // Generate hybrid token pair
+        try {
+            const tokens = await generateTokenPair(
+                user.user_id,
+                sessionData.role,
+                sessionData.name,
+                sessionData.refreshTokenVersion,
+                req
+            );
 
-        // Set token in HTTP-only cookie with secure settings
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            maxAge: 3600000
-        });
+            // Set secure HTTP-only cookies
+            res.cookie('access_token', tokens.accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: TOKEN_CONFIG.access.maxAgeMs
+            });
 
-        delete req.session.pendingMfa;
+            res.cookie('refresh_token', tokens.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: TOKEN_CONFIG.refresh.maxAgeMs
+            });
 
-        logAuth('login', true, {
-            user_id: user.user_id,
-            email: user.email,
-            role: user.role,
-            redirect_to: user.role === 'admin' ? '/admin' : user.role === 'owner' ? '/resOwner' : '/'
-        }, req);
+            delete req.session.pendingMfa;
 
-        // Role-based redirection
-        if (user.role === 'admin') {
-            return res.redirect('/admin');
-        } else if (user.role === 'user') {
-            return res.redirect('/');
-        } else if (user.role === 'owner') {
-            return res.redirect('/resOwner');
+            logAuth('login_success', true, {
+                user_id: user.user_id,
+                email: user.email,
+                role: user.role,
+                access_jti: tokens.accessJti,
+                refresh_jti: tokens.refreshJti,
+                tokens_expire_in: tokens.expiresIn
+            }, req);
+
+            // Role-based redirection
+            if (user.role === 'admin') {
+                return res.redirect('/admin');
+            } else if (user.role === 'user') {
+                return res.redirect('/');
+            } else if (user.role === 'owner') {
+                return res.redirect('/resOwner');
+            }
+
+        } catch (tokenError) {
+            console.error('❌ Token generation error:', tokenError);
+
+            // Fallback: redirect to login with error
+            logSystem('error', 'Token generation failed during MFA verification', {
+                user_id: user.user_id,
+                error: tokenError.message
+            });
+
+            return res.redirect('/login?error=token-generation-failed');
         }
+
     } catch (err) {
+        console.error('❌ MFA verification error:', err);
         next(err);
     }
 });
@@ -312,7 +347,9 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
                 password: hashedPassword,
                 role: 'user',
                 firstname: firstname,
-                lastname: lastname
+                lastname: lastname,
+                last_activity: new Date(),
+                refresh_token_version: 0  // ADDED: Initialize refresh token version
             })
             .returning(['user_id']);
 
@@ -620,16 +657,76 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         next(err);
     }
 });
-// POST /logout (preferred)
-router.post('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.redirect('/');
+
+router.post('/logout', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
+        const refreshToken = req.cookies.refresh_token;
+
+        await logoutUser(accessToken, refreshToken, req, res);
+
+        logAuth('logout', true, {
+            method: 'user_initiated',
+            ip: req.ip
+        }, req);
+
+    } catch (error) {
+        console.error('❌ Logout error:', error);
+        // Still clear cookies and redirect even if cleanup fails
+        res.clearCookie('access_token');
+        res.clearCookie('refresh_token');
+        res.redirect('/');
+    }
 });
 
-// GET /logout (backward compatibility)
-router.get('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.redirect('/');
+router.get('/logout', async (req, res) => {
+    try {
+        const accessToken = req.cookies.access_token;
+        const refreshToken = req.cookies.refresh_token;
+
+        await logoutUser(accessToken, refreshToken, req, res);
+
+    } catch (error) {
+        console.error('❌ Logout error:', error);
+        res.clearCookie('access_token');
+        res.clearCookie('refresh_token');
+        res.redirect('/');
+    }
+});
+
+router.post('/admin/revoke-user-sessions', async (req, res) => {
+    try {
+        const { userId, reason } = req.body;
+
+        // TODO: Add proper admin authentication check
+        // if (req.user.role !== 'admin') return res.status(403).json({error: 'Admin only'});
+
+        const success = await revokeAllUserSessions(userId, reason || 'admin_revocation');
+
+        if (success) {
+            logSecurity('admin_revoked_user_sessions', 'high', {
+                target_user_id: userId,
+                admin_user_id: req.user?.userId,
+                reason: reason
+            }, req);
+
+            res.json({
+                success: true,
+                message: 'All user sessions revoked successfully'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to revoke user sessions'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Error in admin session revocation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during session revocation'
+        });
+    }
 });
 
 router.use((err, req, res, next) => {
@@ -666,6 +763,244 @@ router.use((err, req, res, next) => {
     }
 
     res.status(500).json({ error: 'Internal server error' });
+});
+
+// =============================================
+// Password Reset Request (move from server.js)
+// =============================================
+
+router.post('/request-reset', async (req, res) => {
+    try {
+        // ✅ XSS Protection: Sanitize email input
+        const email = sanitizeAndValidate(req.body.email, 'Email');
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        // ✅ Email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: 'Invalid email format' });
+        }
+
+        const user = await db('users')
+            .where('email', email.toLowerCase().trim())
+            .first();
+
+        if (!user) {
+            // Don't reveal if email exists (security best practice)
+            logAuth('password_reset_request', false, {
+                email: email,
+                reason: 'email_not_found'
+            }, req);
+
+            return res.status(200).json({
+                message: 'If the email exists, a reset link has been sent.'
+            });
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 1800_000); // 1 hour
+
+        await db('users').where('email', email).update({
+                reset_token: token,
+                reset_token_expires: expires
+            });
+
+        const sanitizedEmail = sanitizeForEmail(email);
+        const resetLink = `https://kirbychope.xyz/reset-password?token=${token}`;
+
+        try {
+            await transporter.sendMail({
+                from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: 'Password Reset Request - Kirby Chope',
+                html: `
+                    <h2>Password Reset Request</h2>
+                    <p>You requested a password reset for your Kirby Chope account.</p>
+                    <p>Click the link below to reset your password:</p>
+                    <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+                    <p>This link will expire in 30 minutes.</p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                `,
+            });
+
+            logAuth('password_reset_request', true, {
+                user_id: user.user_id,
+                email: sanitizedEmail, // ✅ Sanitized for logs
+                token_expires: expires
+            }, req);
+
+            logSecurity('password_reset_requested', 'low', {
+                user_id: user.user_id,
+                ip: req.ip,
+                user_agent: req.get('User-Agent')
+            }, req);
+
+            console.log(`Password reset email sent to: ${sanitizedEmail}`);
+            res.status(200).json({
+                message: 'If the email exists, a reset link has been sent.'
+            });
+
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+
+            logSystem('error', 'Password reset email failed', {
+                user_id: user.user_id,
+                error: emailError.message
+            });
+
+            // Still return success to not reveal email existence
+            res.status(200).json({
+                message: 'If the email exists, a reset link has been sent.'
+            });
+        }
+
+    } catch (err) {
+        console.error('Password reset request error:', err);
+
+        logSystem('error', 'Password reset request failed', {
+            error: err.message,
+            ip: req.ip,
+            user_agent: req.get('User-Agent')
+        });
+
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// =============================================
+// Password Reset Completion (move from server.js)
+// =============================================
+
+router.put('/reset-password', async (req, res) => {
+    try {
+        const { token: rawToken, newPassword } = req.body;
+
+        if (!rawToken || !newPassword) {
+            return res.status(400).json({
+                message: 'Missing token or new password'
+            });
+        }
+
+        const token = rawToken.trim();
+        if (!/^[a-f0-9]{64}$/i.test(token)) {
+            return res.status(400).json({
+                message: 'Invalid token format'
+            });
+        }
+
+        const user = await db('users')
+            .where('reset_token', token)
+            .where('reset_token_expires', '>', db.fn.now())
+            .first();
+
+        if (!user) {
+            logSecurity('invalid_reset_token_attempt', 'medium', {
+                token_prefix: token.substring(0, 8),
+                ip: req.ip,
+                user_agent: req.get('User-Agent')
+            }, req);
+
+            return res.status(400).json({
+                message: 'Invalid or expired token'
+            });
+        }
+
+        if (!newPassword || typeof newPassword !== 'string') {
+            return res.status(400).json({
+                message: 'Password must be a valid string'
+            });
+        }
+
+        if (newPassword.length < 8) {
+            return res.status(400).json({
+                message: 'Password must be at least 8 characters long'
+            });
+        }
+
+        if (newPassword.length > 64) {
+            return res.status(400).json({
+                message: 'Password must be less than 64 characters long'
+            });
+        }
+
+        if (await isBreachedPassword(newPassword)) {
+            logSecurity('breached_password_attempt', 'medium', {
+                user_id: user.user_id,
+                method: 'password_reset',
+                ip: req.ip
+            }, req);
+
+            return res.status(400).json({
+                message: 'Password has been flagged in breach databases. Please choose another password.'
+            });
+        }
+
+        const hashedPassword = await argon2.hash(newPassword, {
+            type: argon2.argon2id,
+            memoryCost: 2 ** 16,  // 64 MB
+            timeCost: 2,
+            parallelism: 2,
+            saltLength: 32,
+            hashLength: 32
+        });
+
+        await db('users')
+            .where('reset_token', token)
+            .update({
+                password: hashedPassword,
+                reset_token: null,
+                reset_token_expires: null,
+                refresh_token_version: db.raw('refresh_token_version + 1'),
+                last_activity: new Date()
+            });
+
+        logAuth('password_reset_completed', true, {
+            user_id: user.user_id,
+            email: user.email,
+            method: 'email_token'
+        }, req);
+
+        logSecurity('password_changed', 'medium', {
+            user_id: user.user_id,
+            change_method: 'reset_token',
+            previous_login_invalidated: true,
+            ip: req.ip,
+            user_agent: req.get('User-Agent')
+        }, req);
+
+        try {
+            if (global.redisHelpers && global.redisHelpers.isAvailable()) {
+                const userSessionsKey = `user_sessions:${user.user_id}`;
+                const activeSessions = await global.redisClient.sMembers(userSessionsKey);
+                for (const sessionJti of activeSessions) {
+                    await global.redisClient.del(`session:${sessionJti}`);
+                }
+                await global.redisClient.del(userSessionsKey);
+                await global.redisClient.del(`activity:${user.user_id}`);
+            }
+        } catch (redisError) {
+            console.error('Redis cleanup error during password reset:', redisError);
+        }
+
+        res.status(200).json({
+            message: 'Password updated successfully'
+        });
+
+    } catch (err) {
+        console.error('Reset password error:', err);
+
+        logSystem('error', 'Password reset completion failed', {
+            error: err.message,
+            stack: err.stack,
+            ip: req.ip,
+            user_agent: req.get('User-Agent')
+        });
+
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
 module.exports = router;

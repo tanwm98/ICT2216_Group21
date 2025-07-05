@@ -151,7 +151,13 @@ jobs:
           EMAIL_USER=${{ secrets.EMAIL_USER }}
           EMAIL_PASS=${{ secrets.EMAIL_PASS }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
-          JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
+          JWT_ACCESS_EXPIRES_IN=${{ secrets.JWT_ACCESS_EXPIRES_IN }}
+          REDIS_DB:       ${{ secrets.REDIS_DB }}
+          REDIS_HOST:     ${{ secrets.REDIS_HOST }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          REDIS_PORT:     ${{ secrets.REDIS_PORT }}
+          REDIS_USERNAME: ${{ secrets.REDIS_USERNAME }}
+          JWT_REFRESH_EXPIRES_IN: ${{ secrets.JWT_REFRESH_EXPIRES_IN }}
           NODE_ENV=test
           EOF
 
