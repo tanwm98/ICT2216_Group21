@@ -91,7 +91,7 @@ app.use((req, res, next) => {
     }
     next();
 });
-owne
+
 app.get('/api/csrf-token', (req, res) => {
     if (req.csrfToken) {
         res.json({
