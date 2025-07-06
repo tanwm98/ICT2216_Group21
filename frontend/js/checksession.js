@@ -1,4 +1,11 @@
+const protectedPaths = ['/admin', '/resOwner', '/profile', '/reserveform'];
+const currentPath = window.location.pathname;
+
 async function checkSession() {
+    const currentPath = window.location.pathname;
+    if (!protectedPaths.includes(currentPath)) {
+        return;
+    }
     try {
         const response = await fetch('/api/session', {
             method: 'GET',
