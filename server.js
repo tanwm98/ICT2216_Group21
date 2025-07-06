@@ -8,6 +8,8 @@ const logger = require('./backend/logger');
 
 const redis = require('redis');
 const { refreshAccessToken, validateAccessToken } = require('./frontend/js/token');
+const { validateMfaPendingToken, MFA_TOKEN_CONFIG } = require('./backend/routes/authApi');
+
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -145,20 +147,6 @@ if (process.env.NODE_ENV === 'production') {
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
-// Session middleware (ONLY for MFA flow - simplified)
-const session = require('express-session');
-app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        maxAge: 10 * 60 * 1000, // 10 minutes - only for MFA flow
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
-    },
-    name: 'mfa_session' // Specific name to avoid confusion with JWT auth
-}));
 
 // Import middleware and authentication (UPDATED imports)
 const { 
@@ -372,12 +360,6 @@ app.get('/api/health', async (req, res) => {
     });
 });
 
-app.get('/api/session/validation-errors', (req, res) => {
-    const errors = req.session.validationErrors || [];
-    req.session.validationErrors = null;
-    res.json({ errors });
-});
-
 // PROTECTED API ROUTES
 app.use('/api/admin', adminDash);
 app.use('/api/owner', ownerApi);  
@@ -436,19 +418,29 @@ app.get('/reset-password', async (req, res) => {
 });
 
 app.get('/mfa-verify', (req, res) => {
-    if (!req.session.pendingMfa) {
+    const mfaPendingToken = req.cookies[MFA_TOKEN_CONFIG.cookieName];
+
+    if (!mfaPendingToken) {
         return res.redirect('/login?error=session-expired');
     }
 
-    const now = Date.now();
-    const sessionAge = now - (req.session.lastVerified || 0);
+    // Optional: Validate token before serving page
+    validateMfaPendingToken(mfaPendingToken).then(validation => {
+        if (!validation.valid) {
+            // Clear invalid token
+            res.clearCookie(MFA_TOKEN_CONFIG.cookieName, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict'
+            });
+            return res.redirect('/login?error=session-expired');
+        }
 
-    if (sessionAge > 10 * 60 * 1000) { // 10 minutes
-        delete req.session.pendingMfa;
+        res.sendFile(path.join(__dirname, 'frontend/public/mfa-verify.html'));
+    }).catch(error => {
+        console.error('MFA token validation error:', error);
         return res.redirect('/login?error=session-expired');
-    }
-
-    res.sendFile(path.join(__dirname, 'frontend/public/mfa-verify.html'));
+    });
 });
 
 // =============================================

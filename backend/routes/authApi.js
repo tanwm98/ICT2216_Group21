@@ -21,10 +21,91 @@ const {
     generateTokenPair,
     logoutUser,
     revokeAllUserSessions,
-    TOKEN_CONFIG
+    TOKEN_CONFIG,
+    blacklistToken
 } = require('../../frontend/js/token');
 
 //const AppError = require('../AppError'); 
+
+
+const MFA_TOKEN_CONFIG = {
+    expiresIn: '5m',        // 5 minutes for MFA flow
+    maxAgeMs: 5 * 60 * 1000,
+    cookieName: 'mfa_pending_token'
+};
+function generateMfaPendingToken(userId, role, name, refreshTokenVersion, mfaCode) {
+    const mfaJti = crypto.randomUUID();
+
+    const payload = {
+        userId,
+        role,
+        name,
+        refreshTokenVersion,
+        mfaCode: crypto.createHash('sha256').update(mfaCode).digest('hex'), // Hash the MFA code
+        type: 'mfa_pending',
+        jti: mfaJti,
+        iat: Math.floor(Date.now() / 1000)
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: MFA_TOKEN_CONFIG.expiresIn
+    });
+
+    return { token, mfaJti };
+}
+
+async function validateMfaPendingToken(token) {
+    try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Verify token type
+        if (payload.type !== 'mfa_pending') {
+            return {
+                valid: false,
+                reason: 'invalid_token_type',
+                payload: null
+            };
+        }
+
+        // ADD: Only call blacklistToken if it's available
+        if (typeof blacklistToken === 'function') {
+            try {
+                const { isTokenBlacklisted } = require('../../frontend/js/token');
+                if (typeof isTokenBlacklisted === 'function' && await isTokenBlacklisted(payload.jti)) {
+                    return {
+                        valid: false,
+                        reason: 'token_blacklisted',
+                        payload: null
+                    };
+                }
+            } catch (blacklistError) {
+                // Blacklist check failed, but continue validation
+                console.warn('⚠️ Blacklist check failed:', blacklistError.message);
+            }
+        }
+
+        return {
+            valid: true,
+            payload,
+            reason: null
+        };
+
+    } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+            return {
+                valid: false,
+                reason: 'token_expired',
+                payload: null
+            };
+        }
+
+        return {
+            valid: false,
+            reason: 'token_invalid',
+            payload: null
+        };
+    }
+}
 
 // Secure file storage configuration for restaurant images
 const storage = multer.diskStorage({
@@ -127,15 +208,11 @@ function sanitizeAndValidate(input, fieldName, required = true) {
     return input;
 }
 
-
-
-
 // POST /login
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
-        // Fail fast validation
         if (!email || !password) {
             throw new AppError('Email and password are required', 400);
         }
@@ -151,18 +228,20 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
             }, req);
             return res.redirect('/login?error=1');
         }
+
         const isMatch = await argon2.verify(user.password, password);
 
-
         if (isMatch) {
-            req.session.lastVerified = Date.now();
+            // Generate MFA code
             const mfaCode = crypto.randomInt(100000, 1000000).toString();
-            const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+            const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
+            // Store MFA code in database
             await db('users')
                 .where('user_id', user.user_id)
                 .update({ mfa_code: mfaCode, mfa_expires: expires });
 
+            // Send MFA email
             await transporter.sendMail({
                 from: `"Kirby Chope" <${process.env.EMAIL_USER}>`,
                 to: user.email,
@@ -170,20 +249,29 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 html: `<p>Your MFA code is: <b>${mfaCode}</b></p><p>⏱ Expires in 5 minutes.</p>`,
             });
 
+            // Generate MFA pending token (REPLACES SESSION)
+            const { token: mfaPendingToken, mfaJti } = generateMfaPendingToken(
+                user.user_id,
+                user.role,
+                user.name,
+                user.refresh_token_version || 0,
+                mfaCode
+            );
+
+            // Set MFA pending token as HTTP-only cookie
+            res.cookie(MFA_TOKEN_CONFIG.cookieName, mfaPendingToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: MFA_TOKEN_CONFIG.maxAgeMs
+            });
 
             logAuth('login_pending_mfa', true, {
                 user_id: user.user_id,
                 email: email,
-                role: user.role
-            }, req);
-
-            // Store userId and role temporarily next step :  MFA Verify
-            req.session.pendingMfa = {
-                userId: user.user_id,
                 role: user.role,
-                name: user.name,
-                refreshTokenVersion: user.refresh_token_version || 0
-            };
+                mfa_jti: mfaJti
+            }, req);
 
             return res.redirect('/mfa-verify');
         } else {
@@ -191,11 +279,6 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 email: email,
                 user_id: user.user_id,
                 reason: 'invalid_password'
-            }, req);
-
-            logSecurity('failed_login', 'medium', {
-                email: email,
-                user_id: user.user_id
             }, req);
 
             return res.redirect('/login?error=1');
@@ -208,19 +291,60 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
 router.post('/verify-mfa', async (req, res, next) => {
     try {
         const { code } = req.body;
-        const sessionData = req.session.pendingMfa;
+        const mfaPendingToken = req.cookies[MFA_TOKEN_CONFIG.cookieName];
 
-        if (!sessionData) {
-            return res.status(401).json({ message: 'No MFA session found' });
+        if (!mfaPendingToken) {
+            return res.status(401).json({
+                message: 'No MFA session found - please start login again'
+            });
         }
 
+        // Validate MFA pending token
+        const validation = await validateMfaPendingToken(mfaPendingToken);
+
+        if (!validation.valid) {
+            // Clear invalid token
+            res.clearCookie(MFA_TOKEN_CONFIG.cookieName, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict'
+            });
+
+            let errorMessage = 'MFA session expired or invalid - please login again';
+            if (validation.reason === 'token_expired') {
+                errorMessage = 'MFA session expired - please login again';
+            }
+
+            return res.status(401).json({ message: errorMessage });
+        }
+
+        const sessionData = validation.payload;
+
+        // Verify MFA code from database
         const user = await db('users')
             .where({ user_id: sessionData.userId })
             .andWhere('mfa_expires', '>', new Date())
             .first();
 
-        if (!user || user.mfa_code !== code) {
-            return res.status(401).json({ message: 'Invalid or expired MFA code' });
+        if (!user || !user.mfa_code) {
+            // Clear token and require fresh login
+            res.clearCookie(MFA_TOKEN_CONFIG.cookieName, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict'
+            });
+            return res.status(401).json({
+                message: 'MFA code expired - please login again'
+            });
+        }
+
+        // Hash the provided code for comparison (same method as storage)
+        const providedCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+        if (sessionData.mfaCode !== providedCodeHash) {
+            return res.status(401).json({
+                message: 'Invalid MFA code - please try again'
+            });
         }
 
         // Clear MFA data and update activity
@@ -232,7 +356,18 @@ router.post('/verify-mfa', async (req, res, next) => {
                 last_activity: new Date()
             });
 
-        // Generate hybrid token pair
+        // Clear MFA pending token
+        res.clearCookie(MFA_TOKEN_CONFIG.cookieName, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+
+        // Optional: Blacklist the consumed MFA token for extra security
+        const expiresAt = new Date(sessionData.exp * 1000).toISOString();
+        await blacklistToken(sessionData.jti, 'mfa_pending', 'consumed', expiresAt, sessionData.userId);
+
+        // Generate final authentication tokens
         try {
             const tokens = await generateTokenPair(
                 user.user_id,
@@ -242,7 +377,7 @@ router.post('/verify-mfa', async (req, res, next) => {
                 req
             );
 
-            // Set secure HTTP-only cookies
+            // Set authentication cookies
             res.cookie('access_token', tokens.accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
@@ -257,15 +392,13 @@ router.post('/verify-mfa', async (req, res, next) => {
                 maxAge: TOKEN_CONFIG.refresh.maxAgeMs
             });
 
-            delete req.session.pendingMfa;
-
             logAuth('login_success', true, {
                 user_id: user.user_id,
                 email: user.email,
                 role: user.role,
                 access_jti: tokens.accessJti,
                 refresh_jti: tokens.refreshJti,
-                tokens_expire_in: tokens.expiresIn
+                mfa_method: 'email_code'
             }, req);
 
             // Role-based redirection
@@ -279,13 +412,6 @@ router.post('/verify-mfa', async (req, res, next) => {
 
         } catch (tokenError) {
             console.error('❌ Token generation error:', tokenError);
-
-            // Fallback: redirect to login with error
-            logSystem('error', 'Token generation failed during MFA verification', {
-                user_id: user.user_id,
-                error: tokenError.message
-            });
-
             return res.redirect('/login?error=token-generation-failed');
         }
 
@@ -294,7 +420,6 @@ router.post('/verify-mfa', async (req, res, next) => {
         next(err);
     }
 });
-
 
 // POST /register for user
 router.post('/register', registerValidator, handleValidation, async (req, res, next) => {
@@ -1004,3 +1129,6 @@ router.put('/reset-password', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.generateMfaPendingToken = generateMfaPendingToken;
+module.exports.validateMfaPendingToken = validateMfaPendingToken;
+module.exports.MFA_TOKEN_CONFIG = MFA_TOKEN_CONFIG;
