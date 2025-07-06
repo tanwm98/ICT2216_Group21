@@ -14,7 +14,6 @@ document.getElementById('requestResetForm').addEventListener('submit', async (e)
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'CSRF-Token': csrfToken
             },
             body: JSON.stringify({
                 email

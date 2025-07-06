@@ -26,11 +26,11 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
             .find(row => row.startsWith('XSRF-TOKEN='))
             ?.split('=')[1];
 
-        const res = await fetch('/reset-password', {
+        const res = await csrfFetch('/reset-password', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'CSRF-Token': csrfToken
+                'x-csrf-token': csrfToken
             },
             body: JSON.stringify({
                 token,
