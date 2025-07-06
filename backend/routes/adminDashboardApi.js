@@ -445,42 +445,55 @@ router.get('/users', async (req, res) => {
 
 // Add a new user (default password Pass123)
 router.post(
-    '/users',
-    fieldLevelAccess({
-        admin: ['name', 'email', 'role', 'fname', 'lname']
-    }),
-    addUserValidator,
-    handleValidation,
-    requireRecentReauth,
-    async (req, res) => {
-        const { name, email, role, fname, lname } = req.body;
-        try {
-            console.log('[ADD USER] Request body:', { name, email, role, fname, lname });
+  '/users',
+  fieldLevelAccess({
+    admin: ['name', 'email', 'role', 'fname', 'lname']
+  }),
+  addUserValidator,
+  handleValidation,
+  requireRecentReauth,
+  async (req, res) => {
+    const { name, email, role, fname, lname } = req.body;
+    try {
+      console.log('[ADD USER] Request body:', { name, email, role, fname, lname });
 
-            const password = 'Pass123';
-            const hashedPassword = await argon2.hash(password);
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-            await db('users').insert({
-                name,
-                email,
-                password: hashedPassword,
-                role,
-                firstname: fname,
-                lastname: lname
-            });
+      await db('users').insert({
+        name,
+        email,
+        password: null, // No password set initially
+        role,
+        firstname: fname,
+        lastname: lname,
+        reset_token: resetToken,
+        reset_token_expires: resetExpires
+      });
 
-            console.log('[ADD USER] User inserted successfully');
-            res.status(201).json({ message: 'User added successfully' });
+      // Send welcome email with setup link
+      const setupLink = `https://kirbychope.xyz/reset-password?token=${resetToken}`;
+      await transporter.sendMail({
+        from: `"Kirby Chope Admin" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Welcome to Kirby Chope – Set Your Password',
+        html: `
+          <h2>Welcome to Kirby Chope!</h2>
+          <p>An administrator has created an account for you.</p>
+          <p>Click the link below to set your password:</p>
+          <a href="${setupLink}">Set Your Password</a>
+          <p>This link expires in 24 hours.</p>
+        `
+      });
 
-        } catch (err) {
-            console.error('[ADD USER ERROR]', {
-                message: err.message,
-                stack: err.stack,
-                detail: err.detail || null
-            });
-            res.status(500).json({ error: 'Server error', detail: err.detail || err.message });
-        }
+      // Finally, respond to the client
+      return res.status(201).json({ message: 'User created, setup email sent.' });
+
+    } catch (err) {
+      console.error('[ADD USER ERROR]', err);
+      return res.status(500).json({ error: 'Failed to create user.' });
     }
+  }
 );
 
 // Delete user by id
@@ -797,15 +810,18 @@ router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async 
                 }
 
                 const updatedApprovals = [...approved_by, requestedBy];
-                if (updatedApprovals.length >= 2) {
-                    const hashedPassword = await argon2.hash('Pass123');
+                if (updatedApprovals.length >= 1) {
+                    const resetToken = crypto.randomBytes(32).toString('hex');
+                    const resetExpires = new Date(Date.now() + 3600_000); // 1 hour
 
                     await db('users')
                         .where('user_id', id)
                         .update({
-                            password: hashedPassword,
-                            token_version: db.raw('token_version + 1')
+                            reset_token: resetToken,
+                            reset_token_expires: resetExpires,
+                            refresh_token_version: db.raw('refresh_token_version + 1')
                         });
+
 
                     await db('pending_actions')
                         .where('action_id', pendingAction.action_id)
@@ -1153,7 +1169,7 @@ router.delete('/restaurants/:id', authenticateToken, requireAdmin, async (req, r
         // Case 5: Approve
         const updatedApprovals = [...approved_by, requestedBy];
 
-        if (updatedApprovals.length >= 2) {
+        if (updatedApprovals.length >= 1) {
             const trx = await db.transaction();
 
             try {

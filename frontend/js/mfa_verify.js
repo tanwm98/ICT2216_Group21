@@ -3,10 +3,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const codeInput = document.getElementById('mfa-code');
     const submitButton = form.querySelector('.verify-btn');
 
-    // Inline error message ---
     const messageBox = document.createElement('div');
-    messageBox.className = 'message error';
-    messageBox.style.display = 'none';
+    messageBox.className = 'message error hidden';
     form.appendChild(messageBox);
 
     async function submitCode(code) {
@@ -21,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             if (res.ok) {
-                // Check user session to get role for proper redirect
                 try {
                     const sessionRes = await fetch('/api/session', {
                         method: 'GET',
@@ -32,7 +29,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         const sessionData = await sessionRes.json();
 
                         if (sessionData.loggedIn) {
-                            // Role-based redirection
                             if (sessionData.role === 'admin') {
                                 window.location.href = '/admin';
                             } else if (sessionData.role === 'owner') {
@@ -65,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function showError(msg) {
         messageBox.textContent = msg;
-        messageBox.style.display = 'block';
+        messageBox.classList.remove('hidden');
     }
 
     form.addEventListener('submit', function (e) {
@@ -80,13 +76,12 @@ document.addEventListener('DOMContentLoaded', function () {
         submitCode(code);
     });
 
-    // Ensure every input is a numeric digit, submits form if length reaches 6.
     codeInput.addEventListener('input', function () {
-        messageBox.style.display = 'none'; // Clear error after user input
+        messageBox.classList.add('hidden');
         const code = codeInput.value.trim();
 
-        if (/^\d{6}$/.test(code)) { // if any 6 digit entered, just auto submit.
-            form.requestSubmit(); // trigger the form submit handler
+        if (/^\d{6}$/.test(code)) {
+            form.requestSubmit();
         }
     });
 });

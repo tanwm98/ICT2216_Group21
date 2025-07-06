@@ -1,4 +1,38 @@
 const { validationResult } = require('express-validator');
+const { URL } = require('url');
+
+/**
+ * Validates if a given redirect path is safe (i.e., local to the application).
+ * @param {string} path - The redirect path from req.originalUrl.
+ * @param {string} requestHost - The host from the request headers (e.g., 'localhost:3000').
+ * @returns {string|null} The safe, local path or null if the path is unsafe.
+ */
+
+function getSafeRedirectUrl(path, requestHost) {
+  try {
+    if (path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\')) {
+      return path;
+    }
+
+    const redirectUrl = new URL(path, `http://${requestHost}`);
+
+    // If the hostname is different, it's an open redirect.
+    if (redirectUrl.host !== requestHost) {
+      console.warn(`[SECURITY] Blocked potential open redirect to: ${redirectUrl.hostname}`);
+      return null;
+    }
+
+    if (!['http:', 'https:'].includes(redirectUrl.protocol)) {
+        console.warn(`[SECURITY] Blocked potential protocol handler injection: ${redirectUrl.protocol}`);
+        return null;
+    }
+
+    return redirectUrl.pathname + redirectUrl.search;
+  } catch (e) {
+    console.warn(`[SECURITY] Blocked malformed redirect URL: ${path}`);
+    return null;
+  }
+}
 
 module.exports = (req, res, next) => {
   const errors = validationResult(req);
@@ -34,10 +68,14 @@ module.exports = (req, res, next) => {
       return res.status(400).json({ errors: errorList });
     }
 
+    const safeRedirectUrl = getSafeRedirectUrl(req.originalUrl, req.headers.host);
+    const redirectTarget = safeRedirectUrl || '/';
+
     // Form Submission: Store in session and redirect
     req.session.validationErrors = errorList;
-    req.session.lastUrl = req.originalUrl;
-    return res.redirect(req.originalUrl);
+    req.session.lastUrl = redirectTarget;
+    return res.redirect(redirectTarget);
+
   }
 
   console.info('[VALIDATION] Validation passed.');
