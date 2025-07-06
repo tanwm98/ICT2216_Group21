@@ -21,17 +21,9 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
     }
 
     try {
-        const csrfToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('XSRF-TOKEN='))
-            ?.split('=')[1];
-
-        const res = await csrfFetch('/reset-password', {
+        // Send request with CSRF token using helper
+        const response = await csrfFetch('/reset-password', {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-csrf-token': csrfToken
-            },
             body: JSON.stringify({
                 token,
                 newPassword
