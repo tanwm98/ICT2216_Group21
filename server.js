@@ -296,14 +296,18 @@ app.post('/api/auth/refresh', async (req, res) => {
     }
 });
 
+// =============================================
+// REPLACE the existing /api/session endpoint in server.js
+// =============================================
+
 app.get('/api/session', async (req, res) => {
     try {
         const accessToken = req.cookies.access_token;
-        
+
         if (!accessToken) {
-            return res.json({ 
-                loggedIn: false, 
-                reason: 'no_access_token' 
+            return res.json({
+                loggedIn: false,
+                reason: 'no_access_token'
             });
         }
         const validation = await validateAccessToken(accessToken);
@@ -320,14 +324,14 @@ app.get('/api/session', async (req, res) => {
                 }
             });
         } else {
-            res.json({ 
-                loggedIn: false, 
-                reason: validation.reason 
+            res.json({
+                loggedIn: false,
+                reason: validation.reason
             });
         }
     } catch (error) {
         console.error('❌ Session validation error:', error);
-        res.json({ 
+        res.json({
             loggedIn: false, 
             reason: 'validation_error' 
         });

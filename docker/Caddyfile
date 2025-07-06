@@ -212,7 +212,7 @@ localhost {
 			Referrer-Policy "strict-origin-when-cross-origin"
 
 			# Enhanced Content Security Policy
-			Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-<RANDOM_NONCE>'; style-src 'self' https://fonts.googleapis.com 'nonce-<RANDOM_NONCE>'; font-src https://fonts.gstatic.com; upgrade-insecure-requests; report-uri /csp-report;"
+			Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; upgrade-insecure-requests;"
 
 			# Comprehensive permissions policy
 			Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"

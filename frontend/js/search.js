@@ -1,3 +1,7 @@
+document.addEventListener('DOMContentLoaded', () => {
+    void checkSession();
+});
+
 window.onload = function () {
   flatpickr("#dateInput", {
       dateFormat: "Y-m-d",

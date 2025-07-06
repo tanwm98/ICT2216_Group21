@@ -1,3 +1,7 @@
+document.addEventListener('DOMContentLoaded', () => {
+    void checkSession();
+});
+
 let userid;
 
 function escapeHtml(unsafe) {
