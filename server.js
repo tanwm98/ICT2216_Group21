@@ -7,7 +7,7 @@ require('dotenv').config();
 const logger = require('./backend/logger');
 
 const redis = require('redis');
-const { refreshAccessToken, validateAccessToken } = require('./frontend/js/token');
+const { refreshAccessToken, validateAccessToken, checkUserInactivity, updateUserActivity } = require('./frontend/js/token');
 const { validateMfaPendingToken, MFA_TOKEN_CONFIG } = require('./backend/routes/authApi');
 
 
@@ -259,29 +259,64 @@ app.get('/', authenticateToken, (req, res) => {
 app.post('/api/auth/refresh', async (req, res) => {
     try {
         const refreshToken = req.cookies.refresh_token;
-        
+        const { lastActivity } = req.body;
+
         if (!refreshToken) {
-            return res.status(401).json({ 
+            return res.status(401).json({
                 error: 'No refresh token provided',
                 code: 'REFRESH_TOKEN_MISSING'
             });
         }
 
-        const result = await refreshAccessToken(refreshToken, req);
+        // Pre-check client-reported activity against inactivity timeout
+        if (lastActivity) {
+            const timeSinceActivity = Date.now() - parseInt(lastActivity);
+            if (timeSinceActivity > TOKEN_CONFIG.inactivityTimeout) {
+                logSecurity('refresh_denied_client_inactivity', 'medium', {
+                    time_since_activity: timeSinceActivity,
+                    inactivity_limit: TOKEN_CONFIG.inactivityTimeout,
+                    ip: req.ip,
+                    user_agent: req.get('User-Agent')
+                }, req);
+
+                return res.status(401).json({
+                    error: 'Session expired due to inactivity',
+                    code: 'INACTIVITY_TIMEOUT'
+                });
+            }
+        }
+
+        // Attempt token refresh with activity information
+        const result = await refreshAccessToken(refreshToken, req, lastActivity);
 
         if (result.success) {
             res.cookie('access_token', result.accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
-                maxAge: 5 * 60 * 1000 // 5 minutes
+                maxAge: TOKEN_CONFIG.access.maxAgeMs
             });
 
             res.json({
                 success: true,
-                expiresIn: 300
+                expiresIn: result.expiresIn,
+                refreshedAt: Date.now()
             });
         } else {
+            // Clear cookies if refresh failed due to inactivity or security issues
+            if (['INACTIVITY_TIMEOUT', 'TOKEN_BLACKLISTED', 'SESSION_NOT_FOUND'].includes(result.code)) {
+                res.clearCookie('access_token', {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict'
+                });
+                res.clearCookie('refresh_token', {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict'
+                });
+            }
+
             res.status(401).json({
                 error: result.error,
                 code: result.code
@@ -289,6 +324,12 @@ app.post('/api/auth/refresh', async (req, res) => {
         }
     } catch (error) {
         console.error('❌ Token refresh error:', error);
+        logSystem('error', 'Token refresh endpoint error', {
+            error: error.message,
+            stack: error.stack,
+            ip: req.ip
+        });
+
         res.status(500).json({
             error: 'Internal server error during token refresh',
             code: 'REFRESH_ERROR'
@@ -296,10 +337,53 @@ app.post('/api/auth/refresh', async (req, res) => {
     }
 });
 
-// =============================================
-// REPLACE the existing /api/session endpoint in server.js
-// =============================================
+// New activity update endpoint
+app.post('/api/auth/activity', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { timestamp } = req.body;
 
+        // Update server-side activity tracking
+        const updateSuccess = await updateUserActivity(userId);
+
+        if (!updateSuccess) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update activity tracking'
+            });
+        }
+
+        // Optional: Log activity updates for monitoring
+        if (process.env.NODE_ENV === 'development') {
+            logger.logAuth('activity_updated', true, {
+                user_id: userId,
+                client_timestamp: timestamp,
+                server_timestamp: Date.now()
+            }, req);
+        }
+
+        res.json({
+            success: true,
+            serverTimestamp: Date.now(),
+            clientTimestamp: timestamp
+        });
+
+    } catch (error) {
+        console.error('❌ Activity update error:', error);
+        logSystem('error', 'Activity update endpoint error', {
+            user_id: req.user?.userId,
+            error: error.message,
+            ip: req.ip
+        });
+
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update activity'
+        });
+    }
+});
+
+// Enhanced session check endpoint with better inactivity detection
 app.get('/api/session', async (req, res) => {
     try {
         const accessToken = req.cookies.access_token;
@@ -307,16 +391,44 @@ app.get('/api/session', async (req, res) => {
         if (!accessToken) {
             return res.json({
                 loggedIn: false,
-                reason: 'no_access_token'
+                reason: 'no_access_token',
+                timestamp: Date.now()
             });
         }
+
         const validation = await validateAccessToken(accessToken);
+
         if (validation.valid) {
+            // Check for inactivity even if token is valid
+            const isInactive = await checkUserInactivity(validation.payload.userId);
+
+            if (isInactive) {
+                // Blacklist the token and force logout
+                const expiresAt = new Date(validation.payload.exp * 1000).toISOString();
+                await blacklistToken(validation.payload.jti, 'access', 'session_check_inactivity', expiresAt, validation.payload.userId);
+
+                logSecurity('session_check_inactivity_logout', 'medium', {
+                    user_id: validation.payload.userId,
+                    access_jti: validation.payload.jti,
+                    ip: req.ip
+                }, req);
+
+                return res.json({
+                    loggedIn: false,
+                    reason: 'inactivity_timeout',
+                    timestamp: Date.now()
+                });
+            }
+
+            // Update activity on successful session check
+            await updateUserActivity(validation.payload.userId);
+
             res.json({
                 loggedIn: true,
                 userId: validation.payload.userId,
                 role: validation.payload.role,
                 expiresAt: validation.payload.exp,
+                timestamp: Date.now(),
                 permissions: {
                     canAccessAdmin: validation.payload.role === 'admin',
                     canAccessOwner: ['owner', 'admin'].includes(validation.payload.role),
@@ -324,19 +436,34 @@ app.get('/api/session', async (req, res) => {
                 }
             });
         } else {
+            // Log the specific reason for session validation failure
+            logger.logAuth('session_check_failed', false, {
+                reason: validation.reason,
+                ip: req.ip,
+                user_agent: req.get('User-Agent')
+            }, req);
+
             res.json({
                 loggedIn: false,
-                reason: validation.reason
+                reason: validation.reason,
+                timestamp: Date.now()
             });
         }
     } catch (error) {
         console.error('❌ Session validation error:', error);
+        logSystem('error', 'Session check endpoint error', {
+            error: error.message,
+            ip: req.ip
+        });
+
         res.json({
-            loggedIn: false, 
-            reason: 'validation_error' 
+            loggedIn: false,
+            reason: 'validation_error',
+            timestamp: Date.now()
         });
     }
 });
+
 
 // Health check with Redis status
 app.get('/api/health', async (req, res) => {

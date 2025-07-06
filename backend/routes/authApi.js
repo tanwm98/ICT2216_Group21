@@ -823,8 +823,7 @@ router.post('/admin/revoke-user-sessions', async (req, res) => {
     try {
         const { userId, reason } = req.body;
 
-        // TODO: Add proper admin authentication check
-        // if (req.user.role !== 'admin') return res.status(403).json({error: 'Admin only'});
+        if (req.user.role !== 'admin') return res.status(403).json({error: 'Admin only'});
 
         const success = await revokeAllUserSessions(userId, reason || 'admin_revocation');
 
