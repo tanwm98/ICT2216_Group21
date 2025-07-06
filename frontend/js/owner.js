@@ -1,7 +1,3 @@
-document.addEventListener('DOMContentLoaded', () => {
-    void checkSession();
-});
-
 function escapeHtml(unsafe) {
     if (!unsafe || typeof unsafe !== 'string') return '';
     return unsafe

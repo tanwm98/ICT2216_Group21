@@ -143,8 +143,129 @@ kirbychope.xyz {
 	}
 
 	# API with enhanced error handling
+	# =============================================
+    	# AUTHENTICATION ENDPOINTS WITH SPECIFIC LIMITS
+    	# =============================================
+
+    	# Login: 5 attempts/15 minutes per IP
+    	@login path /login
+    	handle @login {
+    		rate_limit {
+    			zone login_zone {
+    				key {http.request.remote_ip}
+    				events 25
+    				window 15m
+    			}
+    		}
+    		reverse_proxy backend:3000 {
+    			header_up Host {upstream_hostport}
+    			header_up X-Real-IP {remote_host}
+    		}
+    	}
+
+    	# Register: 5 attempts/15 minutes per IP
+    	@register path /register
+    	handle @register {
+    		rate_limit {
+    			zone register_zone {
+    				key {http.request.remote_ip}
+    				events 25
+    				window 15m
+    			}
+    		}
+    		reverse_proxy backend:3000 {
+    			header_up Host {upstream_hostport}
+    			header_up X-Real-IP {remote_host}
+    		}
+    	}
+
+    	# Password Reset: 3 requests/60 minutes per IP
+    	@password_reset path /request-reset /reset-password
+    	handle @password_reset {
+    		rate_limit {
+    			zone reset_zone {
+    				key {http.request.remote_ip}
+    				events 15
+    				window 60m
+    			}
+    		}
+    		reverse_proxy backend:3000 {
+    			header_up Host {upstream_hostport}
+    			header_up X-Real-IP {remote_host}
+    		}
+    	}
+
+    	# Reservations: 3 requests/5 minutes per IP
+    	@reservations path /api/reservations/* /reserveform
+    	handle @reservations {
+    		rate_limit {
+    			zone reservation_zone {
+    				key {http.request.remote_ip}
+    				events 15
+    				window 5m
+    			}
+    		}
+    		reverse_proxy backend:3000 {
+    			header_up Host {upstream_hostport}
+    			header_up X-Real-IP {remote_host}
+    		}
+    	}
+
+    	# Reviews: 5 requests/10 minutes per IP
+    	@reviews path /api/reviews/*
+    	handle @reviews {
+    		rate_limit {
+    			zone review_zone {
+    				key {http.request.remote_ip}
+    				events 25
+    				window 10m
+    			}
+    		}
+    		reverse_proxy backend:3000 {
+    			header_up Host {upstream_hostport}
+    			header_up X-Real-IP {remote_host}
+    		}
+    	}
+
+    	# Exports: 10 requests/60 minutes per IP
+    	@exports path /api/export/* /api/admin/export/* /api/owner/export/*
+    	handle @exports {
+    		rate_limit {
+    			zone export_zone {
+    				key {http.request.remote_ip}
+    				events 20
+    				window 60m
+    			}
+    		}
+    		reverse_proxy backend:3000 {
+    			header_up Host {upstream_hostport}
+    			header_up X-Real-IP {remote_host}
+    		}
+    	}
+    @mfa_verify path /verify-mfa
+    handle @mfa_verify {
+        rate_limit {
+            zone mfa_zone {
+                key {http.request.remote_ip}
+                events 30
+                window 15m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
 	@api path /api/*
 	handle @api {
+		# General API: 60 requests/minute per IP
+		rate_limit {
+			zone api_zone {
+				key {http.request.remote_ip}
+				events 120
+				window 1m
+			}
+		}
 		reverse_proxy backend:3000 {
 			health_uri /api/health
 			health_interval 30s

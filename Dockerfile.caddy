@@ -3,7 +3,8 @@ FROM caddy:2-builder AS builder
 
 # Build Caddy with Coraza WAF plugin
 RUN xcaddy build \
-    --with github.com/corazawaf/coraza-caddy/v2
+    --with github.com/corazawaf/coraza-caddy/v2 \
+    --with github.com/mholt/caddy-ratelimit
 
 # Production stage
 FROM caddy:2-alpine AS production

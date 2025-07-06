@@ -1,8 +1,4 @@
 
-document.addEventListener('DOMContentLoaded', () => {
-  void checkSession();
-});
-
 window.addEventListener('DOMContentLoaded', () => {
   fetchUser();
   fetchReservations();

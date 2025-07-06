@@ -1,18 +1,148 @@
 localhost {
-	# Static assets
+	# =============================================
+	# STATIC ASSETS
+	# =============================================
 	@static path /static/* /js/*
 	handle @static {
 		root * /usr/share/caddy
 		file_server
 	}
 
-	# API routes
+	# =============================================
+	# API ROUTES WITH GENERAL RATE LIMITING
+	# =============================================
 	@api path /api/*
 	handle @api {
+		# General API: 60 requests/minute per IP
+		rate_limit {
+			zone api_zone {
+				key {http.request.remote_ip}
+				events 120
+				window 1m
+			}
+		}
 		reverse_proxy backend:3000
 	}
 
-	# Root redirect
+	# =============================================
+	# AUTHENTICATION ENDPOINTS WITH SPECIFIC LIMITS
+	# =============================================
+
+	# Login: 5 attempts/15 minutes per IP
+	@login path /login
+	handle @login {
+		rate_limit {
+			zone login_zone {
+				key {http.request.remote_ip}
+				events 25
+				window 15m
+			}
+		}
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Register: 5 attempts/15 minutes per IP
+	@register path /register
+	handle @register {
+		rate_limit {
+			zone register_zone {
+				key {http.request.remote_ip}
+				events 25
+				window 15m
+			}
+		}
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Password Reset: 3 requests/60 minutes per IP
+	@password_reset path /request-reset /reset-password
+	handle @password_reset {
+		rate_limit {
+			zone reset_zone {
+				key {http.request.remote_ip}
+				events 15
+				window 60m
+			}
+		}
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# =============================================
+	# BUSINESS LOGIC ENDPOINTS
+	# =============================================
+
+	# Reservations: 3 requests/5 minutes per IP
+	@reservations path /api/reservations/* /reserveform
+	handle @reservations {
+		rate_limit {
+			zone reservation_zone {
+				key {http.request.remote_ip}
+				events 15
+				window 5m
+			}
+		}
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Reviews: 5 requests/10 minutes per IP
+	@reviews path /api/reviews/*
+	handle @reviews {
+		rate_limit {
+			zone review_zone {
+				key {http.request.remote_ip}
+				events 25
+				window 10m
+			}
+		}
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Exports: 10 requests/60 minutes per IP
+	@exports path /api/export/* /api/admin/export/* /api/owner/export/*
+	handle @exports {
+		rate_limit {
+			zone export_zone {
+				key {http.request.remote_ip}
+				events 20
+				window 60m
+			}
+		}
+		reverse_proxy backend:3000 {
+			header_up Host {upstream_hostport}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# =============================================
+	# ROOT REDIRECT
+	# =============================================
 	@root path /
 	handle @root {
 		root * /usr/share/caddy/public
@@ -20,7 +150,9 @@ localhost {
 		file_server
 	}
 
-	# Try HTML files from multiple locations
+	# =============================================
+	# DEFAULT HANDLER
+	# =============================================
 	handle {
 		# First try public folder (login, register, search, etc.)
 		root * /usr/share/caddy/public
@@ -67,7 +199,7 @@ localhost {
 			# HTTPS and transport security
 			Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 
-			# Content security (removed deprecated X-XSS-Protection)
+			# Content security
 			X-Content-Type-Options "nosniff"
 			X-Frame-Options "DENY"
 
@@ -80,19 +212,9 @@ localhost {
 			Referrer-Policy "strict-origin-when-cross-origin"
 
 			# Enhanced Content Security Policy
-			Content-Security-Policy:
-			default-src 'self';
-			script-src 'self'
-			https://cdn.jsdelivr.net
-			'nonce-<RANDOM_NONCE>';
-			style-src 'self'
-			https://fonts.googleapis.com
-			'nonce-<RANDOM_NONCE>';
-			font-src https://fonts.gstatic.com;
-			upgrade-insecure-requests;
-			report-uri /csp-report;
-			# Comprehensive permissions policy
+			Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-<RANDOM_NONCE>'; style-src 'self' https://fonts.googleapis.com 'nonce-<RANDOM_NONCE>'; font-src https://fonts.gstatic.com; upgrade-insecure-requests; report-uri /csp-report;"
 
+			# Comprehensive permissions policy
 			Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
 
 			# Additional security headers
@@ -134,3 +256,4 @@ localhost {
 			max_size 10MB
 		}
 	}
+}
