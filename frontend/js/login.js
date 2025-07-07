@@ -9,12 +9,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (captchaFailed){
             if (typeof grecaptcha !== 'undefined') {
                 grecaptcha.reset();
-                document.getElementById('captcha-message').style.display = 'block';
+                document.getElementById('captcha-message').classList.remove('hidden');
             }
         }
         if (captchaRequired) {
-            document.getElementById('captcha-container').style.display = 'block';
-            document.getElementById('captcha-message').style.display = 'block';
+            document.getElementById('captcha-container').classList.remove('hidden');
+            document.getElementById('captcha-message').classList.remove('hidden');
         }
 
         const errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (form) {
         form.addEventListener('submit', function (e) {
-            if (captchaContainer && captchaContainer.style.display !== 'none') {
+            if (captchaContainer && !captchaContainer.classList.contains('hidden')) {
                 const captchaResponse = grecaptcha.getResponse();
 
                 if (!captchaResponse) {
