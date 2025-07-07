@@ -10,6 +10,13 @@ class SessionManager {
         this.isLoggingOut = false;
         this.hasBeenInactive = false;
 
+        // NEW: Refresh attempt tracking to prevent loops
+        this.refreshAttempts = 0;
+        this.maxRefreshAttempts = 2; // Max 2 attempts before giving up
+        this.lastRefreshAttempt = 0;
+        this.refreshCooldown = 60000; // 1 minute cooldown between failed attempts
+        this.isRefreshing = false; // Prevent concurrent refresh attempts
+
         this.initializeActivityTracking();
         this.startSessionChecking();
     }
@@ -53,6 +60,9 @@ class SessionManager {
         this.clearTimer();
         this.setInactivityTimer();
 
+        // NEW: Reset refresh attempts on user activity
+        this.resetRefreshAttempts();
+
         // Update server activity
         this.updateServerActivity();
     }
@@ -83,6 +93,36 @@ class SessionManager {
         return timeSinceActivity >= INACTIVITY_TIMEOUT;
     }
 
+    // NEW: Reset refresh attempt counter
+    resetRefreshAttempts() {
+        this.refreshAttempts = 0;
+        this.lastRefreshAttempt = 0;
+    }
+
+    // NEW: Check if we should attempt refresh
+    canAttemptRefresh() {
+        const now = Date.now();
+
+        // Don't refresh if we're logging out or inactive
+        if (this.isLoggingOut || this.hasBeenInactive || this.isInactive() || this.isRefreshing) {
+            return false;
+        }
+
+        // Don't refresh if we've exceeded max attempts
+        if (this.refreshAttempts >= this.maxRefreshAttempts) {
+            console.log(`Max refresh attempts (${this.maxRefreshAttempts}) reached. Forcing logout.`);
+            return false;
+        }
+
+        // Don't refresh if we're in cooldown period
+        if (now - this.lastRefreshAttempt < this.refreshCooldown) {
+            console.log('Refresh cooldown period active. Skipping refresh attempt.');
+            return false;
+        }
+
+        return true;
+    }
+
     async updateServerActivity() {
         // Check multiple conditions before updating server activity
         if (this.isLoggingOut || this.hasBeenInactive || this.isInactive()) {
@@ -107,7 +147,7 @@ class SessionManager {
                 if (response.ok) {
                     this.lastServerUpdate = Date.now();
                 } else if (response.status === 401) {
-                    // If we get 401, user session is invalid - trigger logout
+                    // If we get 401, user session is invalid - trigger logout immediately
                     console.log('Server activity update failed - session invalid, logging out');
                     await this.performLogout('session_invalid');
                 }
@@ -124,8 +164,8 @@ class SessionManager {
             return;
         }
 
-        // Don't check session if we're already logging out
-        if (this.isLoggingOut) {
+        // Don't check session if we're already logging out or refreshing
+        if (this.isLoggingOut || this.isRefreshing) {
             return;
         }
 
@@ -162,18 +202,28 @@ class SessionManager {
                     return;
                 }
 
-                // Try refresh for other reasons (but only if user has been active)
-                if (!this.isInactive() && this.shouldAttemptRefresh(data.reason)) {
+                // NEW: Enhanced refresh logic with attempt limiting
+                if (this.shouldAttemptRefresh(data.reason) && this.canAttemptRefresh()) {
                     const refreshSuccess = await this.attemptTokenRefresh();
                     if (!refreshSuccess) {
-                        await this.performLogout('refresh_failed');
+                        // If refresh failed and we've hit max attempts, logout immediately
+                        if (this.refreshAttempts >= this.maxRefreshAttempts) {
+                            console.log('Max refresh attempts reached. Logging out.');
+                            await this.performLogout('max_refresh_attempts_exceeded');
+                        } else {
+                            console.log(`Refresh failed. Attempt ${this.refreshAttempts}/${this.maxRefreshAttempts}`);
+                            // Don't logout immediately - wait for next session check
+                        }
                     }
                 } else {
+                    // Don't attempt refresh - logout immediately
+                    console.log('Not attempting refresh. Logging out.');
                     await this.performLogout('authentication_failed');
                 }
             } else {
-                // Successfully logged in - reset failure counter
+                // Successfully logged in - reset failure counter and refresh attempts
                 this.resetFailureCounter();
+                this.resetRefreshAttempts();
             }
 
         } catch (error) {
@@ -192,13 +242,18 @@ class SessionManager {
     }
 
     async attemptTokenRefresh() {
-        // Don't attempt refresh if we're logging out or inactive
-        if (this.isLoggingOut || this.hasBeenInactive || this.isInactive()) {
+        // Double-check if we can attempt refresh
+        if (!this.canAttemptRefresh()) {
             return false;
         }
 
+        // Set refreshing flag to prevent concurrent attempts
+        this.isRefreshing = true;
+        this.refreshAttempts++;
+        this.lastRefreshAttempt = Date.now();
+
         try {
-            console.log('Attempting token refresh...');
+            console.log(`Attempting token refresh... (Attempt ${this.refreshAttempts}/${this.maxRefreshAttempts})`);
 
             const refreshResponse = await fetch('/api/auth/refresh', {
                 method: 'POST',
@@ -213,24 +268,70 @@ class SessionManager {
 
             if (refreshResponse.ok) {
                 const refreshData = await refreshResponse.json();
-                console.log('Token refresh successful');
+                console.log('✅ Token refresh successful');
+
+                // Reset refresh attempts on success
+                this.resetRefreshAttempts();
                 return true;
             } else {
-                const errorData = await refreshResponse.json();
-                console.log('Token refresh failed:', errorData);
+                const errorData = await refreshResponse.json().catch(() => ({}));
+                console.log('❌ Token refresh failed:', errorData);
 
-                // Handle specific inactivity responses
-                if (errorData.code === 'INACTIVITY_TIMEOUT') {
-                    console.log('Refresh denied due to inactivity');
-                    this.hasBeenInactive = true;
-                    return false;
+                // Handle specific error cases that require immediate logout
+                if (refreshResponse.status === 401) {
+                    // ENHANCED: Handle Docker restart / Redis session loss scenarios
+                    const fatalErrorCodes = [
+                        'REFRESH_TOKEN_MISSING',    // No refresh token provided
+                        'TOKEN_BLACKLISTED',        // Token is blacklisted
+                        'SESSION_NOT_FOUND',        // Redis session missing (Docker restart)
+                        'TOKEN_VERSION_MISMATCH',   // Token version doesn't match DB
+                        'USER_NOT_FOUND',          // User doesn't exist
+                        'TOKEN_INVALID',           // JWT signature invalid
+                        'TOKEN_EXPIRED'            // Refresh token expired
+                    ];
+
+                    if (fatalErrorCodes.includes(errorData.code)) {
+                        console.log(`🚨 Fatal refresh error: ${errorData.code}. Immediate logout required.`);
+
+                        // Special handling for Docker restart scenario
+                        if (errorData.code === 'SESSION_NOT_FOUND') {
+                            console.log('🐳 Detected Docker restart - Redis sessions wiped. Clearing stale cookies.');
+                            // Clear all cookies immediately
+                            this.clearAllCookies();
+                        }
+
+                        // Force immediate logout for these specific errors
+                        this.refreshAttempts = this.maxRefreshAttempts;
+                        return false;
+                    }
+
+                    if (errorData.code === 'INACTIVITY_TIMEOUT') {
+                        console.log('Refresh denied due to inactivity');
+                        this.hasBeenInactive = true;
+                        return false;
+                    }
+
+                    if (errorData.code === 'RATE_LIMIT_EXCEEDED') {
+                        console.log('Refresh rate limit exceeded. Will retry later.');
+                        return false;
+                    }
                 }
 
+                // For other errors, allow retry (up to max attempts)
                 return false;
             }
         } catch (error) {
             console.error('Refresh request failed:', error);
+
+            // Network errors - don't immediately logout, allow retry
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                console.log('Network error during refresh. Will retry later.');
+            }
+
             return false;
+        } finally {
+            // Clear refreshing flag
+            this.isRefreshing = false;
         }
     }
 
@@ -246,7 +347,7 @@ class SessionManager {
             return;
         }
 
-        console.log(`Performing logout, reason: ${reason}`);
+        console.log(`🚪 Performing logout, reason: ${reason}`);
         this.isLoggingOut = true;
         this.hasBeenInactive = true;
 
@@ -301,7 +402,7 @@ class SessionManager {
 
         // Regular session checks
         setInterval(() => {
-            if (!this.isLoggingOut) {
+            if (!this.isLoggingOut && !this.isRefreshing) {
                 this.checkSession();
             }
         }, SESSION_CHECK_INTERVAL);
@@ -322,6 +423,10 @@ class SessionManager {
     }
 }
 
+// =============================================
+// BACKWARD COMPATIBILITY FUNCTIONS
+// =============================================
+
 let globalSessionManager = null;
 
 async function checkSession() {
@@ -336,7 +441,7 @@ async function checkSession() {
 
 // Initialize session manager when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Starting enhanced session monitoring (no warning prompt)...');
+    console.log('Starting enhanced session monitoring with refresh loop prevention...');
 
     globalSessionManager = new SessionManager();
     window.sessionManager = globalSessionManager;

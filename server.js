@@ -200,9 +200,8 @@ app.use((req, res, next) => {
         req.path === '/signup-owner' ||
         req.path.startsWith('/api/session') ||
         req.path.startsWith('/api/auth') ||
-        req.path.startsWith('/api/health') ||
-        req.path.startsWith('/test-') ||
-        req.method === 'GET') {
+        req.path.startsWith('/api/health')
+    ) {
         return next();
     }
 

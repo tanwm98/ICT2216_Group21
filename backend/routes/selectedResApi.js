@@ -99,9 +99,8 @@ const {
 } = require('../middleware/htmlDecoder');
 
 // Route to display data
-router.get('/display_specific_store', async (req, res) => {
+router.get('/display_specific_store', authenticateToken, async (req, res) => {
     try {
-        // SECURITY: Validate required parameters
         const {
             name,
             location,
@@ -124,7 +123,6 @@ router.get('/display_specific_store', async (req, res) => {
 
         let result;
 
-        // FIXED: Corrected SQL query structure and selected specific columns
         if (reservationid) {
             const reservationIdNum = parseInt(reservationid);
             if (isNaN(reservationIdNum)) {
@@ -132,6 +130,9 @@ router.get('/display_specific_store', async (req, res) => {
                     error: 'Invalid reservation ID format'
                 });
             }
+
+            // FIXED: Now req.user is available because of authenticateToken middleware
+            const loggedInUserId = req.user.userId;
 
             result = await db('stores as s')
                 .innerJoin('reservations as r', 'r.store_id', 's.store_id')
@@ -157,8 +158,25 @@ router.get('/display_specific_store', async (req, res) => {
                 .where('s.storeName', name)
                 .andWhere('s.location', location)
                 .andWhere('r.reservation_id', reservationIdNum)
+                .andWhere('r.user_id', loggedInUserId) // SECURITY: Only user's own reservations
                 .andWhere('s.status', 'approved');
+
+            // Log potential IDOR attempts if no results
+            if (result.length === 0) {
+                console.warn(`Potential IDOR: User ${loggedInUserId} tried to access reservation ${reservationIdNum} with store ${name}/${location}`);
+
+                const logger = require('../logger');
+                logger.logSecurity('idor_attempt', 'medium', {
+                    attempted_user_id: loggedInUserId,
+                    target_reservation_id: reservationIdNum,
+                    store_name: name,
+                    store_location: location,
+                    ip: req.ip,
+                    endpoint: '/display_specific_store'
+                }, req);
+            }
         } else {
+            // Public store information (no reservation ID needed - but still need auth for consistency)
             result = await db('stores')
                 .select([
                     'store_id',
@@ -176,16 +194,16 @@ router.get('/display_specific_store', async (req, res) => {
                     'totalCapacity'
                 ])
                 .where('storeName', name)
-                .andWhere('location', location);
+                .andWhere('location', location)
+                .andWhere('status', 'approved');
         }
 
         if (result.length === 0) {
             return res.status(404).json({
-                error: 'Restaurant not found'
+                error: reservationid ? 'Reservation not found or access denied' : 'Restaurant not found'
             });
         }
 
-        // FIXED: Transform data to include secure image URLs
         const transformedStores = result.map(store => ({
             store_id: store.store_id,
             storeName: store.storeName,
@@ -207,7 +225,7 @@ router.get('/display_specific_store', async (req, res) => {
                 reservationTime: store.reservationTime
             }),
 
-            // FIXED: Generate secure image URLs instead of base64
+            // Generate secure image URLs
             imageUrl: validateAndGenerateImageUrl(store.image_filename),
             altText: sanitizeAltText(store.image_alt_text, store.storeName)
         }));
@@ -222,6 +240,16 @@ router.get('/display_specific_store', async (req, res) => {
 
     } catch (err) {
         console.error('Error querying database:', err);
+
+        // Log the error
+        const logger = require('../logger');
+        logger.logSystem('error', 'Failed to fetch store data', {
+            error: err.message,
+            stack: err.stack,
+            user_id: req.user?.userId,
+            query_params: req.query
+        });
+
         res.status(500).json({
             error: 'Failed to fetch data'
         });
@@ -410,11 +438,18 @@ router.post('/reserve', reserveValidator, handleValidation, async (req, res) => 
 
 
 // Update reservation
-router.post('/update_reservation', fieldLevelAccess([
-    'pax', 'time', 'date', 'firstname', 'lastname', 'specialrequest',
-    'reservationid', 'adultpax', 'childpax', 'storename', 'userid'
-]), updateReservationValidator, handleValidation, async (req, res) => {
+router.post('/update_reservation',
+    authenticateToken,
+    requireUser,
+    fieldLevelAccess([
+        'pax', 'time', 'date', 'firstname', 'lastname', 'specialrequest',
+        'reservationid', 'adultpax', 'childpax', 'storename', 'userid'
+    ]),
+    updateReservationValidator,
+    handleValidation,
+    async (req, res) => {
     const trx = await db.transaction();
+
 
     try {
         const {
@@ -430,6 +465,14 @@ router.post('/update_reservation', fieldLevelAccess([
             storename,
             userid
         } = req.body;
+
+        const loggedInUserId = req.user.userId;
+        if (parseInt(userid) !== loggedInUserId) {
+            await trx.rollback();
+            return res.status(403).json({
+                message: 'Access denied. You can only update your own reservations.'
+            });
+        }
 
         // 1. Get original reservation with lock
         const originalRes = await trx('reservations')
@@ -489,6 +532,7 @@ router.post('/update_reservation', fieldLevelAccess([
         // 4. Update reservation and log edit
         await trx('reservations')
             .where('reservation_id', reservationid)
+            .andWhere('user_id', loggedInUserId)
             .update({
                 noOfGuest: pax,
                 reservationDate: date,
@@ -692,14 +736,24 @@ router.get('/timeslots', async (req, res) => {
 });
 
 // getting specific reservation by id for editing reservation details
-router.get('/get_reservation_by_id', async (req, res) => {
+router.get('/get_reservation_by_id', authenticateToken, requireUser, async (req, res) => {
     try {
         const reservationid = req.query.reservationid;
+        const loggedInUserId = req.user.userId; // FIXED: Now properly defined
+
+        // Validate reservation ID
+        const reservationIdNum = parseInt(reservationid);
+        if (isNaN(reservationIdNum) || reservationIdNum <= 0) {
+            return res.status(400).json({
+                error: 'Invalid reservation ID format'
+            });
+        }
 
         const reservation = await db('reservations as r')
             .select([
                 'r.reservation_id',
                 'r.store_id',
+                'r.user_id', // Include for verification
                 'r.noOfGuest',
                 db.raw('r."reservationDate"::TEXT'),
                 'r.reservationTime',
@@ -710,7 +764,7 @@ router.get('/get_reservation_by_id', async (req, res) => {
                 'r.first_name',
                 'r.last_name'
             ])
-            .where('reservation_id', reservationid)
+            .where('reservation_id', reservationIdNum)
             .first();
 
         if (!reservation) {
@@ -719,11 +773,43 @@ router.get('/get_reservation_by_id', async (req, res) => {
             });
         }
 
-        reservation.specialRequest = debugDecode(reservation.specialRequest || '');
+        // SECURITY: Check ownership
+        if (reservation.user_id !== loggedInUserId) {
+            // Log the attempted IDOR attack
+            console.warn(`IDOR ATTEMPT: User ${loggedInUserId} tried to access reservation ${reservationIdNum} owned by user ${reservation.user_id}`);
 
-        res.json([reservation]);
+            const logger = require('../logger');
+            logger.logSecurity('idor_attempt', 'high', {
+                attempted_user_id: loggedInUserId,
+                target_reservation_id: reservationIdNum,
+                actual_owner_id: reservation.user_id,
+                ip: req.ip,
+                user_agent: req.get('User-Agent'),
+                endpoint: '/get_reservation_by_id'
+            }, req);
+
+            return res.status(403).json({
+                error: 'Access denied. You can only access your own reservations.'
+            });
+        }
+
+        // Remove user_id from response and decode special request
+        const { user_id, ...safeReservation } = reservation;
+        safeReservation.specialRequest = debugDecode(safeReservation.specialRequest || '');
+
+        res.json([safeReservation]);
+
     } catch (err) {
         console.error('Error querying database:', err);
+
+        const logger = require('../logger');
+        logger.logSystem('error', 'Failed to fetch reservation by ID', {
+            error: err.message,
+            stack: err.stack,
+            user_id: req.user?.userId,
+            reservation_id: req.query.reservationid
+        });
+
         res.status(500).json({
             error: 'Failed to fetch data'
         });
@@ -837,7 +923,6 @@ router.get('/check-reservation', async (req, res) => {
             });
         }
 
-        // ✅ FIXED: Only check for COMPLETED reservations
         const completedReservation = await db('reservations')
             .select('reservation_id', 'reservationDate', 'reservationTime', 'status', 'noOfGuest')
             .where('user_id', userIdNum)
@@ -846,19 +931,16 @@ router.get('/check-reservation', async (req, res) => {
             .first();
 
         // Additional validation: Ensure the reservation actually happened in the past
-        let hasValidCompletedReservation = false;
+        const hasValidCompletedReservation = !!completedReservation;
 
+        console.log(`Review eligibility check - User: ${userIdNum}, Store: ${storeIdNum}`);
+        console.log(`Found completed reservation: ${hasValidCompletedReservation}`);
         if (completedReservation) {
-            const reservationDateTime = new Date(`${completedReservation.reservationDate}T${completedReservation.reservationTime}`);
-            const now = new Date();
-
-            // ✅ Double-check: Reservation must be in the past
-            hasValidCompletedReservation = reservationDateTime < now;
+            console.log(`Reservation ID: ${completedReservation.reservation_id}, Status: ${completedReservation.status}`);
         }
 
         res.json({
             hasReserved: hasValidCompletedReservation,
-            // Optional: Provide additional context (remove in production if not needed)
             details: completedReservation ? {
                 reservationId: completedReservation.reservation_id,
                 date: completedReservation.reservationDate,
@@ -928,5 +1010,4 @@ router.post('/add-review', fieldLevelAccess(['userid', 'storeid', 'rating', 'rev
         });
     }
 });
-
 module.exports = router;

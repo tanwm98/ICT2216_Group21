@@ -42,6 +42,8 @@ function fetchReservations() {
           const isPastReservation = now >= reservationDateTime;
 
           const row = document.createElement('tr');
+
+          // Store cell
           const storeCell = document.createElement('td');
           storeCell.textContent = reservation.storeName;
           row.appendChild(storeCell);
@@ -59,12 +61,14 @@ function fetchReservations() {
           // Guest count cell
           const guestCell = document.createElement('td');
           guestCell.textContent = reservation.noOfGuest;
+          guestCell.style.textAlign = 'center';
           row.appendChild(guestCell);
 
+          // Status cell with improved button handling
           const statusCell = document.createElement('td');
           if (reservation.status === 'Confirmed' && !isPastReservation) {
             const cancelBtn = document.createElement('button');
-            cancelBtn.className = 'btn btn-sm btn-warning';
+            cancelBtn.className = 'btn btn-sm btn-warning action-btn';
             cancelBtn.textContent = 'Cancel';
             cancelBtn.addEventListener('click', () => cancelUserReservation(reservation.reservation_id));
             statusCell.appendChild(cancelBtn);
@@ -74,20 +78,40 @@ function fetchReservations() {
             statusCell.textContent = reservation.status;
           }
           row.appendChild(statusCell);
+
+          // Special request cell with improved wrapping
           const specialRequestCell = document.createElement('td');
-          specialRequestCell.textContent = reservation.specialRequest || '';
+          const specialRequestDiv = document.createElement('div');
+          specialRequestDiv.className = 'special-request-cell';
+          specialRequestDiv.textContent = reservation.specialRequest || '-';
+
+          // Add tooltip for long content
+          if (reservation.specialRequest && reservation.specialRequest.length > 50) {
+            specialRequestDiv.title = reservation.specialRequest;
+          }
+
+          specialRequestCell.appendChild(specialRequestDiv);
           row.appendChild(specialRequestCell);
 
+          // Edit cell with improved button container
           const editCell = document.createElement('td');
+          const buttonContainer = document.createElement('div');
+          buttonContainer.className = 'action-buttons-container';
+
           if (reservation.status === 'Confirmed' && !isPastReservation) {
             const editBtn = document.createElement('button');
-            editBtn.className = 'btn btn-sm btn-edit-reservation';
-            editBtn.textContent = 'Edit Reservation';
+            editBtn.className = 'btn btn-sm btn-edit-reservation action-btn';
+            editBtn.textContent = 'Edit';
             editBtn.addEventListener('click', () => editReservation(reservation.store_id, reservation.reservation_id));
-            editCell.appendChild(editBtn);
+            buttonContainer.appendChild(editBtn);
           } else {
-            editCell.textContent = '-';
+            const disabledText = document.createElement('span');
+            disabledText.textContent = '-';
+            disabledText.className = 'text-muted';
+            buttonContainer.appendChild(disabledText);
           }
+
+          editCell.appendChild(buttonContainer);
           row.appendChild(editCell);
 
           tableBody.appendChild(row);
@@ -97,6 +121,7 @@ function fetchReservations() {
         console.error('Error loading reservations:', err);
       });
 }
+
 // ========== CANCEL RESERVATION ==========
 function cancelUserReservation(reservationId) {
   window.csrfFetch(`/api/user/reservations/${reservationId}/cancel`, {
@@ -110,8 +135,7 @@ function cancelUserReservation(reservationId) {
     .catch(err => console.error('Error cancelling reservation:', err));
 }
 
-
-///  ======== Fetch reviews by the user ======== 
+///  ======== Fetch reviews by the user ========
 function fetchReviews() {
   fetch('/api/user/reviews')
     .then(res => res.json())
@@ -129,7 +153,16 @@ function fetchReviews() {
         ratingCell.textContent = review.rating;
 
         const descriptionCell = document.createElement('td');
-        descriptionCell.textContent = review.description;
+        const descriptionDiv = document.createElement('div');
+        descriptionDiv.className = 'special-request-cell';
+        descriptionDiv.textContent = review.description;
+
+        // Add tooltip for long reviews
+        if (review.description && review.description.length > 100) {
+          descriptionDiv.title = review.description;
+        }
+
+        descriptionCell.appendChild(descriptionDiv);
 
         row.appendChild(storeNameCell);
         row.appendChild(ratingCell);
@@ -143,7 +176,7 @@ function fetchReviews() {
     });
 }
 
-// ======== Reset password ======== 
+// ======== Reset password ========
 function setupResetPasswordHandler() {
   const resetForm = document.getElementById('resetPasswordForm');
 
@@ -153,11 +186,6 @@ function setupResetPasswordHandler() {
       const currentPassword = document.getElementById('currentPassword').value;
       const newPassword = document.getElementById('newPassword').value;
       const confirmPassword = document.getElementById('confirmPassword').value;
-
-      // if (currentPassword.length < 8 || currentPassword.length > 64) {
-      //   alert('Current Password ought to be within 8 to  64 characters long');
-      //   return;
-      // }
 
       if (newPassword !== confirmPassword) {
         alert('Passwords do not match.');
@@ -172,9 +200,9 @@ function setupResetPasswordHandler() {
 
         let result;
         try {
-          result = await response.json(); // Try parsing, but catch JSON parsing error
+          result = await response.json();
         } catch (jsonError) {
-          result = {}; // fallback if no JSON returned
+          result = {};
         }
 
         if (response.ok) {
@@ -183,7 +211,7 @@ function setupResetPasswordHandler() {
           window.location.href = '/login';
         } else {
           if (result.error) {
-            alert(result.error); // ✅ Will catch "Current password is incorrect"
+            alert(result.error);
           } else if (result.errors && Array.isArray(result.errors)) {
             const errorMessages = result.errors.map(err => err.msg).join('\n');
             alert(`Password requirements:\n${errorMessages}`);
@@ -200,7 +228,7 @@ function setupResetPasswordHandler() {
   }
 }
 
-// ======== Edit name function ======== 
+// ======== Edit name function ========
 function setupNameEditHandlers() {
   const editBtn = document.getElementById('editNameBtn');
   const nameDisplay = document.getElementById('profileName');
@@ -209,14 +237,12 @@ function setupNameEditHandlers() {
   const saveBtn = document.getElementById('saveNameBtn');
   const cancelBtn = document.getElementById('cancelNameBtn');
 
-
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
       inputGroup.classList.remove('hidden');
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
-
 
     cancelBtn.addEventListener('click', () => {
       inputGroup.classList.add('hidden');
@@ -374,10 +400,8 @@ function setupLastNameEditHandler() {
   }
 }
 
-
 // ======== edit reservation ==========
 async function editReservation(storeid, reservationid) {
-
   try {
     const response = await fetch(`/maxcapacity?storeid=${storeid}`);
     if (!response.ok) {
@@ -387,12 +411,9 @@ async function editReservation(storeid, reservationid) {
     const store = await response.json();
     console.log("store: ", store[0]);
 
-
     window.location.href = `/selectedRes?name=${encodeURIComponent(store[0].storeName)}&location=${encodeURIComponent(store[0].location)}&reservationid=${reservationid}`;
 
   } catch (error) {
     console.error('Error editing reservation:', error);
   }
 }
-
-
