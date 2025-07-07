@@ -6,14 +6,14 @@ const { logAuth, logSecurity, logSystem } = require('../../backend/logger');
 // Token configuration
 const TOKEN_CONFIG = {
     access: {
-        expiresIn: '5m',        // 5 minutes
+        expiresIn: '5m',        // 5 minutes (longer than inactivity)
         maxAgeMs: 5 * 60 * 1000
     },
     refresh: {
         expiresIn: '1h',        // 1 hour
-        maxAgeMs: 60 * 60 * 1000
+        maxAgeMs: 60 * 60 * 1000 // Fixed: should match expiresIn
     },
-    inactivityTimeout: 15 * 60 * 1000  // 15 minutes
+    inactivityTimeout: 15 * 60 * 1000  // 2 minutes
 };
 
 // Redis key patterns
@@ -425,11 +425,11 @@ async function validateRefreshToken(refreshToken) {
 // Token Refresh Function
 // =============================================
 
-async function refreshAccessToken(refreshToken, req, lastClientActivity = null) {
+async function refreshAccessToken(refreshToken, req) {
     try {
         // Rate limiting for refresh attempts
         if (await isRedisAvailable()) {
-            const rateLimitKey = REDIS_KEYS.rateLimitRefresh(req.ip || 'unknown');
+            const rateLimitKey = REDIS_KEYS.rateLimitRefresh('unknown');
             const attempts = await global.redisClient.incr(rateLimitKey);
             if (attempts === 1) {
                 await global.redisClient.expire(rateLimitKey, 60); // 1 minute window
@@ -443,15 +443,14 @@ async function refreshAccessToken(refreshToken, req, lastClientActivity = null) 
             }
         }
 
-        // Validate refresh token with enhanced inactivity checking
-        const validation = await validateRefreshTokenWithActivity(refreshToken, lastClientActivity);
+        // Validate refresh token
+        const validation = await validateRefreshToken(refreshToken);
 
         if (!validation.valid) {
             logSecurity('refresh_token_validation_failed', 'medium', {
                 reason: validation.reason,
                 ip: req.ip,
-                user_agent: req.get('User-Agent'),
-                last_client_activity: lastClientActivity
+                user_agent: req.get('User-Agent')
             }, req);
 
             return {
@@ -459,30 +458,6 @@ async function refreshAccessToken(refreshToken, req, lastClientActivity = null) 
                 error: 'Invalid refresh token',
                 code: validation.reason.toUpperCase()
             };
-        }
-
-        // Additional inactivity check based on client-reported activity
-        if (lastClientActivity) {
-            const timeSinceClientActivity = Date.now() - parseInt(lastClientActivity);
-            if (timeSinceClientActivity > TOKEN_CONFIG.inactivityTimeout) {
-                // Client has been inactive too long
-                const expiresAt = new Date(validation.payload.exp * 1000).toISOString();
-                await blacklistToken(validation.payload.jti, 'refresh', 'client_inactivity_timeout', expiresAt, validation.payload.userId);
-                await removeRefreshSession(validation.payload.jti, validation.payload.userId);
-
-                logSecurity('refresh_denied_client_inactivity', 'medium', {
-                    user_id: validation.payload.userId,
-                    time_since_activity: timeSinceClientActivity,
-                    inactivity_limit: TOKEN_CONFIG.inactivityTimeout,
-                    ip: req.ip
-                }, req);
-
-                return {
-                    success: false,
-                    error: 'Session expired due to inactivity',
-                    code: 'INACTIVITY_TIMEOUT'
-                };
-            }
         }
 
         // Generate new access token
@@ -495,16 +470,15 @@ async function refreshAccessToken(refreshToken, req, lastClientActivity = null) 
 
         const { accessToken, accessJti } = generateAccessToken(payload);
 
-        // Update session activity (both server and client activity tracking)
+        // Update session activity
         await updateUserActivity(validation.payload.userId);
 
-        // Log successful refresh with activity information
+        // Log successful refresh
         logAuth('access_token_refreshed', true, {
             user_id: validation.payload.userId,
             refresh_jti: validation.payload.jti,
             new_access_jti: accessJti,
-            ip: req.ip,
-            client_activity_age: lastClientActivity ? Date.now() - parseInt(lastClientActivity) : null
+            ip: req.ip
         }, req);
 
         return {
@@ -522,122 +496,7 @@ async function refreshAccessToken(refreshToken, req, lastClientActivity = null) 
         };
     }
 }
-async function validateRefreshTokenWithActivity(refreshToken, lastClientActivity = null) {
-    try {
-        const payload = jwt.verify(refreshToken, process.env.JWT_SECRET);
 
-        // Check if token is blacklisted
-        if (await isTokenBlacklisted(payload.jti)) {
-            return {
-                valid: false,
-                reason: 'token_blacklisted',
-                payload: null
-            };
-        }
-
-        // Verify token type
-        if (payload.type !== 'refresh') {
-            return {
-                valid: false,
-                reason: 'invalid_token_type',
-                payload: null
-            };
-        }
-
-        // Get session from Redis
-        const session = await getRefreshSession(payload.jti);
-        if (!session) {
-            return {
-                valid: false,
-                reason: 'session_not_found',
-                payload: null
-            };
-        }
-
-        // Verify refresh token version in database
-        const user = await db('users')
-            .select('refresh_token_version', 'role', 'name')
-            .where('user_id', payload.userId)
-            .first();
-
-        if (!user) {
-            return {
-                valid: false,
-                reason: 'user_not_found',
-                payload: null
-            };
-        }
-
-        if (user.refresh_token_version !== payload.refreshTokenVersion) {
-            // Remove invalid session
-            await removeRefreshSession(payload.jti, payload.userId);
-            return {
-                valid: false,
-                reason: 'token_version_mismatch',
-                payload: null
-            };
-        }
-
-        // Enhanced inactivity checking
-        const serverInactivity = await checkUserInactivity(payload.userId);
-        let isInactive = serverInactivity;
-
-        // If client provides activity timestamp, use the more restrictive check
-        if (lastClientActivity) {
-            const clientInactivity = Date.now() - parseInt(lastClientActivity);
-            const clientIsInactive = clientInactivity > TOKEN_CONFIG.inactivityTimeout;
-
-            // User is inactive if EITHER server OR client detects inactivity
-            isInactive = serverInactivity || clientIsInactive;
-
-            // Log the comparison for debugging
-            if (serverInactivity !== clientIsInactive) {
-                logSecurity('inactivity_check_mismatch', 'low', {
-                    user_id: payload.userId,
-                    server_inactive: serverInactivity,
-                    client_inactive: clientIsInactive,
-                    client_activity_age: clientInactivity
-                });
-            }
-        }
-
-        if (isInactive) {
-            // Blacklist refresh token and remove session
-            const expiresAt = new Date(payload.exp * 1000).toISOString();
-            await blacklistToken(payload.jti, 'refresh', 'inactivity_timeout', expiresAt, payload.userId);
-            await removeRefreshSession(payload.jti, payload.userId);
-
-            return {
-                valid: false,
-                reason: 'inactivity_timeout',
-                payload: null
-            };
-        }
-
-        return {
-            valid: true,
-            payload,
-            session,
-            user,
-            reason: null
-        };
-
-    } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return {
-                valid: false,
-                reason: 'token_expired',
-                payload: null
-            };
-        }
-
-        return {
-            valid: false,
-            reason: 'token_invalid',
-            payload: null
-        };
-    }
-}
 // =============================================
 // Authentication Middleware
 // =============================================
@@ -863,7 +722,6 @@ module.exports = {
     refreshAccessToken,
     validateAccessToken,
     validateRefreshToken,
-    validateRefreshTokenWithActivity,
 
     // Session management
     revokeAllUserSessions,

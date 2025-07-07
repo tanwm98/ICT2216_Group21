@@ -1,5 +1,3 @@
-// FIXED reset_password.js - Replace the entire file content
-
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get('token');
 

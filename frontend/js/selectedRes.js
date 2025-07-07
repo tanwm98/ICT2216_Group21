@@ -1,7 +1,3 @@
-document.addEventListener('DOMContentLoaded', () => {
-    void checkSession();
-});
-
 let userid;
 let calenderValue;
 let reservationid;
