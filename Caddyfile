@@ -118,27 +118,37 @@ kirbychope.xyz {
 		handle @404 {
 			root * /usr/share/caddy/errors
 			rewrite * /404.html
-			file_server
+			file_server {
+			    browse off
+			}
 		}
 		handle @401 {
 			root * /usr/share/caddy/errors
 			rewrite * /401.html
-			file_server
+			file_server {
+			    browse off
+			}
 		}
 		handle @403 {
 			root * /usr/share/caddy/errors
 			rewrite * /403.html
-			file_server
+			file_server {
+			    browse off
+			}
 		}
 		handle @500 {
 			root * /usr/share/caddy/errors
 			rewrite * /500.html
-			file_server
+			file_server {
+			    browse off
+			}
 		}
 		handle @502 {
 			root * /usr/share/caddy/errors
 			rewrite * /502.html
-			file_server
+			file_server {
+			    browse off
+			}
 		}
 	}
 
@@ -315,6 +325,7 @@ kirbychope.xyz {
 		try_files {path}.html {path}
 		file_server {
 			pass_thru
+			browse off
 		}
 		reverse_proxy backend:3000 {
 			header_up Host {upstream_hostport}

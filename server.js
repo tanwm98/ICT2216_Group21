@@ -6,6 +6,18 @@ const path = require('path');
 const db = require('./db');
 require('dotenv').config();
 const logger = require('./backend/logger');
+const verifySession = require('./backend/middleware/verifySession');
+
+// Publicly accessible routes
+const openPaths = [
+    '/login',
+    '/register',
+    '/request-reset',
+    '/reset-password',
+    '/static',       // static assets
+    '/public',       // public frontend
+    '/verify-token'  // for frontend session check
+];
 
 const redis = require('redis');
 const {
@@ -594,6 +606,12 @@ async function startServer() {
             console.log(`🚀 Server running on port ${port}`);
             console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`🔗 Redis: ${redisConnected ? 'Connected' : 'Disconnected'}`);
+        });
+
+        app.use((req, res, next) => {
+            const isPublic = openPaths.some(path => req.path.startsWith(path));
+            if (isPublic) return next();
+            return verifySession(req, res, next);
         });
 
     } catch (error) {

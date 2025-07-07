@@ -3,6 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../../db');
 const { logAuth, logSecurity, logSystem } = require('../../backend/logger');
 
+const IDLE_TIMEOUT_SECONDS = 15; // 15 seconds for testing; change back to 15 * 60 after
+
 // token configuration
 const TOKEN_CONFIG = {
     access: {
