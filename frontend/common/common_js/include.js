@@ -110,9 +110,8 @@ async function checkSession(forceAuth = false, source = 'unknown') {
                     window.location.href = '/login?reason=' + (data.reason || 'auth_required') + '&redirect=' + encodeURIComponent(window.location.pathname);
                 }, 1000);
             }
-
+        }
         return data;
-
     } catch (error) {
         console.error(`❌ [${source}] Session check error:`, error);
         return { loggedIn: false, reason: 'network_error' };
