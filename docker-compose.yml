@@ -45,6 +45,7 @@ services:
       - splunk-internal.kirbychope.xyz:127.0.0.1  
     volumes:
       - ./frontend:/app/frontend
+      - ./backend:/app/backend
       - /app/node_modules
       - ./ssl/splunk.crt:/etc/docker/certs.d/splunk-internal.kirbychope.xyz/ca.crt:ro
     logging:
