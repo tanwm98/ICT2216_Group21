@@ -527,7 +527,7 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
                 status: 'pending'
             });
 
-            return res.status(202).json({ message: 'Delete request created. Awaiting approval from 2 other admins.' });
+            return res.status(202).json({ message: 'Delete request created. Awaiting approval from another admin.' });
         }
 
         const approved_by = pendingAction.approved_by || [];
@@ -561,8 +561,8 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
         // Approve logic
         const updatedApprovals = [...approved_by, adminId];
 
-        if (updatedApprovals.length >= 2) {
-            console.log(`[DELETE USER] 2 approvals reached. Deleting user ${id}`);
+        if (updatedApprovals.length >= 1) {
+            console.log(`[DELETE USER] Approved. Deleting user ${id}`);
 
             // Delete related records first
             await trx('pending_actions').where('requested_by', id).del();
@@ -739,7 +739,7 @@ router.get('/users/:id', async (req, res) => {
 });
 
 // POST /users/:id/reset-password
-router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/users/:id/reset-password', authenticateToken, requireAdmin, requireRecentReauth, async (req, res) => {
     const { id } = req.params;
     const requestedBy = req.user.userId;
 
@@ -747,7 +747,7 @@ router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async 
         console.log('[RESET PASSWORD] Requested by:', requestedBy, 'Target ID:', id);
 
         const user = await db('users')
-            .select('role')
+            .select('role', 'email', 'firstname', 'name')
             .where('user_id', id)
             .first();
 
@@ -755,119 +755,54 @@ router.post('/users/:id/reset-password', authenticateToken, requireAdmin, async 
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const targetRole = user.role;
-        console.log('[RESET PASSWORD] Target role:', targetRole);
+        // ✅ SIMPLIFIED: Any admin can reset any user's password (with recent reauth)
+        console.log('[RESET PASSWORD] Resetting password for user:', id, 'Role:', user.role);
 
-        // For admin/owner: requires multi-admin approval
-        if (['admin', 'owner'].includes(targetRole)) {
-            const pendingAction = await db('pending_actions')
-                .where({
-                    action_type: 'reset_password',
-                    target_id: id,
-                    target_type: 'user',
-                    status: 'pending'
-                })
-                .first();
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetExpires = new Date(Date.now() + 3600_000); // 1 hour
 
-            // Existing request
-            if (pendingAction) {
-                if (pendingAction.requested_by === requestedBy) {
-                    return res.status(403).json({ error: 'You cannot approve or reject your own password reset request.' });
-                }
-
-                const approved_by = pendingAction.approved_by || [];
-                const rejected_by = pendingAction.rejected_by || [];
-
-                if (req.query.decision === 'reject') {
-                    await db('pending_actions')
-                        .where('action_id', pendingAction.action_id)
-                        .update({
-                            rejected_by: db.raw('array_append(rejected_by, ?)', [requestedBy]),
-                            status: 'rejected'
-                        });
-
-                    return res.status(200).json({ message: 'Password reset request rejected.' });
-                }
-
-                if (rejected_by.includes(requestedBy)) {
-                    return res.status(400).json({ error: 'You already rejected this request.' });
-                }
-
-                if (approved_by.includes(requestedBy)) {
-                    return res.status(400).json({ error: 'You already approved this request.' });
-                }
-
-                // If someone has already rejected
-                if (rejected_by.length > 0) {
-                    await db('pending_actions')
-                        .where('action_id', pendingAction.action_id)
-                        .update({
-                            rejected_by: db.raw('ARRAY_APPEND(rejected_by, ?)', [requestedBy]),
-                            status: 'rejected'
-                        });
-
-                    return res.status(400).json({ message: 'Action has been rejected by another admin.' });
-                }
-
-                const updatedApprovals = [...approved_by, requestedBy];
-                if (updatedApprovals.length >= 1) {
-                    const resetToken = crypto.randomBytes(32).toString('hex');
-                    const resetExpires = new Date(Date.now() + 3600_000); // 1 hour
-
-                    await db('users')
-                        .where('user_id', id)
-                        .update({
-                            reset_token: resetToken,
-                            reset_token_expires: resetExpires,
-                            refresh_token_version: db.raw('refresh_token_version + 1')
-                        });
-
-
-                    await db('pending_actions')
-                        .where('action_id', pendingAction.action_id)
-                        .update({
-                            approved_by: updatedApprovals,
-                            status: 'approved'
-                        });
-
-                    return res.json({ message: 'Password reset to default after approvals.' });
-                }
-
-                // Record partial approval
-                await db('pending_actions')
-                    .where('action_id', pendingAction.action_id)
-                    .update({
-                        approved_by: updatedApprovals
-                    });
-
-                return res.status(200).json({ message: 'Approval recorded. Awaiting another admin.' });
-            }
-
-            // No existing request → create new one
-            await db('pending_actions').insert({
-                action_type: 'reset_password',
-                target_id: id,
-                target_type: 'user',
-                requested_by: requestedBy,
-                approved_by: db.raw('ARRAY[]::INTEGER[]'),
-                rejected_by: db.raw('ARRAY[]::INTEGER[]'),
-                status: 'pending'
-            });
-
-            console.log('[RESET PASSWORD] Pending action created for user:', id);
-            return res.status(202).json({ message: 'Password reset request created. Awaiting 2 admin approvals.' });
-        }
-
-        // For normal users: reset immediately
-        const hashedPassword = await argon2.hash('Pass123');
+        // Update user with reset token and force logout
         await db('users')
             .where('user_id', id)
             .update({
-                password: hashedPassword,
-                token_version: db.raw('token_version + 1')
+                reset_token: resetToken,
+                reset_token_expires: resetExpires,
+                token_version: db.raw('token_version + 1') // Force logout
             });
 
-        return res.json({ message: 'Password reset to default.' });
+        // Send reset email
+        const resetLink = `https://kirbychope.xyz/reset-password?token=${resetToken}`;
+
+        await transporter.sendMail({
+            from: `"Kirby Chope Admin" <${process.env.EMAIL_USER}>`,
+            to: user.email,
+            subject: 'Password Reset - Initiated by Administrator',
+            html: `
+                <h2>Password Reset Request</h2>
+                <p>Hello ${user.firstname || user.name},</p>
+                <p>An administrator has initiated a password reset for your Kirby Chope account.</p>
+                <p>Click the link below to set a new password:</p>
+                <a href="${resetLink}" style="background-color: #fc6c3f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+                <p><strong>This link will expire in 1 hour.</strong></p>
+                <p>If you did not expect this, please contact support immediately.</p>
+                <hr>
+                <p>Best regards,<br>The Kirby Chope Team</p>
+            `
+        });
+
+        // Log the action
+        logBusiness('admin_password_reset_initiated', 'user', {
+            target_user_id: id,
+            target_user_email: user.email,
+            target_user_role: user.role,
+            admin_id: requestedBy,
+            admin_name: req.user.name
+        }, req);
+
+        res.json({
+            message: `Password reset email sent to ${user.email}. User has been logged out.`
+        });
 
     } catch (err) {
         console.error('Error resetting password:', err);
@@ -1410,30 +1345,86 @@ router.get('/pending-actions', async (req, res) => {
     }
 });
 
-router.post('/reauthenticate', authenticateToken, async (req, res) => {
+// FIXED reauthenticate endpoint - Replace in adminDashboardApi.js (near the end of file)
+
+router.post('/reauthenticate', authenticateToken, requireAdmin, async (req, res) => {
     const { password } = req.body;
     const userId = req.user.userId;
 
     try {
+        // Validate input
+        if (!password || typeof password !== 'string') {
+            return res.status(400).json({ error: 'Password is required' });
+        }
+
         const user = await db('users')
-            .select('password')
+            .select('password', 'role')
             .where('user_id', userId)
+            .andWhere('role', 'admin') // Ensure user is still admin
             .first();
 
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'Admin user not found' });
         }
 
         const isMatch = await argon2.verify(user.password, password);
         if (!isMatch) {
+            // Log failed reauth attempt
+            logSecurity('admin_reauth_failed', 'medium', {
+                admin_id: userId,
+                ip: req.ip,
+                user_agent: req.get('User-Agent')
+            }, req);
+
             return res.status(401).json({ error: 'Incorrect password' });
         }
 
-        req.session.lastVerified = Date.now();
-        res.json({ message: 'Reauthenticated successfully' });
+        if (global.redisHelpers && global.redisHelpers.isAvailable()) {
+            const reauthKey = `admin_reauth:${userId}`;
+            const reauthTime = Date.now();
+
+            // Store reauth timestamp for 15 minutes
+            await global.redisHelpers.setJSON(reauthKey, {
+                timestamp: reauthTime,
+                admin_id: userId
+            }, 15 * 60); // 15 minutes TTL
+        } else {
+            // Fallback: Store in memory (less secure but works without Redis)
+            if (!global.adminReauthTimestamps) {
+                global.adminReauthTimestamps = new Map();
+            }
+            global.adminReauthTimestamps.set(userId, Date.now());
+
+            // Clean up old entries after 15 minutes
+            setTimeout(() => {
+                if (global.adminReauthTimestamps) {
+                    global.adminReauthTimestamps.delete(userId);
+                }
+            }, 15 * 60 * 1000);
+        }
+
+        // Log successful reauth
+        logAuth('admin_reauthenticated', true, {
+            admin_id: userId,
+            ip: req.ip
+        }, req);
+
+        res.json({
+            message: 'Reauthenticated successfully',
+            timestamp: Date.now()
+        });
+
     } catch (err) {
         console.error('Reauth error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+
+        // Log the error
+        logSystem('error', 'Admin reauthentication failed', {
+            admin_id: userId,
+            error: err.message,
+            stack: err.stack
+        });
+
+        res.status(500).json({ error: 'Internal server error during reauthentication' });
     }
 });
 

@@ -42,9 +42,6 @@ exports.registerValidator = [
     .isLength({ min: 2, max: 100 })
     .withMessage('Last name must be alphabetic'),
 
-//  body('role')
-//    .isIn(['user', 'owner'])
-//    .withMessage('Invalid role'),
 ];
 
 exports.ownerValidator = [

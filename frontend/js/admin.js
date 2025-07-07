@@ -804,7 +804,7 @@ async function deleteRestaurant(id) {
     }
 
     try {
-        const response = await fetch(`/api/admin/restaurants/${id}`, {
+        const response = await window.csrfFetch(`/api/admin/restaurants/${id}`, {
             method: 'DELETE'
         });
 
@@ -827,7 +827,7 @@ async function deleteUser(id) {
     }
 
     try {
-        const response = await fetch(`/api/admin/users/${id}`, {
+        const response = await window.csrfFetch(`/api/admin/users/${id}`, {
             method: 'DELETE'
         });
 
@@ -851,7 +851,7 @@ async function resetUserPassword(id) {
 
     try {
         // Step 1: Trigger the reset-password logic
-        const res = await fetch(`/api/admin/users/${id}/reset-password`, {
+        const res = await window.csrfFetch(`/api/admin/users/${id}/reset-password`, {
             method: 'POST'
         });
 
@@ -866,7 +866,7 @@ async function resetUserPassword(id) {
         // Step 2: If password has been reset (i.e. multi-admin approval met)
         if (data.message?.includes('reset to default')) {
             // Now send the email
-            const emailRes = await fetch(`/api/admin/users/${id}/send-reset-email`, {
+            const emailRes = await window.csrfFetch()(`/api/admin/users/${id}/send-reset-email`, {
                 method: 'POST'
             });
 
@@ -903,7 +903,7 @@ async function cancelReservation(id) {
 
         console.log('Cancelling reservation with ID:', reservationId); // Debug log
 
-        const response = await fetch(`/api/admin/reservations/${reservationId}/cancel`, {
+        const response = await window.csrfFetch(`/api/admin/reservations/${reservationId}/cancel`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1038,7 +1038,7 @@ async function approveAction(action) {
 
     if (!endpoint) throw new Error('Unsupported action type');
 
-    const res = await fetch(endpoint, {
+    const res = await window.csrfFetch(endpoint, {
       method: action.action_type === 'reset_password' ? 'POST' : 'DELETE'
     });
 
@@ -1067,7 +1067,7 @@ async function rejectAction(action) {
 
     if (!endpoint) throw new Error('Unsupported action type');
 
-    const res = await fetch(endpoint, {
+    const res = await window.csrfFetch(endpoint, {
       method: action.action_type === 'reset_password' ? 'POST' : 'DELETE'
     });
 
@@ -1164,33 +1164,66 @@ function setupEventListeners() {
 }
 
 async function callSensitiveJson(url, method = 'POST', body = null, isFormData = false) {
-  let headers = isFormData ? undefined : { 'Content-Type': 'application/json' };
+    let headers = {};
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
 
-  let response = await fetch(url, {
-    method,
-    headers,
-    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
-  });
-
-  if (response.status === 401) {
-    return new Promise((resolve, reject) => {
-      showReauthModal(async () => {
-        try {
-          // Retry original request after successful modal reauth
-          const retryResponse = await fetch(url, {
-            method,
-            headers,
-            body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
-          });
-          resolve(retryResponse);
-        } catch (err) {
-          reject(err);
+    // Add CSRF token for non-GET requests
+    if (method.toUpperCase() !== 'GET') {
+        const csrfToken = window.CSRFUtils?.getCSRFToken();
+        if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
         }
-      });
-    });
-  }
+    }
+    const fetchOptions = {
+        method,
+        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+        credentials: 'same-origin'
+    };
 
-  return response;
+    if (Object.keys(headers).length > 0) {
+        fetchOptions.headers = headers;
+    }
+
+    let response = await fetch(url, fetchOptions);
+    if (response.status === 401) {
+        return new Promise((resolve, reject) => {
+            showReauthModal(async () => {
+                try {
+                    // Retry with fresh CSRF token
+                    const retryHeaders = {};
+
+                    if (!isFormData) {
+                        retryHeaders['Content-Type'] = 'application/json';
+                    }
+
+                    if (method.toUpperCase() !== 'GET') {
+                        const freshCsrfToken = window.CSRFUtils?.getCSRFToken();
+                        if (freshCsrfToken) {
+                            retryHeaders['X-CSRF-Token'] = freshCsrfToken;
+                        }
+                    }
+
+                    const retryOptions = {
+                        method,
+                        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+                        credentials: 'same-origin'
+                    };
+
+                    if (Object.keys(retryHeaders).length > 0) {
+                        retryOptions.headers = retryHeaders;
+                    }
+
+                    const retryResponse = await fetch(url, retryOptions);
+                    resolve(retryResponse);
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        });
+    }
+    return response;
 }
 
 let reauthCallback = null;
@@ -1212,7 +1245,7 @@ document.getElementById('reauthForm').addEventListener('submit', async (e) => {
   const password = document.getElementById('reauthPassword').value;
 
   try {
-    const res = await fetch('/api/admin/reauthenticate', {
+    const res = await window.csrfFetch('/api/admin/reauthenticate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
@@ -1236,7 +1269,7 @@ async function terminateSession(userId) {
   if (!confirm("Force logout this user? This will invalidate their session immediately.")) return;
 
   try {
-    const res = await fetch(`/api/admin/users/${userId}/force-logout`, {
+    const res = await window.csrfFetch(`/api/admin/users/${userId}/force-logout`, {
       method: 'POST'
     });
 

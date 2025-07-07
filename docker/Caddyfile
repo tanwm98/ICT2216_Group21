@@ -17,7 +17,7 @@ localhost {
 		rate_limit {
 			zone api_zone {
 				key {http.request.remote_ip}
-				events 120
+				events 240
 				window 1m
 			}
 		}

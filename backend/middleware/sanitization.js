@@ -175,7 +175,7 @@ function sanitizeForEmail(text) {
 /**
  * Rate limiting middleware for sensitive operations
  */
-function createRateLimiter(maxAttempts = 200, timeWindow = 60000) { // 10 attempts per minute
+function createRateLimiter(maxAttempts = 300, timeWindow = 60000) { // 10 attempts per minute
     const attempts = new Map();
 
     return (req, res, next) => {
