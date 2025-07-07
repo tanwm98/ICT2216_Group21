@@ -99,7 +99,7 @@ const {
 } = require('../middleware/htmlDecoder');
 
 // Route to display data
-router.get('/display_specific_store', authenticateToken, async (req, res) => {
+router.get('/display_specific_store', async (req, res) => {
     try {
         const {
             name,
@@ -124,6 +124,24 @@ router.get('/display_specific_store', authenticateToken, async (req, res) => {
         let result;
 
         if (reservationid) {
+            // RESERVATION-SPECIFIC VIEW: Requires authentication
+            const accessToken = req.cookies.access_token;
+            if (!accessToken) {
+                return res.status(401).json({
+                    error: 'Authentication required to view reservation details'
+                });
+            }
+
+            // Validate access token
+            const { validateAccessToken } = require('../../frontend/js/token');
+            const validation = await validateAccessToken(accessToken);
+
+            if (!validation.valid) {
+                return res.status(401).json({
+                    error: 'Invalid or expired token'
+                });
+            }
+
             const reservationIdNum = parseInt(reservationid);
             if (isNaN(reservationIdNum)) {
                 return res.status(400).json({
@@ -131,8 +149,7 @@ router.get('/display_specific_store', authenticateToken, async (req, res) => {
                 });
             }
 
-            // FIXED: Now req.user is available because of authenticateToken middleware
-            const loggedInUserId = req.user.userId;
+            const loggedInUserId = validation.payload.userId;
 
             result = await db('stores as s')
                 .innerJoin('reservations as r', 'r.store_id', 's.store_id')
@@ -176,7 +193,7 @@ router.get('/display_specific_store', authenticateToken, async (req, res) => {
                 }, req);
             }
         } else {
-            // Public store information (no reservation ID needed - but still need auth for consistency)
+            // PUBLIC STORE INFORMATION: No authentication required
             result = await db('stores')
                 .select([
                     'store_id',
@@ -229,13 +246,6 @@ router.get('/display_specific_store', authenticateToken, async (req, res) => {
             imageUrl: validateAndGenerateImageUrl(store.image_filename),
             altText: sanitizeAltText(store.image_alt_text, store.storeName)
         }));
-
-        // SECURITY: Add security headers
-        res.set({
-            'X-Content-Type-Options': 'nosniff',
-            'Cache-Control': 'public, max-age=300'
-        });
-
         res.json(transformedStores);
 
     } catch (err) {
@@ -246,7 +256,6 @@ router.get('/display_specific_store', authenticateToken, async (req, res) => {
         logger.logSystem('error', 'Failed to fetch store data', {
             error: err.message,
             stack: err.stack,
-            user_id: req.user?.userId,
             query_params: req.query
         });
 
@@ -255,7 +264,6 @@ router.get('/display_specific_store', authenticateToken, async (req, res) => {
         });
     }
 });
-
 
 // Route to get reviews for the selected shop
 router.get('/display_reviews', async (req, res) => {

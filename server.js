@@ -261,13 +261,33 @@ app.use('/', authRoutes);
 app.use(search);
 
 // Home route with token authentication
-app.get('/', authenticateToken, (req, res) => {
-    if (req.user.role === 'admin') {
-        return res.redirect('/admin');
-    } else if (req.user.role === 'owner') {
-        return res.redirect('/resOwner');
+app.get('/', (req, res) => {
+    // Check if user is authenticated (but don't require it)
+    const accessToken = req.cookies.access_token;
+
+    if (accessToken) {
+        const { validateAccessToken } = require('./frontend/js/token');
+        validateAccessToken(accessToken).then(validation => {
+            if (validation.valid) {
+                // Redirect authenticated users to their dashboard
+                if (validation.payload.role === 'admin') {
+                    return res.redirect('/admin');
+                } else if (validation.payload.role === 'owner') {
+                    return res.redirect('/resOwner');
+                } else {
+                    return res.redirect('/public/home.html');
+                }
+            } else {
+                // Invalid token, serve public home page
+                res.sendFile(path.join(__dirname, 'frontend/public/home.html'));
+            }
+        }).catch(() => {
+            // Error validating token, serve public home page
+            res.sendFile(path.join(__dirname, 'frontend/public/home.html'));
+        });
     } else {
-        return res.redirect('/public/home.html');
+        // No token, serve public home page
+        res.sendFile(path.join(__dirname, 'frontend/public/home.html'));
     }
 });
 
