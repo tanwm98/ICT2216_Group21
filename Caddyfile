@@ -277,7 +277,9 @@ kirbychope.xyz {
 	@static path /static/* /js/* /css/* /images/* /errors/*
 	handle @static {
 		root * /usr/share/caddy
-		file_server
+		file_server {
+            browse off
+        }
 	}
 
 	# Root redirect
@@ -285,7 +287,9 @@ kirbychope.xyz {
 	handle @root {
 		root * /usr/share/caddy/public
 		rewrite * /home.html
-		file_server
+		file_server {
+		    browse off
+		}
 	}
 
 	# Try HTML files from multiple locations
@@ -294,6 +298,7 @@ kirbychope.xyz {
 		root * /usr/share/caddy/public
 		try_files {path}.html {path}
 		file_server {
+			browse off
 			pass_thru
 		}
 
@@ -301,6 +306,7 @@ kirbychope.xyz {
 		root * /usr/share/caddy/html
 		try_files {path}.html {path}
 		file_server {
+			browse off
 			pass_thru
 		}
 
