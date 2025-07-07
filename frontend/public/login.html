@@ -9,6 +9,7 @@
     <link href="/static/styles/responsive/responsive.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles/style.css">
     <link href="/static/styles/login.css" rel="stylesheet">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <div id="head-placeholder"></div>
 </head>
 
@@ -26,6 +27,15 @@
                     <div class="form-group">
                         <label for="password">Password</label>
                         <input type="password" class="form-control" id="password" name="password">
+                    </div>
+                    <div class="form-group" id="captcha-container" style="display: none;">
+                        <div class="g-recaptcha"
+                             data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
+                             data-theme="light">
+                        </div>
+                        <div id="captcha-message" style="display : none;">
+                            Please complete the CAPTCHA to proceed.
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary" id="loginBtn">Log In</button>
                 </form>

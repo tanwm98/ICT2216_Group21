@@ -17,6 +17,9 @@ const { sanitizeInput, sanitizeForEmail } = require('../middleware/sanitization'
 const { loginValidator, registerValidator } = require('../middleware/validators');
 const handleValidation = require('../middleware/handleValidation');
 const { isBreachedPassword } = require('../middleware/breachCheck');
+const { recordFailure,  resetFailures, shouldShowCaptcha } = require('../middleware/captchaTracker');
+const { verifyCaptcha } = require('../middleware/captchaVerification');
+
 const {
     generateTokenPair,
     logoutUser,
@@ -24,8 +27,7 @@ const {
     TOKEN_CONFIG,
     blacklistToken
 } = require('../../frontend/js/token');
-
-//const AppError = require('../AppError'); 
+//const AppError = require('../AppError');
 
 
 const MFA_TOKEN_CONFIG = {
@@ -208,12 +210,47 @@ function sanitizeAndValidate(input, fieldName, required = true) {
     return input;
 }
 
+// ReCaptcha functionality, check if 3 attempts within 15 minutes
+// add captcha field to error status (true,false,failed)
+// async function LoginCheckReCaptcha(req, res, captcha_identifier) {
+//     if (shouldShowCaptcha(captcha_identifier)) {
+//         if (!req.body['g-recaptcha-response']) {
+//             return res.redirect('/login?error=1&captcha=true');
+//         }
+//
+//         // google verify captcha service
+//         const verified = await verifyCaptcha(req.body['g-recaptcha-response'], req.ip);
+//         if (!verified) {
+//             return res.status(403).json({error: 'Captcha verification failed'});
+//         }
+//     }
+// }
+
+
+
+// Verifies Captcha sent by user (else redirect back)
+// Captcha status : (true,false,failed) -> frontend handles recaptcha based on given status
+async function verifyCaptchaIfAny(req, res, captcha_identifier) {
+    if (shouldShowCaptcha(captcha_identifier) && req.body['g-recaptcha-response']) {
+        // return true if verified, false if not
+        return await verifyCaptcha(req.body['g-recaptcha-response'], req.ip);
+    } 
+    // return empty true to not trigger res.redirect captcha=failed
+    return true;
+}
+
 // POST /login
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
+        const captcha_identifier = req.body.email || req.ip;
+        if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
+            return res.redirect('/login?error=1&captcha=failed');
+        }
 
+        // Failed Scenario : Missing Credentials
         if (!email || !password) {
+            recordFailure(captcha_identifier);
             throw new AppError('Email and password are required', 400);
         }
 
@@ -221,12 +258,18 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
             .where('email', email.toLowerCase().trim())
             .first();
 
+        // Failed Scenario : User not found
         if (!user) {
             logAuth('login', false, {
                 email: email,
                 reason: 'user_not_found'
             }, req);
-            return res.redirect('/login?error=1');
+            recordFailure(captcha_identifier);
+            if (shouldShowCaptcha(captcha_identifier)){
+                return res.redirect('/login?error=1&captcha=true'); // Notify frontend to initiate ReCaptcha
+            } else {
+                return res.redirect('/login?error=1');
+            }
         }
 
         const isMatch = await argon2.verify(user.password, password);
@@ -266,6 +309,9 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 maxAge: MFA_TOKEN_CONFIG.maxAgeMs
             });
 
+            // Clear Captcha Attempt Tracking
+            resetFailures(captcha_identifier);
+
             logAuth('login_pending_mfa', true, {
                 user_id: user.user_id,
                 email: email,
@@ -275,13 +321,18 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
 
             return res.redirect('/mfa-verify');
         } else {
+            // Failed Scenario : Password Invalid
             logAuth('login', false, {
                 email: email,
                 user_id: user.user_id,
                 reason: 'invalid_password'
             }, req);
-
-            return res.redirect('/login?error=1');
+            recordFailure(captcha_identifier);
+            if (shouldShowCaptcha(captcha_identifier)){
+                return res.redirect('/login?error=1&captcha=true'); // Notify frontend to initiate ReCaptcha
+            } else {
+                return res.redirect('/login?error=1');
+            }
         }
     } catch (error) {
         next(error);

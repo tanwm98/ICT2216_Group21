@@ -98,3 +98,13 @@ a.link {
     }
 }
 
+.g-recaptcha{
+    padding-top: 3px;
+}
+
+#captcha-message{
+    padding-top: 2px;
+    color: darkorange;
+    font-size: 0.9em;
+    margin-top: 6px;
+}
