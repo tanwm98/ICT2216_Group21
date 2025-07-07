@@ -29,8 +29,15 @@ RUN mkdir -p /etc/caddy /usr/share/caddy /data /config /var/log/caddy /var/log/w
 
 # Copy configuration files with proper ownership
 COPY --chown=caddy-user:caddy-user Caddyfile /etc/caddy/Caddyfile
+RUN chmod 444 /etc/caddy/Caddyfile
 COPY --chown=caddy-user:caddy-user frontend/ /usr/share/caddy/
+COPY --chown=caddy-user:caddy-user frontend/ /usr/share/caddy/
+RUN find /usr/share/caddy -type f -exec chmod 444 {} \; && \
+    find /usr/share/caddy -type d -exec chmod 555 {} \; && \
+    chmod 755 /usr/share/caddy/static/img/restaurants
 COPY --chown=caddy-user:caddy-user frontend/errors /usr/share/caddy/errors
+RUN chmod -R 444 /usr/share/caddy/errors
+
 
 # Set proper file permissions
 RUN chmod 644 /etc/caddy/Caddyfile && \

@@ -34,12 +34,17 @@ RUN mkdir -p /app/logs /app/tmp && \
 
 # Copy dependencies from previous stage
 COPY --from=dependencies --chown=nodejs:nodejs /app/node_modules ./node_modules
+RUN chmod -R 555 node_modules
 
 # Copy application files with proper ownership
 COPY --chown=nodejs:nodejs backend/ ./backend/
+RUN chmod -R 444 ./backend/
 COPY --chown=nodejs:nodejs db.js server.js knexfile.js package*.json ./
+RUN chmod 444 db.js server.js knexfile.js package*.json
 COPY --chown=nodejs:nodejs frontend/ ./frontend/
-
+RUN find ./frontend -type f -exec chmod 444 {} \; && \
+    find ./frontend -type d -exec chmod 555 {} \; && \
+    chmod 755 ./frontend/static/img/restaurants
 # Switch to non-root user
 USER nodejs
 
