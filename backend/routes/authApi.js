@@ -177,8 +177,12 @@ class AppError extends Error {
     }
 }
 
-function validatePassword(password) {
+function validatePassword(password, captcha_identifier) {
     if (!password || typeof password !== 'string') {
+        if (captcha_identifier){
+            recordFailure(captcha_identifier);
+            throw new AppError('Password is required and must be a string. .Captcha', 400);
+        }
         throw new AppError('Password is required and must be a string', 400);
     }
 
@@ -198,43 +202,36 @@ function validatePassword(password) {
 }
 
 // Input sanitization with validation
-function sanitizeAndValidate(input, fieldName, required = true) {
+function sanitizeAndValidate(input, fieldName, route, required = true, captcha_identifier) {
     if (required && (!input || typeof input !== 'string' || input.trim().length === 0)) {
+        if (route === 'register' || route === 'signup-owner'){
+            if (captcha_identifier){
+                recordFailure(captcha_identifier);
+                throw new AppError(`${fieldName} is required and cannot be empty. .Captcha`, 400);
+            }
+        }
         throw new AppError(`${fieldName} is required and cannot be empty`, 400);
     }
 
     if (input && typeof input === 'string') {
         return input.trim();
     }
-
     return input;
 }
 
-// ReCaptcha functionality, check if 3 attempts within 15 minutes
-// add captcha field to error status (true,false,failed)
-// async function LoginCheckReCaptcha(req, res, captcha_identifier) {
-//     if (shouldShowCaptcha(captcha_identifier)) {
-//         if (!req.body['g-recaptcha-response']) {
-//             return res.redirect('/login?error=1&captcha=true');
-//         }
-//
-//         // google verify captcha service
-//         const verified = await verifyCaptcha(req.body['g-recaptcha-response'], req.ip);
-//         if (!verified) {
-//             return res.status(403).json({error: 'Captcha verification failed'});
-//         }
-//     }
-// }
 
 
 
 // Verifies Captcha sent by user (else redirect back)
 // Captcha status : (true,false,failed) -> frontend handles recaptcha based on given status
 async function verifyCaptchaIfAny(req, res, captcha_identifier) {
-    if (shouldShowCaptcha(captcha_identifier) && req.body['g-recaptcha-response']) {
-        // return true if verified, false if not
-        return await verifyCaptcha(req.body['g-recaptcha-response'], req.ip);
-    } 
+    if (shouldShowCaptcha(captcha_identifier)) {
+        if (req.body['g-recaptcha-response']){
+            return await verifyCaptcha(req.body['g-recaptcha-response'], req.ip);
+        } else if (req.body['g-recaptcha-response']==='') {
+            return false; //user bypassed the recaptcha, redirect back as captcha failed
+        }
+    }
     // return empty true to not trigger res.redirect captcha=failed
     return true;
 }
@@ -475,15 +472,24 @@ router.post('/verify-mfa', async (req, res, next) => {
 // POST /register for user
 router.post('/register', registerValidator, handleValidation, async (req, res, next) => {
     try {
+
+        // Captcha for registration
+        const captcha_identifier = req.body.email || req.ip;
+        if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
+            throw new AppError('Invalid Captcha Token, Try Again.', 400);
+        }
+
         let { name, email, password, firstname, lastname } = req.body;
 
         // Sanitize and validate inputs with fail-fast
-        name = sanitizeAndValidate(name, 'Username');
-        email = sanitizeAndValidate(email, 'Email').toLowerCase();
-        firstname = sanitizeAndValidate(firstname, 'First name');
-        lastname = sanitizeAndValidate(lastname, 'Last name');
+        // Possible failure scenario  : Missing value
+        name = sanitizeAndValidate(name, 'Username', 'register');
+        email = sanitizeAndValidate(email, 'Email', 'register').toLowerCase();
+        firstname = sanitizeAndValidate(firstname, 'First name', 'register');
+        lastname = sanitizeAndValidate(lastname, 'Last name', 'register');
 
-        validatePassword(password);
+        // Possible Failure Scenario : Password invalid
+        validatePassword(password, captcha_identifier);
 
         // check password not in breach
         if (await isBreachedPassword(password)) {
@@ -499,12 +505,19 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
             .where('email', email)
             .first();
 
+
+        // Failure Scenario  : Email Exists
         if (existingUser) {
             logAuth('registration', false, {
                 email: email,
                 reason: 'email_already_exists'
             }, req);
-            throw new AppError('Email already registered', 400);
+            recordFailure(captcha_identifier);
+            if (shouldShowCaptcha(captcha_identifier)) {
+                throw new AppError('Email already registered. .Captcha', 400);
+            } else {
+                throw new AppError('Email already registered', 400);
+            }
         }
 
         const hashedPassword = await argon2.hash(password, {
@@ -540,7 +553,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
             user_id: newUser.user_id,
             user_type: 'customer'
         }, req);
-
+        resetFailures(captcha_identifier); // success registration, remove captcha attempt tracking
         res.redirect('/login?success=1');
     } catch (error) {
         next(error);
@@ -549,6 +562,12 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
 
 router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
+        // Captcha for owner restaurant registration
+        const captcha_identifier = req.body.email || req.ip;
+        if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
+            throw new AppError('Invalid Captcha Token, Try Again.', 400);
+        }
+
         let {
             ownerName,
             firstname,
@@ -571,16 +590,16 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         const imageFile = req.file;
 
         // Sanitize and validate inputs with fail-fast principle
-        ownerName = sanitizeAndValidate(ownerName, 'Owner Username');
-        firstname = sanitizeAndValidate(firstname, 'First name');
-        lastname = sanitizeAndValidate(lastname, 'Last name');
-        email = sanitizeAndValidate(email, 'Email').toLowerCase();
-        storeName = sanitizeAndValidate(storeName, 'Store name');
-        address = sanitizeAndValidate(address, 'Address');
-        postalCode = sanitizeAndValidate(postalCode, 'Postal code');
-        cuisine = sanitizeAndValidate(cuisine, 'Cuisine');
-        location = sanitizeAndValidate(location, 'Location');
-        priceRange = sanitizeAndValidate(priceRange, 'Price range');
+        ownerName = sanitizeAndValidate(ownerName, 'Owner Username', 'signup-owner');
+        firstname = sanitizeAndValidate(firstname, 'First name','signup-owner');
+        lastname = sanitizeAndValidate(lastname, 'Last name','signup-owner');
+        email = sanitizeAndValidate(email, 'Email','signup-owner').toLowerCase();
+        storeName = sanitizeAndValidate(storeName, 'Store name','signup-owner');
+        address = sanitizeAndValidate(address, 'Address','signup-owner');
+        postalCode = sanitizeAndValidate(postalCode, 'Postal code','signup-owner');
+        cuisine = sanitizeAndValidate(cuisine, 'Cuisine','signup-owner');
+        location = sanitizeAndValidate(location, 'Location','signup-owner');
+        priceRange = sanitizeAndValidate(priceRange, 'Price range','signup-owner');
 
         // Password validation
         if (password !== confirmPassword) {
@@ -588,11 +607,17 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 email: email,
                 reason: 'password_mismatch'
             }, req);
-            throw new AppError('Passwords do not match', 400);
+            recordFailure(captcha_identifier);
+            if (shouldShowCaptcha(captcha_identifier)) {
+                throw new AppError('Passwords do not match. .Captcha', 400);
+            } else {
+                throw new AppError('Passwords do not match', 400);
+
+            }
         }
 
         // Validate password strength (throws if invalid)
-        validatePassword(password);
+        validatePassword(password, captcha_identifier);
 
         // check password not in breach
         if (await isBreachedPassword(password)) {
@@ -614,27 +639,47 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 email: email,
                 reason: 'email_already_exists'
             }, req);
-            throw new AppError('Email already registered', 400);
+            if (shouldShowCaptcha(captcha_identifier)) {
+                throw new AppError('Email already registered .Captcha', 400);
+            } else {
+                throw new AppError('Email already registered', 400);
+            }
         }
         // Validate numeric inputs
         const capacityNum = parseInt(capacity);
         const totalCapacityNum = parseInt(totalCapacity);
 
         if (isNaN(capacityNum) || isNaN(totalCapacityNum)) {
-            throw new AppError('Capacity values must be valid numbers', 400);
+            if (shouldShowCaptcha(capacityNum)) {
+                throw new AppError('Capacity values must be valid numbers .Captcha', 400);
+            } else {
+                throw new AppError('Capacity values must be valid numbers', 400);
+            }
         }
 
         if (capacityNum > totalCapacityNum) {
-            throw new AppError('Seating capacity cannot exceed total capacity', 400);
+            if (shouldShowCaptcha(capacityNum)) {
+                throw new AppError('Seating capacity cannot exceed total capacity .Captcha', 400);
+            } else {
+                throw new AppError('Seating capacity cannot exceed total capacity', 400);
+            }
         }
 
         if (capacityNum < 1 || totalCapacityNum < 1) {
-            throw new AppError('Capacity values must be positive numbers', 400);
+            if (shouldShowCaptcha(capacityNum)) {
+                throw new AppError('Capacity values must be positive numbers .Captcha', 400);
+            } else {
+                throw new AppError('Capacity values must be positive numbers', 400);
+            }
         }
 
         // Validate time inputs
         if (!opening || !closing) {
-            throw new AppError('Opening and closing hours are required', 400);
+            if (shouldShowCaptcha(capacityNum)) {
+                throw new AppError('Opening and closing hours are required .Captcha', 400);
+            } else {
+                throw new AppError('Opening and closing hours are required', 400);
+            }
         }
 
         // Log the application attempt
@@ -810,7 +855,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             email: email,
             store_name: storeName
         });
-
+        resetFailures(captcha_identifier) //Success scenario, clear captcha tracker
         res.redirect('/rOwnerReg?success=1');
 
     }
@@ -947,7 +992,7 @@ router.use((err, req, res, next) => {
 router.post('/request-reset', async (req, res) => {
     try {
         // ✅ XSS Protection: Sanitize email input
-        const email = sanitizeAndValidate(req.body.email, 'Email');
+        const email = sanitizeAndValidate(req.body.email, 'Email','request-reset');
 
         if (!email) {
             return res.status(400).json({ message: 'Email is required' });
