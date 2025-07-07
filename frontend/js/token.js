@@ -6,14 +6,14 @@ const { logAuth, logSecurity, logSystem } = require('../../backend/logger');
 // Token configuration
 const TOKEN_CONFIG = {
     access: {
-        expiresIn: '5m',        // 5 minutes (longer than inactivity)
+        expiresIn: '5m',
         maxAgeMs: 5 * 60 * 1000
     },
     refresh: {
-        expiresIn: '1h',        // 1 hour
-        maxAgeMs: 60 * 60 * 1000 // Fixed: should match expiresIn
+        expiresIn: '1h',
+        maxAgeMs: 60 * 60 * 1000
     },
-    inactivityTimeout: 15 * 60 * 1000  // 2 minutes
+    inactivityTimeout: 15 * 60 * 1000
 };
 
 // Redis key patterns

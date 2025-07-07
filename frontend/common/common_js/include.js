@@ -79,7 +79,6 @@ async function checkSession(forceAuth = false, source = 'unknown') {
 
             if (refreshResponse.ok) {
                 const refreshData = await refreshResponse.json();
-                console.log(`✅ [${source}] Token refresh successful:`, refreshData);
 
                 // Re-check session after successful refresh
                 const recheckResponse = await fetch('/api/session', {
@@ -98,7 +97,6 @@ async function checkSession(forceAuth = false, source = 'unknown') {
             }
         }
 
-        // Handle authentication based on page type
         if (!data.loggedIn) {
             if (forceAuth || isProtectedPage()) {
                 console.log(`🚪 [${source}] Protected page requires login, redirecting. Reason:`, data.reason);
@@ -111,12 +109,7 @@ async function checkSession(forceAuth = false, source = 'unknown') {
                 setTimeout(() => {
                     window.location.href = '/login?reason=' + (data.reason || 'auth_required') + '&redirect=' + encodeURIComponent(window.location.pathname);
                 }, 1000);
-            } else {
-                console.log(`📖 [${source}] Public page - allowing access without authentication`);
             }
-        } else {
-            console.log(`✅ [${source}] Session valid for user:`, data.userId, 'Role:', data.role);
-        }
 
         return data;
 
@@ -134,12 +127,9 @@ function startSessionMonitoring() {
     }
 
     sessionCheckInterval = setInterval(() => {
-        console.log('⏰ 50-second interval triggered');
         const shouldForceAuth = isProtectedPage();
         checkSession(shouldForceAuth, 'interval');
-    }, 50000);
-
-    console.log('✅ Session monitoring started');
+    }, 400000);
 }
 
 // =============================================
@@ -254,7 +244,6 @@ window.addEventListener('DOMContentLoaded', () => {
             Promise.all(loadIncludes).then(() => {
                 console.log('✅ All includes loaded');
 
-                // 🌟 NEW: Setup navigation listeners
                 setupNavigationListeners();
 
                 // Start regular monitoring
