@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production --no-audit --no-fund && \
+RUN npm ci --only=production --no-audit --ignore-scripts --no-fund && \
     npm cache clean --force
 
 # Production stage

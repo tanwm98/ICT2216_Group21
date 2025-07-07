@@ -116,21 +116,21 @@ kirbychope.xyz {
 		`
 	}
 	header {
-	        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-	        X-Content-Type-Options "nosniff"
-	        X-Frame-Options "DENY"
-	        Cross-Origin-Embedder-Policy "require-corp"
-	        Cross-Origin-Opener-Policy "same-origin"
-	        Cross-Origin-Resource-Policy "same-origin"
-	        Referrer-Policy "strict-origin-when-cross-origin"
-    		Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
-	        Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
-	        X-Permitted-Cross-Domain-Policies "none"
-	        -Server
-	        -X-Powered-By
-	        -X-AspNet-Version
-	        -X-AspNetMvc-Version
-	        }
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+            X-Content-Type-Options "nosniff"
+            X-Frame-Options "DENY"
+            Cross-Origin-Embedder-Policy "require-corp"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Resource-Policy "same-origin"
+            Referrer-Policy "strict-origin-when-cross-origin"
+           Content-Security-Policy "default-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google.com https://www.gstatic.com; frame-src https://www.google.com https://www.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
+            Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
+            X-Permitted-Cross-Domain-Policies "none"
+            -Server
+            -X-Powered-By
+            -X-AspNet-Version
+            -X-AspNetMvc-Version
+            }
 	handle_errors {
 		@404 expression {http.error.status_code} == 404
 		@401 expression {http.error.status_code} == 401
