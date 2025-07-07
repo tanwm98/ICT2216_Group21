@@ -128,7 +128,7 @@ function startSessionMonitoring() {
     sessionCheckInterval = setInterval(() => {
         const shouldForceAuth = isProtectedPage();
         checkSession(shouldForceAuth, 'interval');
-    }, 400000);
+    }, 300000);
 }
 
 // =============================================

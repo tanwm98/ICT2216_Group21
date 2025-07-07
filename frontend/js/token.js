@@ -3,17 +3,16 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../../db');
 const { logAuth, logSecurity, logSystem } = require('../../backend/logger');
 
-// Token configuration
+// token configuration
 const TOKEN_CONFIG = {
     access: {
         expiresIn: '5m',
         maxAgeMs: 5 * 60 * 1000
     },
     refresh: {
-        expiresIn: '1h',
-        maxAgeMs: 60 * 60 * 1000
-    },
-    inactivityTimeout: 15 * 60 * 1000
+        expiresIn: '30m',
+        maxAgeMs: 30 * 60 * 1000
+    }
 };
 
 // Redis key patterns
@@ -21,7 +20,6 @@ const REDIS_KEYS = {
     session: (jti) => `session:${jti}`,
     blacklist: (jti) => `blacklist:${jti}`,
     userSessions: (userId) => `user_sessions:${userId}`,
-    activity: (userId) => `activity:${userId}`,
     rateLimitRefresh: (userId) => `rate_limit:refresh:${userId}`
 };
 
@@ -40,7 +38,6 @@ async function storeRefreshSession(refreshJti, sessionData) {
 
     const sessionKey = REDIS_KEYS.session(refreshJti);
     const userSessionsKey = REDIS_KEYS.userSessions(sessionData.user_id);
-    const activityKey = REDIS_KEYS.activity(sessionData.user_id);
 
     try {
         // Store session data with TTL
@@ -48,10 +45,7 @@ async function storeRefreshSession(refreshJti, sessionData) {
 
         // Add to user's active sessions
         await global.redisClient.sAdd(userSessionsKey, refreshJti);
-        await global.redisClient.expire(userSessionsKey, 24 * 60 * 60); // 24 hours cleanup
-
-        // Update activity timestamp
-        await global.redisClient.setEx(activityKey, 30 * 60, Date.now().toString()); // 30 min TTL
+        await global.redisClient.expire(userSessionsKey, TOKEN_CONFIG.refresh.maxAgeMs / 1000);
 
         return true;
     } catch (error) {
@@ -86,7 +80,6 @@ async function removeRefreshSession(refreshJti, userId) {
         // Remove session data
         await global.redisClient.del(sessionKey);
 
-        // Remove from user's active sessions
         await global.redisClient.sRem(userSessionsKey, refreshJti);
 
         return true;
@@ -145,44 +138,6 @@ async function isTokenBlacklisted(jti) {
     }
 }
 
-async function updateUserActivity(userId) {
-    if (!await isRedisAvailable()) {
-        return false;
-    }
-
-    try {
-        const activityKey = REDIS_KEYS.activity(userId);
-        await global.redisClient.setEx(activityKey, 30 * 60, Date.now().toString());
-        return true;
-    } catch (error) {
-        console.error('❌ Error updating user activity:', error);
-        return false;
-    }
-}
-
-async function checkUserInactivity(userId) {
-    if (!await isRedisAvailable()) {
-        return false; // Assume active if Redis unavailable
-    }
-
-    try {
-        const activityKey = REDIS_KEYS.activity(userId);
-        const lastActivityStr = await global.redisClient.get(activityKey);
-
-        if (!lastActivityStr) {
-            return true; // No activity record = inactive
-        }
-
-        const lastActivity = parseInt(lastActivityStr);
-        const timeSinceActivity = Date.now() - lastActivity;
-
-        return timeSinceActivity > TOKEN_CONFIG.inactivityTimeout;
-    } catch (error) {
-        console.error('❌ Error checking user inactivity:', error);
-        return false; // Fail safe - assume active
-    }
-}
-
 // =============================================
 // Token Generation Functions
 // =============================================
@@ -229,14 +184,12 @@ async function generateTokenPair(userId, role, name, refreshTokenVersion, req) {
     const { accessToken, accessJti } = generateAccessToken(payload);
     const { refreshToken, refreshJti } = generateRefreshToken(payload);
 
-    // Store refresh session in Redis
     const sessionData = {
         user_id: userId,
         user_role: role,
         user_name: name,
         refresh_token_version: refreshTokenVersion,
         created_at: new Date().toISOString(),
-        last_activity: new Date().toISOString(),
         ip_address: req.ip,
         user_agent: req.get('User-Agent'),
         expires_at: new Date(Date.now() + TOKEN_CONFIG.refresh.maxAgeMs).toISOString()
@@ -286,23 +239,6 @@ async function validateAccessToken(accessToken) {
                 payload: null
             };
         }
-
-        // Check user inactivity
-        if (await checkUserInactivity(payload.userId)) {
-            // Blacklist the token due to inactivity
-            const expiresAt = new Date(payload.exp * 1000).toISOString();
-            await blacklistToken(payload.jti, 'access', 'inactivity_timeout', expiresAt, payload.userId);
-
-            return {
-                valid: false,
-                reason: 'inactivity_timeout',
-                payload: null
-            };
-        }
-
-        // Update user activity
-        await updateUserActivity(payload.userId);
-
         return {
             valid: true,
             payload,
@@ -329,8 +265,6 @@ async function validateAccessToken(accessToken) {
 async function validateRefreshToken(refreshToken) {
     try {
         const payload = jwt.verify(refreshToken, process.env.JWT_SECRET);
-
-        // Check if token is blacklisted
         if (await isTokenBlacklisted(payload.jti)) {
             return {
                 valid: false,
@@ -382,20 +316,6 @@ async function validateRefreshToken(refreshToken) {
             };
         }
 
-        // Check user inactivity
-        if (await checkUserInactivity(payload.userId)) {
-            // Blacklist refresh token and remove session
-            const expiresAt = new Date(payload.exp * 1000).toISOString();
-            await blacklistToken(payload.jti, 'refresh', 'inactivity_timeout', expiresAt, payload.userId);
-            await removeRefreshSession(payload.jti, payload.userId);
-
-            return {
-                valid: false,
-                reason: 'inactivity_timeout',
-                payload: null
-            };
-        }
-
         return {
             valid: true,
             payload,
@@ -422,19 +342,20 @@ async function validateRefreshToken(refreshToken) {
 }
 
 // =============================================
-// Token Refresh Function
+// Simplified Token Refresh Function
 // =============================================
 
 async function refreshAccessToken(refreshToken, req) {
     try {
         // Rate limiting for refresh attempts
         if (await isRedisAvailable()) {
-            const rateLimitKey = REDIS_KEYS.rateLimitRefresh('unknown');
+            const ip = req.ip || 'unknown';
+            const rateLimitKey = REDIS_KEYS.rateLimitRefresh(ip);
             const attempts = await global.redisClient.incr(rateLimitKey);
             if (attempts === 1) {
-                await global.redisClient.expire(rateLimitKey, 60); // 1 minute window
+                await global.redisClient.expire(rateLimitKey, 60);
             }
-            if (attempts > 10) { // Max 10 refresh attempts per minute per IP
+            if (attempts > 10) {
                 return {
                     success: false,
                     error: 'Rate limit exceeded for token refresh',
@@ -470,8 +391,7 @@ async function refreshAccessToken(refreshToken, req) {
 
         const { accessToken, accessJti } = generateAccessToken(payload);
 
-        // Update session activity
-        await updateUserActivity(validation.payload.userId);
+        // ✂️ REMOVED: Activity update
 
         // Log successful refresh
         logAuth('access_token_refreshed', true, {
@@ -498,7 +418,7 @@ async function refreshAccessToken(refreshToken, req) {
 }
 
 // =============================================
-// Authentication Middleware
+// Authentication Middleware (Unchanged)
 // =============================================
 
 async function authenticateToken(req, res, next) {
@@ -565,7 +485,7 @@ async function authenticateToken(req, res, next) {
 }
 
 // =============================================
-// Role-based Authorization Middleware
+// Role-based Authorization Middleware (Unchanged)
 // =============================================
 
 function requireRole(allowedRoles) {
@@ -603,7 +523,7 @@ const requireUser = requireRole(['user', 'owner', 'admin']);
 const requireUserOnly = requireRole('user');
 
 // =============================================
-// Session Management Functions
+// Simplified Session Management Functions
 // =============================================
 
 async function revokeAllUserSessions(userId, reason = 'admin_revocation') {
@@ -618,16 +538,10 @@ async function revokeAllUserSessions(userId, reason = 'admin_revocation') {
             const userSessionsKey = REDIS_KEYS.userSessions(userId);
             const activeSessions = await global.redisClient.sMembers(userSessionsKey);
 
-            // Remove all sessions
             for (const sessionJti of activeSessions) {
                 await removeRefreshSession(sessionJti, userId);
             }
-
-            // Clear the user sessions set
             await global.redisClient.del(userSessionsKey);
-
-            // Clear activity tracking
-            await global.redisClient.del(REDIS_KEYS.activity(userId));
         }
 
         logSecurity('all_user_sessions_revoked', 'high', {
@@ -647,7 +561,6 @@ async function logoutUser(accessToken, refreshToken, req, res) {
     try {
         const promises = [];
 
-        // Blacklist access token if present
         if (accessToken) {
             try {
                 const accessPayload = jwt.decode(accessToken);
@@ -703,7 +616,7 @@ async function logoutUser(accessToken, refreshToken, req, res) {
 }
 
 // =============================================
-// Export Functions
+// Simplified Export Functions
 // =============================================
 
 module.exports = {
@@ -730,8 +643,6 @@ module.exports = {
     // Utility functions
     blacklistToken,
     isTokenBlacklisted,
-    updateUserActivity,
-    checkUserInactivity,
 
     // Configuration
     TOKEN_CONFIG
