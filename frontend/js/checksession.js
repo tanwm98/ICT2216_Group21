@@ -1,38 +1,38 @@
 const protectedPaths = ['/admin', '/resOwner', '/profile', '/reserveform'];
-const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
 const SESSION_CHECK_INTERVAL = 30 * 1000; // Check every 30 seconds
-const WARNING_BEFORE_LOGOUT = 2 * 60 * 1000; // Warn 2 minutes before logout
 
 class SessionManager {
     constructor() {
         this.lastActivityTime = Date.now();
-        this.warningShown = false;
         this.logoutTimer = null;
-        this.warningTimer = null;
         this.isUserActive = true;
+        this.isLoggingOut = false;
+        this.hasBeenInactive = false;
 
         this.initializeActivityTracking();
         this.startSessionChecking();
     }
 
     initializeActivityTracking() {
-        // Track user interactions that indicate activity
         const activityEvents = [
             'mousedown', 'mousemove', 'keypress', 'scroll',
             'touchstart', 'click', 'keydown'
         ];
 
         const throttledActivity = this.throttle(() => {
-            this.updateActivity();
-        }, 1000); // Throttle to once per second
+            // Only update activity if we haven't started logout process
+            if (!this.isLoggingOut && !this.hasBeenInactive) {
+                this.updateActivity();
+            }
+        }, 1000);
 
         activityEvents.forEach(event => {
             document.addEventListener(event, throttledActivity, { passive: true });
         });
 
-        // Track page visibility changes
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
+            if (!document.hidden && !this.isLoggingOut && !this.hasBeenInactive) {
                 this.updateActivity();
                 this.checkSession();
             }
@@ -40,41 +40,38 @@ class SessionManager {
     }
 
     updateActivity() {
+        // Don't update activity if we're logging out or have been inactive
+        if (this.isLoggingOut || this.hasBeenInactive) {
+            return;
+        }
+
         const now = Date.now();
         this.lastActivityTime = now;
         this.isUserActive = true;
 
-        // Clear any existing warning/logout timers
-        this.clearTimers();
-        this.warningShown = false;
+        // Clear existing timer and set new one
+        this.clearTimer();
+        this.setInactivityTimer();
 
-        // Hide warning if shown
-        this.hideInactivityWarning();
-
-        // Set new timers
-        this.setInactivityTimers();
-
-        // Update server-side activity (throttled)
+        // Update server activity
         this.updateServerActivity();
     }
 
-    setInactivityTimers() {
-        // Set warning timer
-        this.warningTimer = setTimeout(() => {
-            this.showInactivityWarning();
-        }, INACTIVITY_TIMEOUT - WARNING_BEFORE_LOGOUT);
+    setInactivityTimer() {
+        // Don't set timer if we're already logging out
+        if (this.isLoggingOut) {
+            return;
+        }
 
-        // Set logout timer
+        // Set single timer for immediate logout on inactivity
         this.logoutTimer = setTimeout(() => {
-            this.handleInactivityLogout();
+            if (!this.isLoggingOut) {
+                this.handleInactivityLogout();
+            }
         }, INACTIVITY_TIMEOUT);
     }
 
-    clearTimers() {
-        if (this.warningTimer) {
-            clearTimeout(this.warningTimer);
-            this.warningTimer = null;
-        }
+    clearTimer() {
         if (this.logoutTimer) {
             clearTimeout(this.logoutTimer);
             this.logoutTimer = null;
@@ -87,10 +84,16 @@ class SessionManager {
     }
 
     async updateServerActivity() {
-        // Throttled server activity update
+        // Check multiple conditions before updating server activity
+        if (this.isLoggingOut || this.hasBeenInactive || this.isInactive()) {
+            console.log('Skipping server activity update - user inactive or logging out');
+            return;
+        }
+
+        // Throttle server updates to every 30 seconds
         if (!this.lastServerUpdate || Date.now() - this.lastServerUpdate > 30000) {
             try {
-                await fetch('/api/auth/activity', {
+                const response = await fetch('/api/auth/activity', {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -100,9 +103,17 @@ class SessionManager {
                         timestamp: Date.now()
                     })
                 });
-                this.lastServerUpdate = Date.now();
+
+                if (response.ok) {
+                    this.lastServerUpdate = Date.now();
+                } else if (response.status === 401) {
+                    // If we get 401, user session is invalid - trigger logout
+                    console.log('Server activity update failed - session invalid, logging out');
+                    await this.performLogout('session_invalid');
+                }
             } catch (error) {
                 console.warn('Failed to update server activity:', error);
+                // Don't logout on network errors, just log the issue
             }
         }
     }
@@ -113,10 +124,16 @@ class SessionManager {
             return;
         }
 
+        // Don't check session if we're already logging out
+        if (this.isLoggingOut) {
+            return;
+        }
+
         try {
             // Check if user has been inactive locally first
             if (this.isInactive()) {
                 console.log('Local inactivity detected, logging out...');
+                this.hasBeenInactive = true;
                 await this.performLogout('inactivity');
                 return;
             }
@@ -140,6 +157,7 @@ class SessionManager {
                 // Handle specific inactivity responses from server
                 if (data.reason === 'inactivity_timeout') {
                     console.log('Server detected inactivity, logging out...');
+                    this.hasBeenInactive = true;
                     await this.performLogout('server_inactivity');
                     return;
                 }
@@ -174,6 +192,11 @@ class SessionManager {
     }
 
     async attemptTokenRefresh() {
+        // Don't attempt refresh if we're logging out or inactive
+        if (this.isLoggingOut || this.hasBeenInactive || this.isInactive()) {
+            return false;
+        }
+
         try {
             console.log('Attempting token refresh...');
 
@@ -199,6 +222,7 @@ class SessionManager {
                 // Handle specific inactivity responses
                 if (errorData.code === 'INACTIVITY_TIMEOUT') {
                     console.log('Refresh denied due to inactivity');
+                    this.hasBeenInactive = true;
                     return false;
                 }
 
@@ -210,77 +234,24 @@ class SessionManager {
         }
     }
 
-    showInactivityWarning() {
-        if (this.warningShown || this.isInactive()) return;
-
-        this.warningShown = true;
-
-        // Create warning modal
-        const modal = document.createElement('div');
-        modal.id = 'inactivity-warning';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-        `;
-
-        const warningBox = document.createElement('div');
-        warningBox.style.cssText = `
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            max-width: 400px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        `;
-
-        warningBox.innerHTML = `
-            <h3 style="color: #fc6c3f; margin-bottom: 15px;">⚠️ Session Timeout Warning</h3>
-            <p>You will be logged out in 2 minutes due to inactivity.</p>
-            <p>Click "Stay Logged In" to continue your session.</p>
-            <button id="stay-logged-in" style="background: #fc6c3f; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Stay Logged In</button>
-            <button id="logout-now" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Logout Now</button>
-        `;
-
-        modal.appendChild(warningBox);
-        document.body.appendChild(modal);
-
-        // Add event listeners
-        document.getElementById('stay-logged-in').onclick = () => {
-            this.updateActivity();
-        };
-
-        document.getElementById('logout-now').onclick = () => {
-            this.performLogout('user_choice');
-        };
-    }
-
-    hideInactivityWarning() {
-        const modal = document.getElementById('inactivity-warning');
-        if (modal) {
-            modal.remove();
-        }
-        this.warningShown = false;
-    }
-
     async handleInactivityLogout() {
-        console.log('Automatic logout due to inactivity');
+        console.log('Automatic logout due to inactivity - no warning, immediate logout');
+        this.hasBeenInactive = true;
         await this.performLogout('inactivity_timeout');
     }
 
     async performLogout(reason) {
-        console.log(`Performing logout, reason: ${reason}`);
+        // Prevent multiple logout attempts
+        if (this.isLoggingOut) {
+            return;
+        }
 
-        // Clear all timers
-        this.clearTimers();
-        this.hideInactivityWarning();
+        console.log(`Performing logout, reason: ${reason}`);
+        this.isLoggingOut = true;
+        this.hasBeenInactive = true;
+
+        // Clear timer
+        this.clearTimer();
 
         try {
             // Notify server of logout
@@ -323,12 +294,16 @@ class SessionManager {
     startSessionChecking() {
         // Initial session check
         setTimeout(() => {
-            this.checkSession();
+            if (!this.isLoggingOut) {
+                this.checkSession();
+            }
         }, 1000);
 
         // Regular session checks
         setInterval(() => {
-            this.checkSession();
+            if (!this.isLoggingOut) {
+                this.checkSession();
+            }
         }, SESSION_CHECK_INTERVAL);
     }
 
@@ -347,40 +322,27 @@ class SessionManager {
     }
 }
 
-// =============================================
-// BACKWARD COMPATIBILITY FUNCTIONS
-// =============================================
-
-// Global variables for backward compatibility
 let globalSessionManager = null;
 
-// Legacy checkSession function for backward compatibility
 async function checkSession() {
-    // Ensure session manager is initialized
     if (!globalSessionManager) {
         console.log('Creating session manager for legacy checkSession call');
         globalSessionManager = new SessionManager();
-        // Store in window for future use
         window.sessionManager = globalSessionManager;
     }
 
-    // Use the enhanced session manager's check method
     await globalSessionManager.checkSession();
 }
 
 // Initialize session manager when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Starting enhanced session monitoring...');
+    console.log('Starting enhanced session monitoring (no warning prompt)...');
 
-    // Create session manager
     globalSessionManager = new SessionManager();
     window.sessionManager = globalSessionManager;
-
-    // Export legacy function globally for existing files
     window.checkSession = checkSession;
 });
 
-// Additional compatibility functions for direct access
 window.updateActivity = function() {
     if (globalSessionManager || window.sessionManager) {
         (globalSessionManager || window.sessionManager).updateActivity();
@@ -393,5 +355,4 @@ window.performLogout = function(reason = 'manual') {
     }
 };
 
-// Ensure checkSession is available immediately (for edge cases)
 window.checkSession = checkSession;

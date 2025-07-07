@@ -7,7 +7,14 @@ require('dotenv').config();
 const logger = require('./backend/logger');
 
 const redis = require('redis');
-const { refreshAccessToken, validateAccessToken, checkUserInactivity, updateUserActivity } = require('./frontend/js/token');
+const {
+    TOKEN_CONFIG,
+    refreshAccessToken,
+    validateAccessToken,
+    checkUserInactivity,
+    updateUserActivity,
+    blacklistToken
+    } = require('./frontend/js/token');
 const { validateMfaPendingToken, MFA_TOKEN_CONFIG } = require('./backend/routes/authApi');
 
 
