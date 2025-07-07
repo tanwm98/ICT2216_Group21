@@ -33,6 +33,29 @@ kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
 	}
 }
 
+:443 {
+    @disallowed method TRACE TRACK
+    respond @disallowed "405 Method Not Allowed" 405
+
+    # Optional: Log disallowed attempts
+    log {
+        output file /var/log/caddy/disallowed_methods.log
+        level WARN
+        format json
+    }
+
+    encode gzip
+    reverse_proxy localhost:3000
+}
+
+:80 {
+    @disallowed method TRACE TRACK
+    respond @disallowed "405 Method Not Allowed" 405
+
+    encode gzip
+    reverse_proxy localhost:3000
+}
+
 kirbychope.xyz {
 	# WAF Protection with enhanced rules and PUT support
 	coraza_waf {
@@ -112,6 +135,7 @@ kirbychope.xyz {
 		@404 expression {http.error.status_code} == 404
 		@401 expression {http.error.status_code} == 401
 		@403 expression {http.error.status_code} == 403
+		@405 expression {http.error.status_code} == 405
 		@500 expression {http.error.status_code} == 500
 		@502 expression {http.error.status_code} == 502
 
@@ -136,6 +160,13 @@ kirbychope.xyz {
 			    browse off
 			}
 		}
+        handle @405 {
+            root * /usr/share/caddy/errors
+            rewrite * /405.html
+            file_server {
+                browse off
+            }
+        }
 		handle @500 {
 			root * /usr/share/caddy/errors
 			rewrite * /500.html

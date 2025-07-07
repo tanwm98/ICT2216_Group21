@@ -194,6 +194,15 @@ app.use(express.json());
 app.use(sanitizeInput);
 app.use(sanitizeOutput);
 
+const disallowedMethods = ['TRACE', 'TRACK'];
+
+app.use((req, res, next) => {
+    if (disallowedMethods.includes(req.method)) {
+        logger.logHttpError(405, `${req.method} method blocked for security reasons`, {}, req);
+        return res.status(405).sendFile(path.join(__dirname, 'frontend/errors/405.html'));    }
+    next();
+});
+
 // Import route files
 const authRoutes = require('./backend/routes/authApi');
 const { router: adminDash } = require('./backend/routes/adminDashboardApi');
@@ -571,6 +580,9 @@ app.use((err, req, res, next) => {
             break;
         case 403:
             errorPagePath = path.join(__dirname, 'frontend/errors/403.html');
+            break;
+        case 405:
+            errorPagePath = path.join(__dirname, 'frontend/errors/405.html');
             break;
         case 500:
             errorPagePath = path.join(__dirname, 'frontend/errors/500.html');
