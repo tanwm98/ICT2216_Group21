@@ -98,16 +98,26 @@ a.link {
     }
 }
 
-.g-recaptcha{
-    padding-top: 3px;
-}
-
-#captcha-message{
-    padding-top: 2px;
-    color: darkorange;
-    font-size: 0.9em;
-    margin-top: 6px;
-}
 .hidden {
     display: none !important;
+}
+
+.show {
+    display: block !important;
+}
+
+#captcha-container {
+    margin-bottom: 1rem;
+}
+
+#captcha-message {
+    padding-top: 8px;
+    color: #ff8800;
+    font-size: 0.9em;
+    font-weight: 500;
+    margin-top: 6px;
+}
+
+#captcha-message.show {
+    display: block !important;
 }

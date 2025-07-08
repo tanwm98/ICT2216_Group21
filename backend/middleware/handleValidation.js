@@ -1,4 +1,5 @@
 const { validationResult } = require('express-validator');
+const { recordFailure, shouldShowCaptcha } = require('./captchaTracker');
 
 module.exports = (req, res, next) => {
   const errors = validationResult(req);
@@ -31,12 +32,21 @@ module.exports = (req, res, next) => {
       console.warn(` - ${err.param}: ${err.msg}`);
     });
 
-    req.session.validationErrors = errorList;
-    req.session.lastInput = req.body;
+    // Track failure for captcha system using IP address
+    const captcha_identifier = req.ip;
+    recordFailure(captcha_identifier);
+
+    // Extract the first error message for URL parameter
+    const firstError = errorList[0];
+    const errorMessage = encodeURIComponent(firstError.msg);
+
+    // Check if captcha should be shown
+    const showCaptcha = shouldShowCaptcha(captcha_identifier);
+    const captchaParam = showCaptcha ? '&captcha=true' : '';
 
     const redirectMap = {
-      '/signup-owner': '/rOwnerReg',
-      '/register': '/register'
+      '/signup-owner': `/rOwnerReg?error=${errorMessage}${captchaParam}`,
+      '/register': `/register?error=${errorMessage}${captchaParam}`
     };
 
     const target = redirectMap[req.originalUrl];
@@ -51,4 +61,3 @@ module.exports = (req, res, next) => {
   console.info('[VALIDATION] Validation passed.');
   next();
 };
-

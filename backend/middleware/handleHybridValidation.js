@@ -71,9 +71,6 @@ module.exports = (req, res, next) => {
     const safeRedirectUrl = getSafeRedirectUrl(req.originalUrl, req.headers.host);
     const redirectTarget = safeRedirectUrl || '/';
 
-    // Form Submission: Store in session and redirect
-    req.session.validationErrors = errorList;
-    req.session.lastUrl = redirectTarget;
     return res.redirect(redirectTarget);
 
   }

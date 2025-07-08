@@ -220,10 +220,6 @@ function sanitizeAndValidate(input, fieldName, route, required = true, captcha_i
 }
 
 
-
-
-// Verifies Captcha sent by user (else redirect back)
-// Captcha status : (true,false,failed) -> frontend handles recaptcha based on given status
 async function verifyCaptchaIfAny(req, res, captcha_identifier) {
     if (shouldShowCaptcha(captcha_identifier)) {
         if (req.body['g-recaptcha-response']){
@@ -240,7 +236,7 @@ async function verifyCaptchaIfAny(req, res, captcha_identifier) {
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier = req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             return res.redirect('/login?error=1&captcha=failed');
         }
@@ -474,22 +470,45 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
     try {
 
         // Captcha for registration
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier = req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
-            throw new AppError('Invalid Captcha Token, Try Again.', 400);
+            recordFailure(captcha_identifier);
+            const errorMessage = 'Invalid Captcha Token, Try Again.';
+            if (shouldShowCaptcha(captcha_identifier)) {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+            } else {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}`);
+            }
         }
 
         let { name, email, password, firstname, lastname } = req.body;
 
         // Sanitize and validate inputs with fail-fast
-        // Possible failure scenario  : Missing value
-        name = sanitizeAndValidate(name, 'Username', 'register');
-        email = sanitizeAndValidate(email, 'Email', 'register').toLowerCase();
-        firstname = sanitizeAndValidate(firstname, 'First name', 'register');
-        lastname = sanitizeAndValidate(lastname, 'Last name', 'register');
+        try {
+            name = sanitizeAndValidate(name, 'Username', 'register', true, captcha_identifier);
+            email = sanitizeAndValidate(email, 'Email', 'register', true, captcha_identifier).toLowerCase();
+            firstname = sanitizeAndValidate(firstname, 'First name', 'register', true, captcha_identifier);
+            lastname = sanitizeAndValidate(lastname, 'Last name', 'register', true, captcha_identifier);
+        } catch (validationError) {
+            const errorMessage = validationError.message.replace('.Captcha', '');
+            if (shouldShowCaptcha(captcha_identifier)) {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+            } else {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}`);
+            }
+        }
 
         // Possible Failure Scenario : Password invalid
-        validatePassword(password, captcha_identifier);
+        try {
+            validatePassword(password, captcha_identifier);
+        } catch (passwordError) {
+            const errorMessage = passwordError.message.replace('.Captcha', '');
+            if (shouldShowCaptcha(captcha_identifier)) {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+            } else {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}`);
+            }
+        }
 
         // check password not in breach
         if (await isBreachedPassword(password)) {
@@ -497,14 +516,19 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
                 email: email,
                 reason: 'breached_password'
             }, req);
-            throw new AppError('Chosen password has appeared in a data breach. Please choose another.', 400);
+            recordFailure(captcha_identifier);
+            const errorMessage = 'Chosen password has appeared in a data breach. Please choose another.';
+            if (shouldShowCaptcha(captcha_identifier)) {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+            } else {
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}`);
+            }
         }
 
         const existingUser = await db('users')
             .select('email')
             .where('email', email)
             .first();
-
 
         // Failure Scenario  : Email Exists
         if (existingUser) {
@@ -513,10 +537,13 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
                 reason: 'email_already_exists'
             }, req);
             recordFailure(captcha_identifier);
+            const errorMessage = 'Email already registered';
             if (shouldShowCaptcha(captcha_identifier)) {
-                throw new AppError('Email already registered. .Captcha', 400);
+                // Redirect with both the error and the captcha flag
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}&captcha=true`);
             } else {
-                throw new AppError('Email already registered', 400);
+                // Redirect with just the error
+                return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}`);
             }
         }
 
@@ -556,14 +583,22 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
         resetFailures(captcha_identifier); // success registration, remove captcha attempt tracking
         res.redirect('/login?success=1');
     } catch (error) {
-        next(error);
+        // Handle any unexpected errors
+        const captcha_identifier = req.ip;
+        recordFailure(captcha_identifier);
+        const errorMessage = 'Registration failed. Please try again.';
+        if (shouldShowCaptcha(captcha_identifier)) {
+            return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+        } else {
+            return res.redirect(`/register?error=${encodeURIComponent(errorMessage)}`);
+        }
     }
 });
 
 router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
         // Captcha for owner restaurant registration
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier = req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             throw new AppError('Invalid Captcha Token, Try Again.', 400);
         }
@@ -609,10 +644,9 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             }, req);
             recordFailure(captcha_identifier);
             if (shouldShowCaptcha(captcha_identifier)) {
-                throw new AppError('Passwords do not match. .Captcha', 400);
+                return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Passwords do not match') + '&captcha=true');
             } else {
-                throw new AppError('Passwords do not match', 400);
-
+                return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Passwords do not match'));
             }
         }
 
@@ -639,10 +673,11 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
                 email: email,
                 reason: 'email_already_exists'
             }, req);
+            recordFailure(captcha_identifier);
             if (shouldShowCaptcha(captcha_identifier)) {
-                throw new AppError('Email already registered .Captcha', 400);
+                return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Email already registered') + '&captcha=true');  // ✅ URL redirect
             } else {
-                throw new AppError('Email already registered', 400);
+                return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Email already registered'));
             }
         }
         // Validate numeric inputs
@@ -1223,7 +1258,9 @@ router.put('/reset-password', async (req, res) => {
     }
 });
 
+
 module.exports = router;
 module.exports.generateMfaPendingToken = generateMfaPendingToken;
 module.exports.validateMfaPendingToken = validateMfaPendingToken;
 module.exports.MFA_TOKEN_CONFIG = MFA_TOKEN_CONFIG;
+

@@ -6,80 +6,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kirby Chope - Register</title>
     <link href="/static/styles/bootstrap/bootstrap.min.css" rel="stylesheet">
-    <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="/static/styles/style.css">
     <link href="/static/styles/login.css" rel="stylesheet">
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <div id="head-placeholder"></div>
 </head>
 
-<body class = "login-page">
+<body class="login-page">
 <div id="header-placeholder"></div>
-    <div class="container sticky">
-        <div class="left-side col-md-6">
-            <h1>Create an Account</h1>
-            <form id="registerForm" method="POST" action="/register">
-                <div class="form-group">
-                    <label for="name">Username</label>
-                    <input class="form-control" id="name" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label for="name">First Name</label>
-                    <input class="form-control" id="firstname" name="firstname" required>
-                </div>
-                <div class="form-group">
-                    <label for="name">Last Name</label>
-                    <input class="form-control" id="lastname" name="lastname" required>
-                </div>
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <label for="confirmpassword">Confirm Password</label>
-                    <input type="password" class="form-control" id="confirmpassword" name="confirmpassword" required>
-                </div>
+<div class="container sticky">
+    <div class="left-side col-md-6">
+        <h1>Create an Account</h1>
+        <form id="registerForm" method="POST" action="/register" enctype="application/x-www-form-urlencoded">
+            <div class="form-group">
+                <label for="name">Username</label>
+                <input class="form-control" id="name" name="name" type="text" required>
+            </div>
+            <div class="form-group">
+                <label for="firstname">First Name</label>
+                <input class="form-control" id="firstname" name="firstname" type="text" required>
+            </div>
+            <div class="form-group">
+                <label for="lastname">Last Name</label>
+                <input class="form-control" id="lastname" name="lastname" type="text" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="confirmpassword">Confirm Password</label>
+                <input type="password" class="form-control" id="confirmpassword" name="confirmpassword" required>
+            </div>
 
-                <input type="hidden" name="role" value="user">
+            <input type="hidden" name="role" value="user">
 
-                <!-- Conditional ReCaptcha -->
-                <div class="form-group" id="captcha-container" style="display: none;">
-                    <div class="g-recaptcha"
-                         data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
-                         data-theme="light" style="padding-top:2px;">
-                    </div>
-                    <div id="captcha-message" style="display:none; padding-top:3px; color: darkorange;font-size: 0.9em;">
-                        Please complete the CAPTCHA to proceed.
-                    </div>
+            <!-- Conditional ReCaptcha -->
+            <div class="form-group hidden" id="captcha-container">
+                <label class="text-danger fw-bold">Security Verification Required *</label>
+                <div class="g-recaptcha"
+                     data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
+                     data-theme="light">
                 </div>
-                <button type="submit" class="btn" id="registerBtn">Sign Up</button>
-            </form>
-            <p>Already have an account? <a href="/login">Sign in</a> | <a href="/rOwnerReg">Register as a business
-                    owner</a></p>
-            <a href="/">Back to Home</a>
-        </div>
-        <div class="right-side col-md-6"></div>
+                <div id="captcha-message" class="hidden">
+                    Please complete the CAPTCHA to proceed.
+                </div>
+            </div>
+            <button type="submit" class="btn" id="registerBtn">Sign Up</button>
+        </form>
+        <p>Already have an account? <a href="/login">Sign in</a> | <a href="/rOwnerReg">Register as a business owner</a></p>
+        <a href="/">Back to Home</a>
     </div>
+    <div class="right-side col-md-6"></div>
+</div>
 
-    <!-- Error Modal -->
-    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="errorModalLabel">Validation Error</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="errorModalBody">
-                    <!-- Dynamic error message -->
-                </div>
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="errorModalLabel">Validation Error</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="errorModalBody">
+                <!-- Dynamic error message -->
             </div>
         </div>
     </div>
-    <script src="/common/common_js/include.js"></script>
-    <script src="js/register.js"></script>
+</div>
+
+<script src="/common/common_js/include.js"></script>
+<script src="/js/register.js"></script>
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

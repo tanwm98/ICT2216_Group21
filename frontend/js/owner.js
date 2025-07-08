@@ -245,20 +245,6 @@ function submitRestaurantForm() {
             fetchRestaurants();
             alert('Restaurant updated successfully!');
         })
-        .catch(async err => {
-            console.error('Update error:', err);
-            try {
-                const res = await fetch('/api/session/validation-errors');
-                const data = await res.json();
-                if (data.errors && data.errors.length > 0) {
-                    alert('Validation Errors:\n' + data.errors.map(e => `- ${e.msg}`).join('\n'));
-                } else {
-                    alert('An error occurred while updating the restaurant.');
-                }
-            } catch (e) {
-                alert('An unexpected error occurred.');
-            }
-        });
 }
 
 function closeModal() {

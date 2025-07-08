@@ -115,7 +115,8 @@
       <div class="mb-3">
         <label for="storeName" class="form-label">Restaurant Name</label>
         <input type="text" class="form-control" id="storeName" name="storeName" required
-               pattern="^[a-zA-Z0-9\s&'-]{2,50}$" title="2-50 characters, letters, numbers, spaces, &, ', -">
+               pattern="^[a-zA-Z0-9\s&\x27\x2D]{2,50}$"
+               title="2-50 characters, letters, numbers, spaces, &, ', -">
         <div class="invalid-feedback">
           Restaurant name must be 2-50 characters
         </div>
@@ -267,11 +268,11 @@
           Please upload a restaurant image (JPG, JPEG, or PNG, max 5MB)
         </div>
       </div>
-
+      <!-- Terms and Conditions Checkbox -->
       <div class="mb-4 form-check">
         <input type="checkbox" class="form-check-input" id="terms" required>
         <label class="form-check-label" for="terms">
-          I agree to the <a href="#" target="_blank">Terms and Conditions</a> and confirm that all information provided is accurate and I have the legal right to operate this restaurant.
+          I agree to the <a href="#" id="termsLink">Terms and Conditions</a> and confirm that all information provided is accurate and I have the legal right to operate this restaurant.
         </label>
         <div class="invalid-feedback">
           You must agree to the terms and conditions
@@ -281,11 +282,11 @@
       <!-- Conditional ReCaptcha -->
       <div class="form-group hidden" id="captcha-container">
         <div class="g-recaptcha"
-            data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
-            data-theme="light">
+             data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
+             data-theme="light">
         </div>
         <div id="captcha-message" class="hidden">
-            Please complete the CAPTCHA to proceed.
+          Please complete the CAPTCHA to proceed.
         </div>
       </div>
 
@@ -298,6 +299,88 @@
   </form>
 </div>
 
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="terms-content">
+          <div class="terms-section">
+            <h5>🔒 Privacy Policy</h5>
+            <p>Kirby Chope values your privacy and is committed to protecting your personal data in accordance with the Personal Data Protection Act (PDPA) of Singapore.</p>
+            <p>We collect your personal data such as name, contact number, email address, and reservation preferences when you use our platform to make bookings or create an account.</p>
+          </div>
+
+          <div class="terms-section">
+            <h5>📊 Data Collection and Use</h5>
+            <p>The personal data we collect is used for the following purposes:</p>
+            <ul>
+              <li>Processing restaurant reservations and bookings</li>
+              <li>Managing your account and providing customer support</li>
+              <li>Sending booking confirmations and reminders</li>
+              <li>Improving our services and platform functionality</li>
+              <li>Compliance with legal and regulatory requirements</li>
+            </ul>
+          </div>
+
+          <div class="terms-section">
+            <h5>🔐 Data Protection</h5>
+            <p>We implement appropriate technical and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction.</p>
+            <ul>
+              <li>Data is encrypted in transit and at rest</li>
+              <li>Access to personal data is restricted to authorized personnel only</li>
+              <li>Regular security audits and monitoring are conducted</li>
+              <li>Data retention policies are strictly enforced</li>
+            </ul>
+          </div>
+
+          <div class="terms-section">
+            <h5>🤝 Restaurant Owner Responsibilities</h5>
+            <p>As a restaurant owner on our platform, you agree to:</p>
+            <ul>
+              <li>Provide accurate and up-to-date information about your restaurant</li>
+              <li>Maintain the confidentiality of customer data shared through the platform</li>
+              <li>Comply with all applicable laws and regulations</li>
+              <li>Honor confirmed reservations and maintain service quality</li>
+              <li>Notify us promptly of any changes to your restaurant operations</li>
+            </ul>
+          </div>
+
+          <div class="terms-section">
+            <h5>⚖️ Legal Compliance</h5>
+            <p>By using our platform, you confirm that:</p>
+            <ul>
+              <li>You have the legal right to operate your restaurant</li>
+              <li>All licenses and permits are valid and current</li>
+              <li>You comply with Singapore's food safety and hygiene regulations</li>
+              <li>Your restaurant operations adhere to local zoning laws</li>
+            </ul>
+          </div>
+
+          <div class="terms-section">
+            <h5>📞 Contact Information</h5>
+            <p>For any questions regarding these terms or your personal data, please contact us at:</p>
+            <p><strong>Email:</strong> privacy@kirbychope.com<br>
+              <strong>Phone:</strong> +65 6123 4567</p>
+          </div>
+
+          <div class="terms-section">
+            <h5>📅 Effective Date</h5>
+            <p>These terms and conditions are effective as of July 1, 2025, and may be updated from time to time. Continued use of our platform constitutes acceptance of any revised terms.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="footer-placeholder"></div>
 <script src="/common/common_js/include.js"></script>
 <script src="/js/ownerSignup.js"></script>
 <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>

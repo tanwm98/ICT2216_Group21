@@ -624,15 +624,6 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
                 return res.status(404).json({ error: 'User not found during deletion.' });
             }
 
-            // Handle self-deletion session termination
-            if (parseInt(id) === req.user.userId) {
-                console.log(`[SESSION] Terminating session for user ${id}`);
-                req.session.destroy(() => {
-                    res.clearCookie('token');
-                    console.log('[SESSION] JWT cookie cleared after self-deletion');
-                });
-            }
-
             // Clean up pending actions
             await trx('pending_actions')
                 .where({

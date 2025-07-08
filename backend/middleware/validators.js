@@ -14,6 +14,7 @@ exports.loginValidator = [
 
 exports.registerValidator = [
   body('email')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Invalid email'),
@@ -24,24 +25,30 @@ exports.registerValidator = [
 
   body('name')
     .trim()
+    .notEmpty()
+    .withMessage('Username is required')
     .matches(/^[A-Za-z0-9._-]+$/)
+    .withMessage('Username must only contain letters, numbers, dot, dash, or underscore')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Name must only contain letters, numbers, dot, dash, or underscore'),
+    .withMessage('Username must be between 2 and 100 characters'),
 
   body('firstname')
     .trim()
-    .escape()
-    .matches(/^[A-Za-z]+$/)
+    .notEmpty()
+    .withMessage('First name is required')
+    .matches(/^[A-Za-z\s'-]+$/)
+    .withMessage('First name must only contain letters, spaces, apostrophes, or hyphens')
     .isLength({ min: 2, max: 100 })
-    .withMessage('First name must be alphabetic'),
+    .withMessage('First name must be between 2 and 100 characters'),
 
   body('lastname')
     .trim()
-    .escape()
-    .matches(/^[A-Za-z]+$/)
+    .notEmpty()
+    .withMessage('Last name is required')
+    .matches(/^[A-Za-z\s'-]+$/)
+    .withMessage('Last name must only contain letters, spaces, apostrophes, or hyphens')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Last name must be alphabetic'),
-
+    .withMessage('Last name must be between 2 and 100 characters'),
 ];
 
 exports.ownerValidator = [

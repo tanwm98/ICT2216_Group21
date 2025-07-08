@@ -181,21 +181,21 @@ localhost {
 		}
 
 		# Security headers
-        header {
-                Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-                X-Content-Type-Options "nosniff"
-                X-Frame-Options "DENY"
-                Cross-Origin-Embedder-Policy "require-corp"
-                Cross-Origin-Opener-Policy "same-origin"
-                Cross-Origin-Resource-Policy "same-origin"
-                Referrer-Policy "strict-origin-when-cross-origin"
-                Content-Security-Policy "default-src 'self'; script-src 'self' https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/; script-src-elem 'self' https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google.com/recaptcha/; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests; object-src 'none';"
-                Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
-                X-Permitted-Cross-Domain-Policies "none"
-                -Server
-                -X-Powered-By
-                -X-AspNet-Version
-                -X-AspNetMvc-Version
+	    header {
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+            X-Content-Type-Options "nosniff"
+            X-Frame-Options "DENY"
+            Cross-Origin-Embedder-Policy "require-corp"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Resource-Policy "same-origin"
+            Referrer-Policy "strict-origin-when-cross-origin"
+            Content-Security-Policy "default-src 'self'; script-src 'self' https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/; script-src-elem 'self' https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google.com/recaptcha/; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests; object-src 'none';"
+            Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), xr-spatial-tracking=(), accelerometer=(), gyroscope=(), magnetometer=(), clipboard-read=(), clipboard-write=(), fullscreen=(self), picture-in-picture=()"
+            X-Permitted-Cross-Domain-Policies "none"
+            -Server
+            -X-Powered-By
+            -X-AspNet-Version
+            -X-AspNetMvc-Version
         }
 		# Sensitive paths - no caching
 		header /api/* {

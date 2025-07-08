@@ -34,6 +34,21 @@ function showSuccess() {
     showAlert('successAlert', true);
 }
 
+function showCaptcha() {
+    const captchaContainer = document.getElementById('captcha-container');
+    const captchaMessage = document.getElementById('captcha-message');
+
+    if (captchaContainer) {
+        captchaContainer.classList.remove('hidden');
+        captchaContainer.classList.add('show');
+    }
+
+    if (captchaMessage) {
+        captchaMessage.classList.remove('hidden');
+        captchaMessage.classList.add('show');
+    }
+}
+
 function setElementValidation(element, isValid, customMessage = null) {
     if (isValid) {
         element.classList.remove('is-invalid');
@@ -70,7 +85,7 @@ function validatePasswords() {
 function validateCapacity() {
     const capacity = document.getElementById('capacity');
     const totalCapacity = document.getElementById('totalCapacity');
-    
+
     const cap = parseInt(capacity.value);
     const totalCap = parseInt(totalCapacity.value);
 
@@ -135,7 +150,7 @@ function validateTimeRange() {
 
 function setSubmitButtonLoading(isLoading = false) {
     const submitBtn = document.getElementById('submitBtn');
-    
+
     if (isLoading) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
@@ -154,11 +169,18 @@ function handleUrlParameters() {
     // Handle error parameter with XSS protection
     if (urlParams.has('error')) {
         const errorText = urlParams.get('error');
-        if (errorText && errorText !== '1') {
-            errorMessage.textContent = ` ${errorText}`;
-        } else {
-            errorMessage.textContent = ' Please check your information and try again.';
+        const captchaRequired = urlParams.get('captcha') === 'true';  // ✅ Add this line
+        let cleanError = errorText || 'Please check your information and try again.';
+
+        // ✅ Handle both .Captcha and captcha=true approaches
+        if (cleanError.includes(".Captcha")) {
+            cleanError = cleanError.replace(".Captcha", "").trim();
+            showCaptcha();
+        } else if (captchaRequired) {  // ✅ Add this condition
+            showCaptcha();
         }
+
+        errorMessage.textContent = ` ${cleanError}`;
         showAlert('errorAlert', true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -166,7 +188,7 @@ function handleUrlParameters() {
     // Handle success parameter
     if (urlParams.has('success')) {
         showAlert('successAlert', true);
-        
+
         // Redirect to login after 3 seconds
         setTimeout(() => {
             window.location.href = '/login';
@@ -229,6 +251,7 @@ function setupEventListeners() {
     const capacity = document.getElementById('capacity');
     const totalCapacity = document.getElementById('totalCapacity');
     const imageInput = document.getElementById('image');
+    const emailInput = document.getElementById('email');
 
     // Password validation events
     confirmPassword.addEventListener('input', validatePasswords);
@@ -246,12 +269,27 @@ function setupEventListeners() {
     // File input validation
     imageInput.addEventListener('change', validateFile);
 
+    // Email change event - check if captcha is required
+    if (emailInput) {
+        emailInput.addEventListener('blur', checkCaptchaRequired);
+    }
+
     // Real-time validation styling
     form.addEventListener('input', (e) => {
         if (e.target.checkValidity()) {
             setElementValidation(e.target, true);
         }
     });
+
+    // Terms and conditions modal handler
+    const termsLink = document.getElementById('termsLink');
+    if (termsLink) {
+        termsLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('termsModal'));
+            modal.show();
+        });
+    }
 
     // Form submission
     form.addEventListener('submit', function(e) {
@@ -281,7 +319,7 @@ function setupEventListeners() {
 }
 
 // Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     handleUrlParameters();
     setupEventListeners();
 });
