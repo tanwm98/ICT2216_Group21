@@ -166,17 +166,21 @@ function handleUrlParameters() {
     const errorMessage = document.getElementById('errorMessage');
     const successAlert = document.getElementById('successAlert');
 
+    // Handle captcha parameter first
+    const captchaParam = urlParams.get('captcha');
+    if (captchaParam === 'true') {
+        showCaptcha();
+    }
+
     // Handle error parameter with XSS protection
     if (urlParams.has('error')) {
         const errorText = urlParams.get('error');
-        const captchaRequired = urlParams.get('captcha') === 'true';  // ✅ Add this line
         let cleanError = errorText || 'Please check your information and try again.';
 
-        // ✅ Handle both .Captcha and captcha=true approaches
+        // Clean up error message if it contains .Captcha suffix
         if (cleanError.includes(".Captcha")) {
             cleanError = cleanError.replace(".Captcha", "").trim();
-            showCaptcha();
-        } else if (captchaRequired) {  // ✅ Add this condition
+            // Show captcha if error came with captcha flag
             showCaptcha();
         }
 
@@ -196,7 +200,7 @@ function handleUrlParameters() {
     }
 
     // Clean URL
-    if (urlParams.has('error') || urlParams.has('success')) {
+    if (urlParams.has('error') || urlParams.has('success') || urlParams.has('captcha')) {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
     }
@@ -204,6 +208,18 @@ function handleUrlParameters() {
 
 function validateAllFields(form) {
     let isValid = true;
+
+    // Check if captcha is required and validate it
+    const captchaContainer = document.getElementById('captcha-container');
+    const isCaptchaVisible = captchaContainer && !captchaContainer.classList.contains('hidden');
+
+    if (isCaptchaVisible) {
+        const recaptchaResponse = document.querySelector('.g-recaptcha-response');
+        if (!recaptchaResponse || !recaptchaResponse.value) {
+            showError('Please complete the CAPTCHA verification before submitting.');
+            return false;
+        }
+    }
 
     // Validate all required fields
     const requiredFields = form.querySelectorAll('[required]');
@@ -269,10 +285,6 @@ function setupEventListeners() {
     // File input validation
     imageInput.addEventListener('change', validateFile);
 
-    // Email change event - check if captcha is required
-    if (emailInput) {
-        emailInput.addEventListener('blur', checkCaptchaRequired);
-    }
 
     // Real-time validation styling
     form.addEventListener('input', (e) => {
@@ -307,6 +319,28 @@ function setupEventListeners() {
 
         // Show loading state
         setSubmitButtonLoading(true);
+
+        // Check if captcha is visible and add recaptcha response to form
+        const captchaContainer = document.getElementById('captcha-container');
+        const isCaptchaVisible = captchaContainer && !captchaContainer.classList.contains('hidden');
+
+        if (isCaptchaVisible) {
+            const recaptchaResponse = document.querySelector('.g-recaptcha-response');
+            if (recaptchaResponse && recaptchaResponse.value) {
+                // Remove any existing g-recaptcha-response input
+                const existingInput = form.querySelector('input[name="g-recaptcha-response"]');
+                if (existingInput) {
+                    existingInput.remove();
+                }
+
+                // Add the recaptcha response as a hidden input
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'g-recaptcha-response';
+                hiddenInput.value = recaptchaResponse.value;
+                form.appendChild(hiddenInput);
+            }
+        }
 
         // Set timeout to re-enable button in case of slow response
         setTimeout(() => {

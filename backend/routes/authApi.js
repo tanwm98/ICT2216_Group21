@@ -600,7 +600,13 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
         // Captcha for owner restaurant registration
         const captcha_identifier = req.body.email || req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
-            throw new AppError('Invalid Captcha Token, Try Again.', 400);
+            recordFailure(captcha_identifier);
+            const errorMessage = 'Invalid Captcha Token, Try Again.';
+            if (shouldShowCaptcha(captcha_identifier)) {
+                return res.redirect(`/rOwnerReg?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+            } else {
+                return res.redirect(`/rOwnerReg?error=${encodeURIComponent(errorMessage)}`);
+            }
         }
 
         let {
