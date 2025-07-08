@@ -135,7 +135,6 @@ function filterByRestaurantDetails() {
 
 // SECURITY: Create restaurant card with proper sanitization
 function createRestaurantCard(store) {
-
   const card = document.createElement('div');
   card.classList.add('restaurant-card');
 
@@ -151,10 +150,14 @@ function createRestaurantCard(store) {
 
   img.alt = store.altText || `${store.storeName} restaurant image`;
   img.loading = 'lazy';
-  img.addEventListener('error', function() {
+
+  // Fixed: Use named function reference instead of arguments.callee
+  function handleImageError() {
     this.src = '/static/img/restaurants/no-image.png';
-    this.removeEventListener('error', arguments.callee);
-  });
+    this.removeEventListener('error', handleImageError);
+  }
+
+  img.addEventListener('error', handleImageError);
 
   card.appendChild(img);
 

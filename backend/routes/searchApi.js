@@ -65,6 +65,7 @@ router.get('/displayallStores', async (req, res) => {
     try {
       const stores = await db('stores as s')
         .leftJoin('reviews as r', 's.store_id', 'r.store_id')
+        .where('s.status', 'approved')
         .select([
           's.store_id',
           's.storeName',
@@ -185,6 +186,7 @@ router.get(
 
       let query = db('stores as s')
         .leftJoin('reviews as r', 's.store_id', 'r.store_id')
+        .where('s.status', 'approved')
         .select([
           's.*'
         ])

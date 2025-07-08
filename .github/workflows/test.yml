@@ -158,7 +158,8 @@ jobs:
           REDIS_PORT=     ${{ secrets.REDIS_PORT }}
           REDIS_USERNAME= ${{ secrets.REDIS_USERNAME }}
           JWT_REFRESH_EXPIRES_IN= ${{ secrets.JWT_REFRESH_EXPIRES_IN }}
-          NODE_ENV=test
+          NODE_ENV= test
+          RECAPTCHA_SECRET_KEY= ${{ secrets.RECAPTCHA_SECRET_KEY }}
           EOF
 
       - name: 🐳 Start Docker Compose test environment

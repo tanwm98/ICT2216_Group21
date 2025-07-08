@@ -37,6 +37,7 @@ jobs:
           echo "REDIS_USERNAME=${{ secrets.REDIS_USERNAME }}" >> .env
           echo "JWT_REFRESH_EXPIRES_IN=${{ secrets.JWT_REFRESH_EXPIRES_IN }}" >> .env
           echo "NODE_ENV=production" >> .env
+          echo "RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}" >> .env
           git pull origin main
           docker compose down
           docker compose up -d --build

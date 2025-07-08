@@ -1,4 +1,9 @@
-async function displayStores() {
+// Global pagination state
+let currentPage = 1;
+const itemsPerPage = 6;
+let totalPages = 1;
+
+async function displayStores(page = 1) {
     const foodList = document.getElementById('post-content');
     if (!foodList) {
         console.error('Element with ID "post-content" not found');
@@ -8,7 +13,7 @@ async function displayStores() {
     foodList.innerHTML = '<div class="loading-spinner text-center p-4"><div class="spinner-border" role="status"><span class="sr-only"></span></div></div>';
 
     try {
-        const response = await fetch('/displayStores', {
+        const response = await fetch(`/displayStores?page=${page}&limit=${itemsPerPage}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -20,21 +25,34 @@ async function displayStores() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const stores = await response.json();
+        const data = await response.json();
 
-        // Validate response data
-        if (!Array.isArray(stores)) {
-            throw new Error('Invalid response format: expected array');
+        // Validate response data structure
+        if (!data.stores || !Array.isArray(data.stores)) {
+            throw new Error('Invalid response format: expected stores array');
         }
+
+        // Update pagination state
+        currentPage = data.pagination.currentPage;
+        totalPages = data.pagination.totalPages;
 
         // Clear loading state
         foodList.innerHTML = "";
+
+        // Create container for stores and pagination
+        const containerDiv = document.createElement('div');
+        containerDiv.className = 'restaurants-container';
+
+        // Create stores row
+        const storesRow = document.createElement('div');
+        storesRow.className = 'row';
+        storesRow.id = 'stores-grid';
 
         // Performance optimization: Use DocumentFragment for batching DOM operations
         const fragment = document.createDocumentFragment();
 
         // Batch process stores for better performance
-        stores.forEach(store => {
+        data.stores.forEach(store => {
             // Input validation and sanitization
             if (!isValidStore(store)) {
                 console.warn('Invalid store data detected, skipping:', store);
@@ -46,18 +64,157 @@ async function displayStores() {
         });
 
         // Single DOM operation for better performance
-        foodList.appendChild(fragment);
+        storesRow.appendChild(fragment);
+        containerDiv.appendChild(storesRow);
+
+        // Add pagination controls
+        const paginationDiv = createPaginationControls(data.pagination);
+        containerDiv.appendChild(paginationDiv);
+
+        foodList.appendChild(containerDiv);
 
         // Initialize lazy loading for images after DOM is updated
         initializeLazyLoading();
+
+        // Scroll to top of results
+        foodList.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch (error) {
         handleDisplayError(error, foodList);
     }
 }
 
+// Create pagination controls
+function createPaginationControls(pagination) {
+    const paginationDiv = document.createElement('div');
+    paginationDiv.className = 'pagination-container d-flex justify-content-center align-items-center mt-4 mb-4';
+
+    const nav = document.createElement('nav');
+    nav.setAttribute('aria-label', 'Restaurant pagination');
+
+    const ul = document.createElement('ul');
+    ul.className = 'pagination mb-0';
+
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${!pagination.hasPrevPage ? 'disabled' : ''}`;
+
+    const prevLink = document.createElement('a');
+    prevLink.className = 'page-link';
+    prevLink.href = '#';
+    prevLink.textContent = 'Previous';
+    prevLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (pagination.hasPrevPage) {
+            displayStores(currentPage - 1);
+        }
+    });
+
+    prevLi.appendChild(prevLink);
+    ul.appendChild(prevLi);
+
+    // Page numbers (show max 5 pages)
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, startPage + 4);
+
+    // Add first page if we're not showing it
+    if (startPage > 1) {
+        const firstLi = createPageItem(1, 1 === currentPage);
+        ul.appendChild(firstLi);
+
+        if (startPage > 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            ul.appendChild(ellipsisLi);
+        }
+    }
+
+    // Add page numbers
+    for (let i = startPage; i <= endPage; i++) {
+        const pageLi = createPageItem(i, i === currentPage);
+        ul.appendChild(pageLi);
+    }
+
+    // Add last page if we're not showing it
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            ul.appendChild(ellipsisLi);
+        }
+
+        const lastLi = createPageItem(totalPages, totalPages === currentPage);
+        ul.appendChild(lastLi);
+    }
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${!pagination.hasNextPage ? 'disabled' : ''}`;
+
+    const nextLink = document.createElement('a');
+    nextLink.className = 'page-link';
+    nextLink.href = '#';
+    nextLink.textContent = 'Next';
+    nextLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (pagination.hasNextPage) {
+            displayStores(currentPage + 1);
+        }
+    });
+
+    nextLi.appendChild(nextLink);
+    ul.appendChild(nextLi);
+
+    nav.appendChild(ul);
+    paginationDiv.appendChild(nav);
+
+    // Add pagination info
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'pagination-info text-center mt-2';
+    const showing = Math.min(pagination.limit, pagination.totalStores - (currentPage - 1) * pagination.limit);
+    const start = (currentPage - 1) * pagination.limit + 1;
+    const end = start + showing - 1;
+
+    infoDiv.innerHTML = `
+        <small class="text-muted">
+            Showing ${start} to ${end} of ${pagination.totalStores} restaurants
+        </small>
+    `;
+
+    paginationDiv.appendChild(infoDiv);
+
+    return paginationDiv;
+}
+
+// Helper function to create page item
+function createPageItem(pageNum, isActive) {
+    const li = document.createElement('li');
+    li.className = `page-item ${isActive ? 'active' : ''}`;
+
+    const link = document.createElement('a');
+    link.className = 'page-link';
+    link.href = '#';
+    link.textContent = pageNum;
+
+    if (isActive) {
+        link.setAttribute('aria-current', 'page');
+    }
+
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!isActive) {
+            displayStores(pageNum);
+        }
+    });
+
+    li.appendChild(link);
+    return li;
+}
+
 // ======================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (Keep existing ones)
 // ======================================
 
 // Input validation function for security - UPDATED for imageUrl
@@ -143,6 +300,14 @@ function initializeLazyLoading() {
                         img.src = src;
                         img.classList.remove('lazy-load');
                         img.classList.add('loaded');
+
+                        // Add error handler for lazy-loaded images
+                        function handleLazyImageError() {
+                            this.src = '/static/img/restaurants/no-image.png';
+                            this.removeEventListener('error', handleLazyImageError);
+                        }
+                        img.addEventListener('error', handleLazyImageError);
+
                         observer.unobserve(img);
                     }
                 }
@@ -163,6 +328,13 @@ function initializeLazyLoading() {
                 img.src = src;
                 img.classList.remove('lazy-load');
                 img.classList.add('loaded');
+
+                // Add error handler for fallback images
+                function handleFallbackImageError() {
+                    this.src = '/static/img/restaurants/no-image.png';
+                    this.removeEventListener('error', handleFallbackImageError);
+                }
+                img.addEventListener('error', handleFallbackImageError);
             }
         });
     }
@@ -193,33 +365,38 @@ function handleDisplayError(error, container) {
             </div>
         </div>
     `;
+
     const retryButton = document.getElementById('retry-load-btn');
     if (retryButton) {
-        retryButton.addEventListener('click', displayStoresWithCache);
+        // Fixed: Use named function instead of anonymous function for better debugging
+        function handleRetryClick() {
+            displayStores(currentPage);
+        }
+        retryButton.addEventListener('click', handleRetryClick);
     }
 }
 
 function initializePageLoad() {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            requestAnimationFrame(displayStores);
+            requestAnimationFrame(() => displayStores(1));
         });
     } else {
-        requestAnimationFrame(displayStores);
+        requestAnimationFrame(() => displayStores(1));
     }
 }
 
 window.onload = function() {
-
     try {
         initializePageLoad();
     } catch (error) {
         console.error('Failed to initialize page:', error);
         // Fallback to basic load
-        displayStores();
+        displayStores(1);
     }
 };
 
+// Cache implementation (keep existing cache code if needed)
 class StoreCache {
     constructor(ttl = 5 * 60 * 1000) { // 5 minutes TTL
         this.cache = new Map();
@@ -248,47 +425,4 @@ class StoreCache {
     clear() {
         this.cache.clear();
     }
-}
-
-const storeCache = new StoreCache();
-
-async function displayStoresWithCache() {
-    const cached = storeCache.get('stores');
-    if (cached) {
-        renderStores(cached);
-        return;
-    }
-
-    try {
-        const response = await fetch('/displayStores');
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const stores = await response.json();
-        storeCache.set('stores', stores);
-        renderStores(stores);
-
-    } catch (error) {
-        handleDisplayError(error, document.getElementById('post-content'));
-    }
-}
-
-function renderStores(stores) {
-    const foodList = document.getElementById('post-content');
-    if (!foodList) return;
-
-    foodList.innerHTML = "";
-    const fragment = document.createDocumentFragment();
-
-    stores.forEach(store => {
-        if (isValidStore(store)) {
-            fragment.appendChild(createStoreElement(store));
-        }
-    });
-    foodList.addEventListener('error', (e) => {
-        if (e.target.tagName === 'IMG') {
-            e.target.src = '/static/img/restaurants/no-image.png';
-        }
-    }, true);
-    foodList.appendChild(fragment);
-    initializeLazyLoading();
 }

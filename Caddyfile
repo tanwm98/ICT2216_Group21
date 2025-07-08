@@ -194,7 +194,7 @@ kirbychope.xyz {
     		rate_limit {
     			zone login_zone {
     				key {http.request.remote_ip}
-    				events 25
+    				events 30
     				window 15m
     			}
     		}
@@ -210,7 +210,7 @@ kirbychope.xyz {
     		rate_limit {
     			zone register_zone {
     				key {http.request.remote_ip}
-    				events 25
+    				events 30
     				window 15m
     			}
     		}
@@ -226,7 +226,7 @@ kirbychope.xyz {
     		rate_limit {
     			zone reset_zone {
     				key {http.request.remote_ip}
-    				events 15
+    				events 20
     				window 60m
     			}
     		}
@@ -242,7 +242,7 @@ kirbychope.xyz {
     		rate_limit {
     			zone reservation_zone {
     				key {http.request.remote_ip}
-    				events 15
+    				events 20
     				window 5m
     			}
     		}
@@ -258,7 +258,7 @@ kirbychope.xyz {
     		rate_limit {
     			zone review_zone {
     				key {http.request.remote_ip}
-    				events 25
+    				events 30
     				window 10m
     			}
     		}
@@ -303,7 +303,7 @@ kirbychope.xyz {
 		rate_limit {
 			zone api_zone {
 				key {http.request.remote_ip}
-				events 240
+				events 300
 				window 1m
 			}
 		}

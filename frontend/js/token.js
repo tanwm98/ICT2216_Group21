@@ -8,12 +8,12 @@ const IDLE_TIMEOUT_SECONDS = 15; // 15 seconds for testing; change back to 15 * 
 // token configuration
 const TOKEN_CONFIG = {
     access: {
-        expiresIn: '6m',
-        maxAgeMs: 6 * 60 * 1000
+        expiresIn: '15m',
+        maxAgeMs: 15 * 60 * 1000
     },
     refresh: {
-        expiresIn: '30m',
-        maxAgeMs: 30 * 60 * 1000
+        expiresIn: '45m',
+        maxAgeMs: 45 * 60 * 1000
     }
 };
 

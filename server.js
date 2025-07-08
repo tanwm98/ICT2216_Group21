@@ -323,13 +323,13 @@ app.post('/api/auth/refresh', async (req, res) => {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
-                maxAge: 6 * 60 * 1000, // 5 minutes
+                maxAge: 15 * 60 * 1000, // 5 minutes
                 path: '/'
             });
 
             res.json({
                 success: true,
-                expiresIn: 360
+                expiresIn: 900
             });
         } else {
             res.status(401).json({
