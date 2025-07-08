@@ -6,6 +6,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupNameEditHandlers();
   setupFirstNameEditHandler();
   setupLastNameEditHandler();
+  setupPasswordResetModal();
 });
 
 // ======== Fetch user details ======== 
@@ -57,7 +58,6 @@ function fetchReservations() {
           // Guest count cell
           const guestCell = document.createElement('td');
           guestCell.textContent = reservation.noOfGuest;
-          guestCell.style.textAlign = 'center';
           row.appendChild(guestCell);
 
           // Status cell with improved button handling
@@ -224,6 +224,51 @@ function setupResetPasswordHandler() {
   }
 }
 
+// Custom modal system for password reset
+function setupPasswordResetModal() {
+  const triggerBtn = document.getElementById('resetPasswordTrigger');
+  const modal = document.getElementById('resetPasswordModal');
+  
+  if (triggerBtn && modal) {
+    triggerBtn.addEventListener('click', () => {
+      showPasswordResetModal();
+    });
+  }
+}
+
+function showPasswordResetModal() {
+  const modal = document.getElementById('resetPasswordModal');
+  modal.classList.add('show');
+  modal.classList.remove('d-none');
+  document.body.classList.add('modal-open');
+  
+  // Add backdrop
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop fade show';
+  backdrop.id = 'reset-modal-backdrop';
+  document.body.appendChild(backdrop);
+  
+  // Close modal function
+  const closeModal = () => {
+    modal.classList.remove('show');
+    modal.classList.add('d-none');
+    document.body.classList.remove('modal-open');
+    const existingBackdrop = document.getElementById('reset-modal-backdrop');
+    if (existingBackdrop) {
+      existingBackdrop.remove();
+    }
+    // Clear form
+    document.getElementById('resetPasswordForm').reset();
+  };
+  
+  // Event listeners for closing
+  backdrop.addEventListener('click', closeModal);
+  const closeBtns = modal.querySelectorAll('.btn-close');
+  closeBtns.forEach(btn => {
+    btn.addEventListener('click', closeModal);
+  });
+}
+
 // ======== Edit name function ========
 function setupNameEditHandlers() {
   const editBtn = document.getElementById('editNameBtn');
@@ -263,7 +308,7 @@ function setupNameEditHandlers() {
           alert('Name updated successfully.');
           nameDisplay.textContent = newName;
           document.getElementById('userName').textContent = newName;
-          inputGroup.classList.add('d-none');
+          inputGroup.classList.add('hidden');
         } else {
           alert(result.message || 'Failed to update name.');
         }
@@ -284,8 +329,35 @@ function validateNameNoNumbers(name) {
 function showNameErrorModal(message) {
   const modalBody = document.getElementById('nameErrorModalBody');
   modalBody.textContent = message;
-  const modal = new bootstrap.Modal(document.getElementById('nameErrorModal'));
-  modal.show();
+  
+  // Use custom modal system instead of Bootstrap
+  const modal = document.getElementById('nameErrorModal');
+  modal.classList.add('show');
+  modal.classList.remove('d-none');
+  document.body.classList.add('modal-open');
+  
+  // Add backdrop
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop fade show';
+  backdrop.id = 'custom-backdrop';
+  document.body.appendChild(backdrop);
+  
+  // Close modal when clicking backdrop or close button
+  const closeModal = () => {
+    modal.classList.remove('show');
+    modal.classList.add('d-none');
+    document.body.classList.remove('modal-open');
+    const existingBackdrop = document.getElementById('custom-backdrop');
+    if (existingBackdrop) {
+      existingBackdrop.remove();
+    }
+  };
+  
+  backdrop.addEventListener('click', closeModal);
+  const closeBtns = modal.querySelectorAll('.btn-close');
+  closeBtns.forEach(btn => {
+    btn.addEventListener('click', closeModal);
+  });
 }
 
 // First Name Edit Handler
@@ -384,7 +456,7 @@ function setupLastNameEditHandler() {
         if (response.ok) {
           alert('Last name updated successfully.');
           nameDisplay.textContent = newLastName;
-          inputGroup.classList.add('d-none');
+          inputGroup.classList.add('hidden');
         } else {
           showNameErrorModal(result.message || 'Failed to update last name.');
         }

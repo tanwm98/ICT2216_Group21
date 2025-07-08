@@ -46,7 +46,10 @@ function createPaginationControls(containerId, pagination, onPageChange) {
     const infoDiv = document.createElement('div');
     const start = ((pagination.page - 1) * pagination.limit) + 1;
     const end = Math.min(pagination.page * pagination.limit, pagination.total);
-    infoDiv.innerHTML = `<small class="text-muted">Showing ${start}-${end} of ${pagination.total} entries</small>`;
+    const infoText = document.createElement('small');
+    infoText.className = 'text-muted';
+    infoText.textContent = `Showing ${start}-${end} of ${pagination.total} entries`;
+    infoDiv.appendChild(infoText);
 
     // Pagination buttons
     const buttonsDiv = document.createElement('div');

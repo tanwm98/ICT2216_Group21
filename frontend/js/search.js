@@ -191,9 +191,19 @@ function createRestaurantCard(store) {
     const averageRating = parseFloat(store.average_rating).toFixed(1);
     const reviewCount = parseInt(store.review_count);
 
-    ratingDiv.innerHTML = `${averageRating}/5<br/><small>${reviewCount} reviews</small>`;
+    ratingDiv.textContent = `${averageRating}/5`;
+    const br = document.createElement('br');
+    ratingDiv.appendChild(br);
+    const reviewText = document.createElement('small');
+    reviewText.textContent = `${reviewCount} reviews`;
+    ratingDiv.appendChild(reviewText);
   } else {
-    ratingDiv.innerHTML = `N/A<br/><small>No reviews</small>`;
+    ratingDiv.textContent = 'N/A';
+    const br = document.createElement('br');
+    ratingDiv.appendChild(br);
+    const reviewText = document.createElement('small');
+    reviewText.textContent = 'No reviews';
+    ratingDiv.appendChild(reviewText);
   }
 
   card.appendChild(ratingDiv);

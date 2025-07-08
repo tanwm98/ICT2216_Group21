@@ -158,10 +158,10 @@ const redisHelpers = {
 global.redisClient = redisClient;
 global.redisHelpers = redisHelpers;
 
-if (process.env.NODE_ENV === 'production') {
-    console.log = () => {};
-    console.info = () => {};
-}
+// if (process.env.NODE_ENV === 'production') {
+//     console.log = () => {};
+//     console.info = () => {};
+// }
 
 // Cookie parser for JWT tokens
 const cookieParser = require('cookie-parser');

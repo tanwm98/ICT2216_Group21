@@ -45,7 +45,7 @@ kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
     }
 
     encode gzip
-    reverse_proxy localhost:3000
+    reverse_proxy backend:3000
 }
 
 :80 {
@@ -53,7 +53,7 @@ kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
     respond @disallowed "405 Method Not Allowed" 405
 
     encode gzip
-    reverse_proxy localhost:3000
+    reverse_proxy backend:3000
 }
 
 kirbychope.xyz {

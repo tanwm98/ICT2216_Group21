@@ -28,7 +28,7 @@ services:
       - infrastructure
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-k", "-f", "https://localhost:8000/en-US/account/login"]
+      test: ["CMD", "curl", "-k", "-f", "http://localhost:8000/en-US/account/login"]
       interval: 30s
       timeout: 10s
       retries: 10
