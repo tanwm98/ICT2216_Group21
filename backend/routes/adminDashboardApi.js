@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../../db');
 const router = express.Router();
-const { authenticateToken, requireAdmin } = require('../../frontend/js/token');
+const { authenticateToken, requireAdmin, revokeAllUserSessions } = require('../../frontend/js/token');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
@@ -1430,22 +1430,58 @@ router.post('/reauthenticate', authenticateToken, requireAdmin, async (req, res)
 
 router.post('/users/:id/force-logout', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
+    const adminId = req.user.userId;
 
     try {
-        const updatedUser = await db('users')
+        // Get user info before terminating session
+        const targetUser = await db('users')
+            .select('name', 'email', 'role')
             .where('user_id', id)
-            .update({
-                token_version: db.raw('token_version + 1')
-            })
-            .returning('*');
+            .first();
 
-        if (updatedUser.length === 0) {
+        if (!targetUser) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ message: 'User session terminated.' });
+        const { revokeAllUserSessions } = require('../../frontend/js/token');
+        const success = await revokeAllUserSessions(id, 'admin_force_logout');
+
+        if (!success) {
+            return res.status(500).json({ error: 'Failed to revoke user sessions' });
+        }
+
+        // Log the admin action for security audit
+        logSecurity('admin_force_logout', 'high', {
+            admin_id: adminId,
+            admin_name: req.user.name,
+            target_user_id: id,
+            target_user_name: targetUser.name,
+            target_user_email: targetUser.email,
+            target_user_role: targetUser.role
+        }, req);
+
+        res.json({
+            message: `User session terminated successfully. ${targetUser.name} has been logged out from all devices.`,
+            details: {
+                user_id: id,
+                user_name: targetUser.name,
+                terminated_by: req.user.name,
+                timestamp: new Date().toISOString(),
+                reason: 'Admin forced logout'
+            }
+        });
+
     } catch (err) {
         console.error('Error during force logout:', err);
+
+        // Log the error
+        logSystem('error', 'Admin force logout failed', {
+            admin_id: adminId,
+            target_user_id: id,
+            error: err.message,
+            stack: err.stack
+        });
+
         res.status(500).json({ error: 'Failed to force logout user.' });
     }
 });

@@ -241,6 +241,32 @@ async function validateAccessToken(accessToken) {
                 payload: null
             };
         }
+
+        // ✅ NEW: Check refresh_token_version for immediate logout
+        if (payload.refreshTokenVersion && payload.userId) {
+            const user = await db('users')
+                .select('refresh_token_version')
+                .where('user_id', payload.userId)
+                .first();
+
+            if (!user) {
+                return {
+                    valid: false,
+                    reason: 'user_not_found',
+                    payload: null
+                };
+            }
+
+            if (user.refresh_token_version !== payload.refreshTokenVersion) {
+                console.log(`🚫 User ${payload.userId} kicked out - token version mismatch`);
+                return {
+                    valid: false,
+                    reason: 'token_version_mismatch',
+                    payload: null
+                };
+            }
+        }
+
         return {
             valid: true,
             payload,
@@ -535,6 +561,7 @@ async function revokeAllUserSessions(userId, reason = 'admin_revocation') {
             .where('user_id', userId)
             .increment('refresh_token_version', 1);
 
+        let activeSessions = [];
         // Get all active sessions for the user
         if (await isRedisAvailable()) {
             const userSessionsKey = REDIS_KEYS.userSessions(userId);
