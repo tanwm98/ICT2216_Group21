@@ -33,7 +33,7 @@ module.exports = (req, res, next) => {
     });
 
     // Track failure for captcha system using IP address
-    const captcha_identifier = req.ip;
+    const captcha_identifier = req.body.email || req.ip;
     recordFailure(captcha_identifier);
 
     // Extract the first error message for URL parameter

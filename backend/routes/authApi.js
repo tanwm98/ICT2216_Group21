@@ -236,7 +236,7 @@ async function verifyCaptchaIfAny(req, res, captcha_identifier) {
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
-        const captcha_identifier = req.ip;
+        const captcha_identifier = req.body.email || req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             return res.redirect('/login?error=1&captcha=failed');
         }
@@ -470,7 +470,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
     try {
 
         // Captcha for registration
-        const captcha_identifier = req.ip;
+        const captcha_identifier = req.body.email || req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             recordFailure(captcha_identifier);
             const errorMessage = 'Invalid Captcha Token, Try Again.';
@@ -584,7 +584,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
         res.redirect('/login?success=1');
     } catch (error) {
         // Handle any unexpected errors
-        const captcha_identifier = req.ip;
+        const captcha_identifier = req.body.email || req.ip;
         recordFailure(captcha_identifier);
         const errorMessage = 'Registration failed. Please try again.';
         if (shouldShowCaptcha(captcha_identifier)) {
@@ -598,7 +598,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
 router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
         // Captcha for owner restaurant registration
-        const captcha_identifier = req.ip;
+        const captcha_identifier = req.body.email || req.ip;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             throw new AppError('Invalid Captcha Token, Try Again.', 400);
         }
