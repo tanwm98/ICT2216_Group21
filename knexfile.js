@@ -10,7 +10,7 @@ module.exports = {
       tableName: 'knex_migrations'
     },
     ssl: {
-      rejectUnauthorized: false
+      rejectUnauthorized: true
     }
   },
   development: {
@@ -35,7 +35,7 @@ module.exports = {
       tableName: 'knex_migrations'
     },
     ssl: {
-      rejectUnauthorized: false
+      rejectUnauthorized: true
     }
   }
 
