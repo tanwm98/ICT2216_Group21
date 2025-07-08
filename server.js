@@ -203,6 +203,54 @@ app.use((req, res, next) => {
     next();
 });
 
+async function redirectIfAuthenticated(req, res, next) {
+    try {
+        const accessToken = req.cookies.access_token;
+
+        if (!accessToken) {
+            return next(); // No token, allow access to auth pages
+        }
+
+        const { validateAccessToken } = require('./frontend/js/token');
+        const validation = await validateAccessToken(accessToken);
+
+        if (validation.valid) {
+            // User is authenticated, redirect to appropriate dashboard
+            const role = validation.payload.role;
+
+            let redirectUrl;
+            switch(role) {
+                case 'admin':
+                    redirectUrl = '/admin';
+                    break;
+                case 'owner':
+                    redirectUrl = '/resOwner';
+                    break;
+                case 'user':
+                default:
+                    redirectUrl = '/';
+                    break;
+            }
+
+            return res.redirect(redirectUrl);
+        } else {
+            // Invalid token, clear it and allow access to auth pages
+            res.clearCookie('access_token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/'
+            });
+            return next();
+        }
+
+    } catch (error) {
+        console.error('Error in redirectIfAuthenticated middleware:', error);
+        // On error, allow access to auth pages (fail-safe)
+        return next();
+    }
+}
+
 // Import route files
 const authRoutes = require('./backend/routes/authApi');
 const { router: adminDash } = require('./backend/routes/adminDashboardApi');
@@ -426,15 +474,15 @@ app.get('/search', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/search.html'));
 });
 
-app.get('/login', (req, res) => {
+app.get('/login', redirectIfAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
 });
 
-app.get('/register', (req, res) => {
+app.get('/register', redirectIfAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/register.html'));
 });
 
-app.get('/rOwnerReg', (req, res) => {
+app.get('/rOwnerReg', redirectIfAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/resOwnerForm.html'));
 });
 
@@ -442,12 +490,13 @@ app.get('/selectedRes', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/selectedRes.html'));
 });
 
-app.get('/request-reset', (req, res) => {
+app.get('/request-reset', redirectIfAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/public/request-reset.html'));
 });
 
+
 // Password reset routes
-app.get('/reset-password', async (req, res) => {
+app.get('/reset-password', redirectIfAuthenticated, async (req, res) => {
     const { token } = req.query;
 
     if (!token) {
