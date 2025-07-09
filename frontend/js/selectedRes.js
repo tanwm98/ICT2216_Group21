@@ -427,7 +427,7 @@ async function displaySpecificStore() {
         // FIXED: Decode for page title
         const decodedStoreName = decodeHtmlEntities(stores[0].storeName);
         const decodedLocation = decodeHtmlEntities(stores[0].location);
-        document.title = `${escapeHtml(decodedStoreName)} - ${escapeHtml(decodedLocation)}`;
+        document.title = `${decodedStoreName} - ${decodedLocation}`;
 
         await displayTimingOptions();
         navTabs(stores);
