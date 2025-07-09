@@ -225,7 +225,7 @@ async function verifyCaptchaIfAny(req, res, captcha_identifier) {
     if (shouldShowCaptcha(captcha_identifier)) {
         if (req.body['g-recaptcha-response']){
             return await verifyCaptcha(req.body['g-recaptcha-response'], req.ip);
-        } else if (req.body['g-recaptcha-response']==='') {
+        } else {
             return false; //user bypassed the recaptcha, redirect back as captcha failed
         }
     }
@@ -600,6 +600,10 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
         // Captcha for owner restaurant registration
         const captcha_identifier = req.ip || req.body.email;
+        const isRetry = req.body.isRetry === 'true';
+        if (isRetry) {
+            recordFailure(captcha_identifier);
+        }
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             recordFailure(captcha_identifier);
             const errorMessage = 'Invalid Captcha Token, Try Again.';
@@ -682,7 +686,7 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             }, req);
             recordFailure(captcha_identifier);
             if (shouldShowCaptcha(captcha_identifier)) {
-                return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Email already registered') + '&captcha=true');  // ✅ URL redirect
+                return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Email already registered') + '&captcha=true');
             } else {
                 return res.redirect('/rOwnerReg?error=' + encodeURIComponent('Email already registered'));
             }
@@ -917,7 +921,15 @@ router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
             error: err.message,
             stack: err.stack
         });
-        next(err);
+        const captcha_identifier = req.ip;
+        recordFailure(captcha_identifier);
+
+        const errorMessage = 'Registration failed. Please try again.';
+        if (shouldShowCaptcha(captcha_identifier)) {
+            return res.redirect(`/rOwnerReg?error=${encodeURIComponent(errorMessage)}&captcha=true`);
+        } else {
+            return res.redirect(`/rOwnerReg?error=${encodeURIComponent(errorMessage)}`);
+        }
     }
 });
 

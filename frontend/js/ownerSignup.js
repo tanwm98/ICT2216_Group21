@@ -23,7 +23,10 @@ function showError(message) {
     const errorMessage = document.getElementById('errorMessage');
     errorMessage.textContent = ` ${message}`;
     showAlert('errorAlert', true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
 }
 
 function hideError() {
@@ -148,6 +151,36 @@ function validateTimeRange() {
     return true;
 }
 
+// NEW: Validate captcha similar to login.js approach
+function validateCaptcha() {
+    const captchaContainer = document.getElementById('captcha-container');
+    const captchaMessage = document.getElementById('captcha-message');
+
+    // If captcha is not visible, no validation needed
+    if (!captchaContainer || captchaContainer.classList.contains('hidden')) {
+        return true;
+    }
+
+    // Check if reCAPTCHA is completed
+    const recaptchaResponse = grecaptcha.getResponse();
+
+    if (!recaptchaResponse) {
+        // Show captcha message
+        if (captchaMessage) {
+            captchaMessage.classList.remove('hidden');
+        }
+        showError('Please complete the CAPTCHA verification before submitting.');
+        return false;
+    }
+
+    // Hide captcha message if it was shown
+    if (captchaMessage) {
+        captchaMessage.classList.add('hidden');
+    }
+
+    return true;
+}
+
 function setSubmitButtonLoading(isLoading = false) {
     const submitBtn = document.getElementById('submitBtn');
 
@@ -186,13 +219,17 @@ function handleUrlParameters() {
 
         errorMessage.textContent = ` ${cleanError}`;
         showAlert('errorAlert', true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+        restoreFormData();
     }
 
     // Handle success parameter
     if (urlParams.has('success')) {
         showAlert('successAlert', true);
-
+        clearStoredFormData();
         // Redirect to login after 3 seconds
         setTimeout(() => {
             window.location.href = '/login';
@@ -208,18 +245,6 @@ function handleUrlParameters() {
 
 function validateAllFields(form) {
     let isValid = true;
-
-    // Check if captcha is required and validate it
-    const captchaContainer = document.getElementById('captcha-container');
-    const isCaptchaVisible = captchaContainer && !captchaContainer.classList.contains('hidden');
-
-    if (isCaptchaVisible) {
-        const recaptchaResponse = document.querySelector('.g-recaptcha-response');
-        if (!recaptchaResponse || !recaptchaResponse.value) {
-            showError('Please complete the CAPTCHA verification before submitting.');
-            return false;
-        }
-    }
 
     // Validate all required fields
     const requiredFields = form.querySelectorAll('[required]');
@@ -256,8 +281,64 @@ function focusFirstInvalidField(form) {
     const firstInvalid = form.querySelector('.is-invalid');
     if (firstInvalid) {
         firstInvalid.focus();
-        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstInvalid.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
     }
+}
+
+function storeFormData(form) {
+    const formData = new FormData(form);
+    const data = {};
+
+    // Store all form values except password and file
+    for (let [key, value] of formData.entries()) {
+        if (key !== 'password' && key !== 'confirmPassword' && key !== 'image' && key !== 'g-recaptcha-response') {
+            data[key] = value;
+        }
+    }
+
+    sessionStorage.setItem('ownerFormData', JSON.stringify(data));
+}
+
+function restoreFormData() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Only restore if there was an error (user needs to retry)
+    if (!urlParams.has('error')) {
+        return;
+    }
+
+    const storedData = sessionStorage.getItem('ownerFormData');
+    if (!storedData) {
+        return;
+    }
+
+    try {
+        const data = JSON.parse(storedData);
+        const form = document.getElementById('ownerSignupForm');
+
+        // Restore all stored values
+        Object.entries(data).forEach(([key, value]) => {
+            const field = form.querySelector(`[name="${key}"]`);
+            if (field) {
+                field.value = value;
+                // Trigger validation styling
+                if (field.checkValidity()) {
+                    setElementValidation(field, true);
+                }
+            }
+        });
+
+        console.log('✅ Form data restored');
+    } catch (error) {
+        console.error('Error restoring form data:', error);
+    }
+}
+
+function clearStoredFormData() {
+    sessionStorage.removeItem('ownerFormData');
 }
 
 function setupEventListeners() {
@@ -267,7 +348,6 @@ function setupEventListeners() {
     const capacity = document.getElementById('capacity');
     const totalCapacity = document.getElementById('totalCapacity');
     const imageInput = document.getElementById('image');
-    const emailInput = document.getElementById('email');
 
     // Password validation events
     confirmPassword.addEventListener('input', validatePasswords);
@@ -284,7 +364,6 @@ function setupEventListeners() {
 
     // File input validation
     imageInput.addEventListener('change', validateFile);
-
 
     // Real-time validation styling
     form.addEventListener('input', (e) => {
@@ -303,52 +382,44 @@ function setupEventListeners() {
         });
     }
 
-    // Form submission
+    // FIXED: Form submission - simplified like login.js
     form.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // Clear any existing errors
         hideError();
 
+        // Validate captcha first - prevent submission if it fails
+        if (!validateCaptcha()) {
+            e.preventDefault();
+            return;
+        }
+
+        // Validate all other fields
         const isValid = validateAllFields(form);
-
         if (!isValid) {
+            e.preventDefault();
             focusFirstInvalidField(form);
-            return false;
+            return;
         }
 
-        // Show loading state
+        // Add retry flag for backend tracking
+        let retryInput = form.querySelector('input[name="isRetry"]');
+        if (!retryInput) {
+            retryInput = document.createElement('input');
+            retryInput.type = 'hidden';
+            retryInput.name = 'isRetry';
+            form.appendChild(retryInput);
+        }
+        retryInput.value = 'true';
+
+        // Store form data and update UI
+        storeFormData(form);
         setSubmitButtonLoading(true);
-
-        // Check if captcha is visible and add recaptcha response to form
-        const captchaContainer = document.getElementById('captcha-container');
-        const isCaptchaVisible = captchaContainer && !captchaContainer.classList.contains('hidden');
-
-        if (isCaptchaVisible) {
-            const recaptchaResponse = document.querySelector('.g-recaptcha-response');
-            if (recaptchaResponse && recaptchaResponse.value) {
-                // Remove any existing g-recaptcha-response input
-                const existingInput = form.querySelector('input[name="g-recaptcha-response"]');
-                if (existingInput) {
-                    existingInput.remove();
-                }
-
-                // Add the recaptcha response as a hidden input
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'g-recaptcha-response';
-                hiddenInput.value = recaptchaResponse.value;
-                form.appendChild(hiddenInput);
-            }
-        }
 
         // Set timeout to re-enable button in case of slow response
         setTimeout(() => {
             setSubmitButtonLoading(false);
         }, 30000);
 
-        // Submit the form
-        form.submit();
+        // Form will submit normally - reCAPTCHA automatically includes g-recaptcha-response
     });
 }
 
@@ -356,4 +427,9 @@ function setupEventListeners() {
 document.addEventListener('DOMContentLoaded', async () => {
     handleUrlParameters();
     setupEventListeners();
+
+    // Reset button state if user navigates back
+    window.addEventListener('pageshow', () => {
+        setSubmitButtonLoading(false);
+    });
 });
