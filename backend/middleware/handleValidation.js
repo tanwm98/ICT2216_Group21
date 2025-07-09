@@ -33,7 +33,7 @@ module.exports = (req, res, next) => {
     });
 
     // Track failure for captcha system using IP address
-    const captcha_identifier = req.body.email || req.ip;
+    const captcha_identifier = req.ip || req.body.email;
     recordFailure(captcha_identifier);
 
     // Extract the first error message for URL parameter
@@ -46,7 +46,8 @@ module.exports = (req, res, next) => {
 
     const redirectMap = {
       '/signup-owner': `/rOwnerReg?error=${errorMessage}${captchaParam}`,
-      '/register': `/register?error=${errorMessage}${captchaParam}`
+      '/register': `/register?error=${errorMessage}${captchaParam}`,
+      '/login': `/login?error=${errorMessage}${captchaParam}`
     };
 
     const target = redirectMap[req.originalUrl];

@@ -188,7 +188,12 @@ router.get(
         .leftJoin('reviews as r', 's.store_id', 'r.store_id')
         .where('s.status', 'approved')
         .select([
-          's.*'
+          's.storeName',
+          's.location',
+          's.cuisine',
+          's.priceRange',
+          's.image_filename',
+          's.image_alt_text'
         ])
         .avg('r.rating as average_rating')
         .count('r.store_id as review_count');
@@ -207,14 +212,12 @@ router.get(
       }
 
       query = query.groupBy([
-        's.store_id',
         's.storeName',
-        's.image_filename',
-        's.image_alt_text',
-        's.cuisine',
         's.location',
+        's.cuisine',
         's.priceRange',
-        's.currentCapacity'
+        's.image_filename',
+        's.image_alt_text'
       ]);
 
       // Apply rating filters using HAVING clause

@@ -830,7 +830,11 @@ router.get('/maxcapacity', async (req, res) => {
         const storeid = req.query.storeid;
 
         const store = await db('stores')
-            .select('*')
+            .select([
+                'storeName',
+                'totalCapacity',
+                'currentCapacity'
+            ])
             .where('store_id', storeid)
             .andWhere('status', 'approved');
 

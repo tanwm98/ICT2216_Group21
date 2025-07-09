@@ -15,76 +15,81 @@
 
 <body class = "login-page">
 <div id="header-placeholder"></div>
-    <section class="archive-area">
-        <div class="container sticky">
-            <div class="left-side col-md-6">
-                <h1>Welcome Back!</h1>
-                <form id="loginForm" method="POST" action="/login">
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+<section class="archive-area">
+    <div class="container sticky">
+        <div class="left-side col-md-6">
+            <h1>Welcome Back!</h1>
+            <form id="loginForm" method="POST" action="/login">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <!-- reCAPTCHA v2 - shown conditionally after failed attempts -->
+                <div class="form-group hidden" id="captcha-container">
+                    <div class="g-recaptcha"
+                         data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
+                         data-theme="light">
                     </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" class="form-control" id="password" name="password">
+                    <div id="captcha-message" class="hidden text-danger mt-2">
+                        Please complete the CAPTCHA to proceed.
                     </div>
-                    <!-- Conditional ReCaptcha -->
-                    <div class="form-group hidden" id="captcha-container">
-                        <div class="g-recaptcha"
-                             data-sitekey="6Lcf8XgrAAAAAFYRYwS__TYlh7We5vCmr1dthwkh"
-                             data-theme="light">
-                        </div>
-                        <div id="captcha-message" class="hidden">
-                            Please complete the CAPTCHA to proceed.
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="loginBtn">Log In</button>
-                </form>
-                <p class="mt-2">
-                    <a href="/request-reset">Forgot your password?</a>
-                </p>
-                <p>Don't have an account yet? <a href="/register">Register</a> | <a href="/rOwnerReg">Register
-                        Restaurant</a></p>
-                <a href="/">Back to Home</a>
-            </div>
-            <div class="right-side col-md-6"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="loginBtn">Log In</button>
+            </form>
+            <p class="mt-2">
+                <a href="/request-reset">Forgot your password?</a>
+            </p>
+            <p>Don't have an account yet? <a href="/register">Register</a> | <a href="/rOwnerReg">Register
+                Restaurant</a></p>
+            <a href="/">Back to Home</a>
         </div>
-    </section>
-    <div class="modal fade" id="registrationSuccessModal" tabindex="-1" aria-labelledby="registrationSuccessLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-success">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="registrationSuccessLabel">Registration Successful</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    Your account has been created! Please log in below.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
-                </div>
+        <div class="right-side col-md-6"></div>
+    </div>
+</section>
+
+<!-- Success Modal -->
+<div class="modal fade" id="registrationSuccessModal" tabindex="-1" aria-labelledby="registrationSuccessLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-success">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="registrationSuccessLabel">Registration Successful</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Your account has been created! Please log in below.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
             </div>
         </div>
     </div>
-    <!-- modal for login error -->
-    <div class="modal fade" id="loginErrorModal" tabindex="-1" aria-labelledby="loginErrorLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="loginErrorLabel">Login Failed</h5>
-                </div>
-                <div class="modal-body">
-                    Invalid username or password. Please try again.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="loginErrorModal" tabindex="-1" aria-labelledby="loginErrorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="loginErrorLabel">Login Failed</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Invalid username or password. Please try again.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
-    <script src = "js/login.js"></script>
-    <script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
-    <script src="/common/common_js/include.js"></script>
+</div>
+
+<script src="js/login.js"></script>
+<script src="/static/styles/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/common/common_js/include.js"></script>
 </body>
 
 </html>

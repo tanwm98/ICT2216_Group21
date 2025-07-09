@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 const port = 3000;
 const path = require('path');
 const db = require('./db');

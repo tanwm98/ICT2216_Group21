@@ -1,4 +1,5 @@
 const express = require('express');
+
 const db = require('../../db');
 const argon2 = require('argon2');
 require('dotenv').config();
@@ -236,7 +237,7 @@ async function verifyCaptchaIfAny(req, res, captcha_identifier) {
 router.post('/login', loginValidator, handleValidation, async (req, res, next) => {
     try {
         const { email, password } = req.body;
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier = req.ip || req.body.email;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             return res.redirect('/login?error=1&captcha=failed');
         }
@@ -470,7 +471,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
     try {
 
         // Captcha for registration
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier =  req.ip || req.body.email;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             recordFailure(captcha_identifier);
             const errorMessage = 'Invalid Captcha Token, Try Again.';
@@ -584,7 +585,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
         res.redirect('/login?success=1');
     } catch (error) {
         // Handle any unexpected errors
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier = req.ip || req.body.email;
         recordFailure(captcha_identifier);
         const errorMessage = 'Registration failed. Please try again.';
         if (shouldShowCaptcha(captcha_identifier)) {
@@ -598,7 +599,7 @@ router.post('/register', registerValidator, handleValidation, async (req, res, n
 router.post('/signup-owner', upload.single('image'), async (req, res, next) => {
     try {
         // Captcha for owner restaurant registration
-        const captcha_identifier = req.body.email || req.ip;
+        const captcha_identifier = req.ip || req.body.email;
         if(!await verifyCaptchaIfAny(req, res, captcha_identifier)){
             recordFailure(captcha_identifier);
             const errorMessage = 'Invalid Captcha Token, Try Again.';
@@ -1062,7 +1063,7 @@ router.post('/request-reset', async (req, res) => {
         }
 
         const token = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 1800_000); // 1 hour
+        const expires = new Date(Date.now() + 1800_000);
 
         await db('users').where('email', email).update({
                 reset_token: token,

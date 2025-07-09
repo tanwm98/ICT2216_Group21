@@ -9,7 +9,8 @@ exports.loginValidator = [
 
   body('password')
     .exists()
-    .withMessage('Password is required'),
+    .isLength({ min: 8, max: 64 })
+    .withMessage('Password must be between 8 and 64 characters'),
 ];
 
 exports.registerValidator = [
