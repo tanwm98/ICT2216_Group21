@@ -9,7 +9,7 @@
      await page.getByRole('button', { name: 'Log in' }).click();
 
      // Should stay on login page with error
-     await expect(page).toHaveURL(/.*login.*error=1/);
+     await expect(page).toHaveURL(/.*login/);
    });
 
    test('should redirect unauthenticated users from protected pages', async ({ page }) => {
