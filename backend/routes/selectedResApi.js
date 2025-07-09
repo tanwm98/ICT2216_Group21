@@ -832,6 +832,7 @@ router.get('/maxcapacity', async (req, res) => {
         const store = await db('stores')
             .select([
                 'storeName',
+                'location',
                 'totalCapacity',
                 'currentCapacity'
             ])
