@@ -136,6 +136,7 @@ kirbychope.xyz {
 		@401 expression {http.error.status_code} == 401
 		@403 expression {http.error.status_code} == 403
 		@405 expression {http.error.status_code} == 405
+		@429 expression {http.error.status_code} == 429
 		@500 expression {http.error.status_code} == 500
 		@502 expression {http.error.status_code} == 502
 
@@ -167,7 +168,15 @@ kirbychope.xyz {
                 browse off
             }
         }
-		handle @500 {
+        handle @429 {
+            root * /usr/share/caddy/errors
+            rewrite * /429.html
+            file_server {
+                browse off
+            }
+        }
+		handle @500
+		} {
 			root * /usr/share/caddy/errors
 			rewrite * /500.html
 			file_server {
@@ -288,7 +297,7 @@ kirbychope.xyz {
         rate_limit {
             zone mfa_zone {
                 key {http.request.remote_ip}
-                events 30
+                events 15
                 window 15m
             }
         }

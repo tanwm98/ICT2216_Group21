@@ -285,7 +285,7 @@ router.post('/login', loginValidator, handleValidation, async (req, res, next) =
                 html: `<p>Your MFA code is: <b>${mfaCode}</b></p><p>⏱ Expires in 5 minutes.</p>`,
             });
 
-            // Generate MFA pending token (REPLACES SESSION)
+            // Generate MFA pending token
             const { token: mfaPendingToken, mfaJti } = generateMfaPendingToken(
                 user.user_id,
                 user.role,
