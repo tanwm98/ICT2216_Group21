@@ -6,38 +6,11 @@
 	order coraza_waf first
 }
 
-kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
-	# Redirect www to non-www
-	@www host www.kirbychope.xyz
-	redir @www https://kirbychope.xyz{uri} permanent
-
-	@hec path /services/collector*
-	handle @hec {
-		reverse_proxy https://kirby-splunk:8088 {
-			transport http {
-				tls
-				tls_server_name splunk-internal.kirbychope.xyz
-				tls_insecure_skip_verify
-			}
-		}
-	}
-
-	handle {
-		reverse_proxy https://kirby-splunk:8000 {
-			transport http {
-				tls
-				tls_server_name splunk-internal.kirbychope.xyz
-				tls_insecure_skip_verify
-			}
-		}
-	}
-}
-
+# Basic handlers for non-domain requests
 :443 {
     @disallowed method TRACE TRACK
     respond @disallowed "405 Method Not Allowed" 405
 
-    # Optional: Log disallowed attempts
     log {
         output file /var/log/caddy/disallowed_methods.log
         level WARN
@@ -56,6 +29,7 @@ kirbysplunk.kirbychope.xyz, www.kirbychope.xyz {
     reverse_proxy backend:3000
 }
 
+# Main site configuration
 kirbychope.xyz {
 	# WAF Protection with enhanced rules and PUT support
 	coraza_waf {
@@ -115,6 +89,8 @@ kirbychope.xyz {
 				msg:'allow'"
 		`
 	}
+
+	# Security Headers
 	header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
@@ -130,7 +106,9 @@ kirbychope.xyz {
         -X-Powered-By
         -X-AspNet-Version
         -X-AspNetMvc-Version
-        }
+    }
+
+	# Error Handling
 	handle_errors {
 		@404 expression {http.error.status_code} == 404
 		@401 expression {http.error.status_code} == 401
@@ -175,8 +153,7 @@ kirbychope.xyz {
                 browse off
             }
         }
-		handle @500
-		} {
+		handle @500 {
 			root * /usr/share/caddy/errors
 			rewrite * /500.html
 			file_server {
@@ -192,106 +169,108 @@ kirbychope.xyz {
 		}
 	}
 
-	# API with enhanced error handling
+	# Rate Limited Endpoints (NOW INSIDE SITE BLOCK)
 	# =============================================
-    	# AUTHENTICATION ENDPOINTS WITH SPECIFIC LIMITS
-    	# =============================================
+    # AUTHENTICATION ENDPOINTS WITH SPECIFIC LIMITS
+    # =============================================
 
-    	# Login: 5 attempts/15 minutes per IP
-    	@login path /login
-    	handle @login {
-    		rate_limit {
-    			zone login_zone {
-    				key {http.request.remote_ip}
-    				events 30
-    				window 15m
-    			}
-    		}
-    		reverse_proxy backend:3000 {
-    			header_up Host {upstream_hostport}
-    			header_up X-Real-IP {remote_host}
-    		}
-    	}
+    # Login: 30 attempts/15 minutes per IP
+    @login path /login
+    handle @login {
+        rate_limit {
+            zone login_zone {
+                key {http.request.remote_ip}
+                events 30
+                window 15m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
 
-    	# Register: 5 attempts/15 minutes per IP
-    	@register path /register
-    	handle @register {
-    		rate_limit {
-    			zone register_zone {
-    				key {http.request.remote_ip}
-    				events 30
-    				window 15m
-    			}
-    		}
-    		reverse_proxy backend:3000 {
-    			header_up Host {upstream_hostport}
-    			header_up X-Real-IP {remote_host}
-    		}
-    	}
+    # Register: 30 attempts/15 minutes per IP
+    @register path /register
+    handle @register {
+        rate_limit {
+            zone register_zone {
+                key {http.request.remote_ip}
+                events 30
+                window 15m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
 
-    	# Password Reset: 3 requests/60 minutes per IP
-    	@password_reset path /request-reset /reset-password
-    	handle @password_reset {
-    		rate_limit {
-    			zone reset_zone {
-    				key {http.request.remote_ip}
-    				events 20
-    				window 60m
-    			}
-    		}
-    		reverse_proxy backend:3000 {
-    			header_up Host {upstream_hostport}
-    			header_up X-Real-IP {remote_host}
-    		}
-    	}
+    # Password Reset: 20 requests/60 minutes per IP
+    @password_reset path /request-reset /reset-password
+    handle @password_reset {
+        rate_limit {
+            zone reset_zone {
+                key {http.request.remote_ip}
+                events 20
+                window 60m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
 
-    	# Reservations: 3 requests/5 minutes per IP
-    	@reservations path /api/reservations/* /reserveform
-    	handle @reservations {
-    		rate_limit {
-    			zone reservation_zone {
-    				key {http.request.remote_ip}
-    				events 20
-    				window 5m
-    			}
-    		}
-    		reverse_proxy backend:3000 {
-    			header_up Host {upstream_hostport}
-    			header_up X-Real-IP {remote_host}
-    		}
-    	}
+    # Reservations: 20 requests/5 minutes per IP
+    @reservations path /api/reservations/* /reserveform
+    handle @reservations {
+        rate_limit {
+            zone reservation_zone {
+                key {http.request.remote_ip}
+                events 20
+                window 5m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
 
-    	# Reviews: 5 requests/10 minutes per IP
-    	@reviews path /api/reviews/*
-    	handle @reviews {
-    		rate_limit {
-    			zone review_zone {
-    				key {http.request.remote_ip}
-    				events 30
-    				window 10m
-    			}
-    		}
-    		reverse_proxy backend:3000 {
-    			header_up Host {upstream_hostport}
-    			header_up X-Real-IP {remote_host}
-    		}
-    	}
+    # Reviews: 30 requests/10 minutes per IP
+    @reviews path /api/reviews/*
+    handle @reviews {
+        rate_limit {
+            zone review_zone {
+                key {http.request.remote_ip}
+                events 30
+                window 10m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
 
-    	# Exports: 10 requests/60 minutes per IP
-    	@exports path /api/export/* /api/admin/export/* /api/owner/export/*
-    	handle @exports {
-    		rate_limit {
-    			zone export_zone {
-    				key {http.request.remote_ip}
-    				events 20
-    				window 60m
-    			}
-    		}
-    		reverse_proxy backend:3000 {
-    			header_up Host {upstream_hostport}
-    			header_up X-Real-IP {remote_host}
-    		}
-    	}
+    # Exports: 20 requests/60 minutes per IP
+    @exports path /api/export/* /api/admin/export/* /api/owner/export/*
+    handle @exports {
+        rate_limit {
+            zone export_zone {
+                key {http.request.remote_ip}
+                events 20
+                window 60m
+            }
+        }
+        reverse_proxy backend:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # MFA Verification: 15 attempts/15 minutes per IP
     @mfa_verify path /verify-mfa
     handle @mfa_verify {
         rate_limit {
@@ -306,9 +285,10 @@ kirbychope.xyz {
             header_up X-Real-IP {remote_host}
         }
     }
+
+	# General API: 300 requests/minute per IP
 	@api path /api/*
 	handle @api {
-		# General API: 60 requests/minute per IP
 		rate_limit {
 			zone api_zone {
 				key {http.request.remote_ip}
@@ -342,7 +322,7 @@ kirbychope.xyz {
 		}
 	}
 
-	# Try HTML files from multiple locations
+	# Fallback handler for HTML files from multiple locations
 	handle {
 		# First try public folder (login, register, search, etc.)
 		root * /usr/share/caddy/public
@@ -367,6 +347,8 @@ kirbychope.xyz {
 			pass_thru
 			browse off
 		}
+
+		# Finally proxy to backend
 		reverse_proxy backend:3000 {
 			header_up Host {upstream_hostport}
 			header_up X-Real-IP {remote_host}
@@ -382,3 +364,4 @@ kirbychope.xyz {
 			}
 		}
 	}
+}

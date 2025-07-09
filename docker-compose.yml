@@ -23,12 +23,13 @@ services:
     logging:
       driver: splunk
       options:
-        splunk-url: "https://splunk-internal.kirbychope.xyz:8088"
+        splunk-url: "https://localhost:8088" 
         splunk-token: "${SPLUNK_HEC_TOKEN}"
         splunk-format: json
         splunk-source: "kirby-chope-backend"
         splunk-sourcetype: "docker:container"
         splunk-index: "kirby_chope"
+        splunk-insecureskipverify: "true"
   backend:
     container_name: kirby-backend
     build:
@@ -51,12 +52,13 @@ services:
     logging:
       driver: splunk
       options:
-        splunk-url: "https://splunk-internal.kirbychope.xyz:8088" 
+        splunk-url: "https://localhost:8088"
         splunk-token: "${SPLUNK_HEC_TOKEN}"
         splunk-format: json
-        splunk-source: "kirby-chope-backend"
+        splunk-source: "kirby-chope-caddy"
         splunk-sourcetype: "docker:container"
         splunk-index: "kirby_chope"
+        splunk-insecureskipverify: "true"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
