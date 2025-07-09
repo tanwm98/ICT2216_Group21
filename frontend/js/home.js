@@ -238,17 +238,32 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
+function decodeHtmlEntities(str) {
+    if (typeof str !== 'string') return str;
+
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+}
+
 function createStoreElement(store) {
-    const safeName = escapeHtml(store.storeName);
-    const safeLocation = escapeHtml(store.location);
-    const safeCuisine = escapeHtml(store.cuisine);
-    const safePriceRange = escapeHtml(store.priceRange);
-    const safeAltText = escapeHtml(store.altText || 'Restaurant image');
+    const decodedName = decodeHtmlEntities(store.storeName);
+    const decodedLocation = decodeHtmlEntities(store.location);
+    const decodedCuisine = decodeHtmlEntities(store.cuisine);
+    const decodedPriceRange = decodeHtmlEntities(store.priceRange);
+    const decodedAltText = decodeHtmlEntities(store.altText || 'Restaurant image');
+    const storeUrl = `/selectedRes?name=${encodeURIComponent(decodedName)}&location=${encodeURIComponent(decodedLocation)}`;
+
+    const safeName = escapeHtml(decodedName);
+    const safeLocation = escapeHtml(decodedLocation);
+    const safeCuisine = escapeHtml(decodedCuisine);
+    const safePriceRange = escapeHtml(decodedPriceRange);
+    const safeAltText = escapeHtml(decodedAltText);
+
     const safeRating = store.average_rating ? parseFloat(store.average_rating).toFixed(1) : 'N/A';
     const reviewCount = parseInt(store.review_count) || 0;
 
     // Create URL parameters securely
-    const storeUrl = `/selectedRes?name=${encodeURIComponent(store.storeName)}&location=${encodeURIComponent(store.location)}`;
 
     // Create container div
     const colDiv = document.createElement('div');

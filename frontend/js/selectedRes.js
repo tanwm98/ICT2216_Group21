@@ -19,25 +19,9 @@ function escapeHtml(unsafe) {
 function decodeHtmlEntities(str) {
     if (typeof str !== 'string') return str;
 
-    const htmlMap = {
-        '&amp;': '&',
-        '&#x2F;': '/',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&#039;': "'"
-    };
-
-    const decodeOnce = s => s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
-
-    let last = str;
-    for (let i = 0; i < 10; i++) {
-        const decoded = decodeOnce(last);
-        if (decoded === last) break;
-        last = decoded;
-    }
-
-    return last;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
 }
 
 function createSecureImageElement(imageUrl, altText, fallbackText = 'Restaurant image') {
@@ -439,22 +423,27 @@ async function displaySpecificStore() {
         }
 
         stores = await response.json();
-        document.title = `${escapeHtml(stores[0].storeName)} - ${escapeHtml(stores[0].location)}`;
-        await displayTimingOptions();
 
+        // FIXED: Decode for page title
+        const decodedStoreName = decodeHtmlEntities(stores[0].storeName);
+        const decodedLocation = decodeHtmlEntities(stores[0].location);
+        document.title = `${escapeHtml(decodedStoreName)} - ${escapeHtml(decodedLocation)}`;
+
+        await displayTimingOptions();
         navTabs(stores);
         await reservationForm(stores);
 
         currentcapacity = stores[0].currentCapacity;
 
+        // FIXED: Decode and safely display store information
         const storeName = document.getElementById("storeName");
-        storeName.textContent = stores[0].storeName;
+        storeName.textContent = decodeHtmlEntities(stores[0].storeName);
 
         const cuisine = document.getElementById("cuisine");
-        cuisine.textContent = stores[0].cuisine;
+        cuisine.textContent = decodeHtmlEntities(stores[0].cuisine);
 
         const price = document.getElementById("price");
-        price.textContent = stores[0].priceRange;
+        price.textContent = decodeHtmlEntities(stores[0].priceRange);
 
         const left = document.getElementById('left-side');
         left.textContent = "";
@@ -464,12 +453,11 @@ async function displaySpecificStore() {
 
         const img = createSecureImageElement(
             stores[0].imageUrl,
-            stores[0].altText || `${stores[0].storeName} restaurant image`,
+            decodeHtmlEntities(stores[0].altText || `${stores[0].storeName} restaurant image`),
             'Restaurant image'
         );
 
         img.classList.add('restaurant-main-image');
-
         link.appendChild(img);
         left.append(link);
 
@@ -490,12 +478,14 @@ async function displaySpecificStore() {
 
 async function navTabs(stores) {
     const title = document.getElementById("aboutTitle");
-    title.textContent = `About ${stores[0].storeName}`;
+    // FIXED: Decode store name
+    title.textContent = `About ${decodeHtmlEntities(stores[0].storeName)}`;
 
     const address = document.getElementById("address");
     const addressIcon = document.createElement('i');
     addressIcon.className = 'bi bi-geo-alt-fill mr-3 text-primary';
-    const addressText = document.createTextNode(` ${stores[0].address}, Singapore ${stores[0].postalCode}`);
+    // FIXED: Decode address
+    const addressText = document.createTextNode(` ${decodeHtmlEntities(stores[0].address)}, Singapore ${stores[0].postalCode}`);
     address.textContent = '';
     address.appendChild(addressIcon);
     address.appendChild(addressText);
@@ -525,6 +515,7 @@ async function navTabs(stores) {
         ratingContent.textContent = `Rating: ${r.rating}`;
 
         const descriptionContent = document.createElement("p");
+        // This was already correct - decoding review descriptions
         descriptionContent.textContent = `Description: ${decodeHtmlEntities(r.description)}`;
 
         eachReview.append(ratingContent, descriptionContent);

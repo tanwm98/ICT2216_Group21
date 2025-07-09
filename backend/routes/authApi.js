@@ -5,7 +5,6 @@ const argon2 = require('argon2');
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
-const session = require('express-session');
 const router = express.Router();
 
 const multer = require('multer');

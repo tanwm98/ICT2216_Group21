@@ -77,6 +77,7 @@ exports.ownerValidator = [
 
   body('storeName')
     .trim()
+    .unescape()
     .matches(/^[A-Za-z0-9\s]+$/)
     .withMessage('Store name must only contain letters and numbers')
     .custom(async (value, { req }) => {
@@ -169,7 +170,8 @@ exports.ownerValidator = [
 exports.restaurantAddValidator = [
   body('storeName')
     .trim()
-    .matches(/^[A-Za-z0-9\s]+$/)
+    .unescape()
+    .matches(/^[A-Za-z0-9\s'&.-]+$/)
     .withMessage('Store name must only contain letters and numbers')
     .custom(async (storeName, { req }) => {
       const location = req.body.location;
@@ -249,7 +251,8 @@ exports.updateRestaurantValidator = [
 
   body('storeName')
     .trim()
-    .matches(/^[A-Za-z0-9\s]+$/)
+    .unescape()
+    .matches(/^[A-Za-z0-9\s'&.-]+$/)
     .withMessage('Store name must only contain letters and numbers'),
 
   body('address')

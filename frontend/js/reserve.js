@@ -10,29 +10,13 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
+// FIXED: Use the simple, comprehensive decoding function
 function decodeHtmlEntities(str) {
     if (typeof str !== 'string') return str;
 
-    const htmlMap = {
-        '&amp;': '&',
-        '&#x2F;': '/',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&#039;': "'"
-    };
-
-    const decodeOnce = s =>
-        s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
-
-    let last = str;
-    for (let i = 0; i < 10; i++) {
-        const decoded = decodeOnce(last);
-        if (decoded === last) break;
-        last = decoded;
-    }
-
-    return last;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
 }
 
 function closePopup() {
@@ -101,6 +85,7 @@ window.onload = async function () {
     }
 };
 
+// FIXED: Properly decode and handle special requests
 async function populateFields(reservationid) {
     console.log("running populateField");
     try {
@@ -110,22 +95,35 @@ async function populateFields(reservationid) {
         }
         const reservationDetails = await response.json();
         const details = reservationDetails[0];
-        console.log("[DEBUG] Raw special request from backend:", details.specialRequest);
-        console.log("[DEBUG] Decoded special request:", decodeHtmlEntities(details.specialRequest));
 
-        document.getElementById('firstname').value = escapeHtml(details.first_name);
-        document.getElementById('lastname').value = escapeHtml(details.last_name);
-        document.getElementById('specialrequest').value = details.specialRequest;
+        console.log("[DEBUG] Raw special request from backend:", details.specialRequest);
+
+        // FIXED: Decode first, then safely display
+        const decodedFirstName = decodeHtmlEntities(details.first_name || '');
+        const decodedLastName = decodeHtmlEntities(details.last_name || '');
+        const decodedSpecialRequest = decodeHtmlEntities(details.specialRequest || '');
+
+        console.log("[DEBUG] Decoded special request:", decodedSpecialRequest);
+
+        // Use decoded values in form fields (form fields handle text safely)
+        document.getElementById('firstname').value = decodedFirstName;
+        document.getElementById('lastname').value = decodedLastName;
+        document.getElementById('specialrequest').value = decodedSpecialRequest;
+
     } catch (error) {
         console.error('Error populating fields:', error);
         showError('Failed to load reservation details');
     }
 }
 
+// FIXED: Decode store name for display
 async function makeReservation(totalpeople, date, time, userid, storeid, storename, adultpax, childpax, reservationid) {
     try {
-        // Set reservation details with escaped content
-        document.getElementById("storename").textContent = storename;
+        // FIXED: Decode store name before displaying
+        const decodedStoreName = decodeHtmlEntities(storename);
+
+        // Set reservation details with decoded content (textContent is safe)
+        document.getElementById("storename").textContent = decodedStoreName;
         document.getElementById("totalpax").textContent = `👤 ${totalpeople}`;
         document.getElementById("date").textContent = `📅 ${date}`;
         document.getElementById("time").textContent = `🕑 ${time}`;
@@ -137,11 +135,14 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
         }
         const name = await response.json();
         console.log(name);
-        
-        // Only populate if not already populated (for edit case)
+
+        // FIXED: Decode user names before populating (only if not already populated)
         if (!document.getElementById('firstname').value) {
-            document.getElementById('firstname').value = escapeHtml(name[0].firstname);
-            document.getElementById('lastname').value = escapeHtml(name[0].lastname);
+            const decodedFirstName = decodeHtmlEntities(name[0].firstname || '');
+            const decodedLastName = decodeHtmlEntities(name[0].lastname || '');
+
+            document.getElementById('firstname').value = decodedFirstName;
+            document.getElementById('lastname').value = decodedLastName;
         }
 
         const form = document.getElementById("completeReservation");
@@ -190,7 +191,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                             firstname,
                             lastname,
                             specialrequest,
-                            storename,
+                            storename: decodedStoreName, // Send decoded store name
                             reservationid
                         })
                     });
@@ -206,7 +207,7 @@ async function makeReservation(totalpeople, date, time, userid, storeid, storena
                             firstname,
                             lastname,
                             specialrequest,
-                            storename,
+                            storename: decodedStoreName, // Send decoded store name
                             adultpax,
                             childpax
                         })

@@ -22,7 +22,7 @@ function showSection(id) {
     document.querySelectorAll('.section').forEach(section => {
         section.classList.remove('active');
     });
-    
+
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
     });
@@ -42,25 +42,9 @@ function showSection(id) {
 function decodeHtmlEntities(str) {
     if (typeof str !== 'string') return str;
 
-    const htmlMap = {
-        '&amp;': '&',
-        '&#x2F;': '/',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&#039;': "'"
-    };
-
-    const decodeOnce = s => s.replace(/(&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;)/g, m => htmlMap[m]);
-
-    let last = str;
-    for (let i = 0; i < 10; i++) {
-        const decoded = decodeOnce(last);
-        if (decoded === last) break;
-        last = decoded;
-    }
-
-    return last;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
 }
 
 function exportReservationsToCSV() {
@@ -91,7 +75,7 @@ function exportReservationsToCSV() {
 }
 
 function fetchRestaurants() {
-    fetch('/api/owner/restaurants')
+    csrfFetch('/api/owner/restaurants')
         .then(res => res.json())
         .then(data => {
             const tableBody = document.querySelector('#restaurantTable tbody');
@@ -99,18 +83,18 @@ function fetchRestaurants() {
 
             data.forEach(store => {
                 const row = document.createElement('tr');
-                
+
                 // Create cells with escaped content
                 const cells = [
-                    escapeHtml(store.storeName),
-                    escapeHtml(store.address),
-                    escapeHtml(store.postalCode),
-                    escapeHtml(store.location),
-                    escapeHtml(store.cuisine),
-                    escapeHtml(store.priceRange),
-                    escapeHtml(store.totalCapacity?.toString()),
-                    escapeHtml(store.opening),
-                    escapeHtml(store.closing)
+                    decodeHtmlEntities(store.storeName),
+                    decodeHtmlEntities(store.address),
+                    decodeHtmlEntities(store.postalCode),
+                    decodeHtmlEntities(store.location),
+                    decodeHtmlEntities(store.cuisine),
+                    decodeHtmlEntities(store.priceRange),
+                    store.totalCapacity?.toString() || '',
+                    store.opening,
+                    store.closing
                 ];
 
                 cells.forEach(cellContent => {
@@ -166,7 +150,7 @@ function fetchRestaurants() {
                     editBtn.disabled = true;
                     editBtn.title = 'Can only edit approved restaurants';
                 }
-                
+
                 actionTd.appendChild(editBtn);
                 row.appendChild(actionTd);
                 tableBody.appendChild(row);
@@ -182,12 +166,12 @@ function editRestaurant(store) {
     console.log('Opening modal for:', store);
 
     document.getElementById('restaurantId').value = store.id || store.store_id;
-    document.getElementById('storeName').value = escapeHtml(store.storeName);
-    document.getElementById('address').value = escapeHtml(store.address);
-    document.getElementById('postalCode').value = escapeHtml(store.postalCode);
-    document.getElementById('location').value = escapeHtml(store.location);
-    document.getElementById('cuisine').value = escapeHtml(store.cuisine);
-    document.getElementById('priceRange').value = escapeHtml(store.priceRange);
+    document.getElementById('storeName').value = decodeHtmlEntities(store.storeName);
+    document.getElementById('address').value = decodeHtmlEntities(store.address);
+    document.getElementById('postalCode').value = decodeHtmlEntities(store.postalCode);
+    document.getElementById('location').value = decodeHtmlEntities(store.location);
+    document.getElementById('cuisine').value = decodeHtmlEntities(store.cuisine);
+    document.getElementById('priceRange').value = decodeHtmlEntities(store.priceRange);
     document.getElementById('totalCapacity').value = store.totalCapacity;
     document.getElementById('opening').value = store.opening;
     document.getElementById('closing').value = store.closing;
@@ -200,12 +184,6 @@ function editRestaurant(store) {
 
 function submitRestaurantForm() {
     const id = document.getElementById('restaurantId').value;
-
-    if (!id) {
-        alert('Restaurant ID is missing.');
-        return;
-    }
-
     const storeData = {
         storeName: document.getElementById('storeName').value.trim(),
         address: document.getElementById('address').value.trim(),
@@ -218,35 +196,86 @@ function submitRestaurantForm() {
         closing: document.getElementById('closing').value
     };
 
-    // Validate required fields
-    if (!storeData.storeName || !storeData.address || !storeData.postalCode) {
-        alert('Please fill in all required fields.');
-        return;
-    }
-
-    if (storeData.totalCapacity < 1) {
-        alert('Total capacity must be at least 1.');
-        return;
-    }
-
-    fetch(`/api/owner/restaurants/${encodeURIComponent(id)}`, {
+    csrfFetch(`/api/owner/restaurants/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(storeData)
     })
-        .then(res => {
-            if (!res.ok) throw new Error('Failed to update restaurant');
-            return res.json();
-        })
-        .then(() => {
-            closeModal();
-            fetchRestaurants();
-            alert('Restaurant updated successfully!');
-        })
+    .then(res => {
+        if (!res.ok) {
+            return res.json().then(errorData => {
+                throw new Error(JSON.stringify(errorData));
+            });
+        }
+        return res.json();
+    })
+    .then(() => {
+        closeModal();
+        fetchRestaurants();
+        showSuccessMessage('Restaurant updated successfully!');
+    })
+    .catch(err => {
+        console.error('Error updating restaurant:', err);
+
+        try {
+            const errorData = JSON.parse(err.message);
+            if (errorData.errors && errorData.errors.length > 0) {
+                // Display specific validation errors
+                const errorMessages = errorData.errors.map(error =>
+                    `${error.path}: ${error.msg}`
+                ).join('\n');
+                showErrorMessage(`Validation failed:\n${errorMessages}`);
+            } else {
+                showErrorMessage('Failed to update restaurant. Please try again.');
+            }
+        } catch {
+            showErrorMessage('Failed to update restaurant. Please try again.');
+        }
+    });
+}
+function showSuccessMessage(message) {
+    // Create a temporary success alert
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at the top of the main content
+    const mainContent = document.querySelector('main');
+    mainContent.insertBefore(alert, mainContent.firstChild);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
 }
 
+function showErrorMessage(message) {
+    // Create a temporary error alert
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at the top of the main content
+    const mainContent = document.querySelector('main');
+    mainContent.insertBefore(alert, mainContent.firstChild);
+
+    // Auto-remove after 8 seconds for errors
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 8000);
+}
 function closeModal() {
     hideModal();
     document.getElementById('restaurantId').value = '';
@@ -256,7 +285,7 @@ function closeModal() {
 }
 
 function fetchReservations() {
-    fetch('/api/owner/reservations/me')
+    csrfFetch('/api/owner/reservations/me')
         .then(res => res.json())
         .then(data => {
             const tableBody = document.querySelector('#reservationTable tbody');
@@ -316,7 +345,7 @@ function cancelReservation(reservationId) {
         return;
     }
 
-    fetch(`/api/owner/reservations/${encodeURIComponent(reservationId)}/cancel`, {
+    csrfFetch(`/api/owner/reservations/${encodeURIComponent(reservationId)}/cancel`, {
         method: 'PUT'
     })
         .then(res => {
@@ -334,7 +363,7 @@ function cancelReservation(reservationId) {
 }
 
 function fetchReviews() {
-    fetch('/api/owner/reviews/me')
+    csrfFetch('/api/owner/reviews/me')
         .then(res => res.json())
         .then(data => {
             const tableBody = document.querySelector('#reviewTable tbody');
@@ -367,7 +396,7 @@ function fetchReviews() {
 
 function showError(message) {
     console.error(message);
-    alert(message); // You might want to replace this with a more elegant error display
+    showErrorMessage(message); // Use the new function instead of alert()
 }
 
 function setupEventListeners() {

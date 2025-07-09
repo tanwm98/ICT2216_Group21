@@ -7,7 +7,6 @@ const { updateRestaurantValidator, cancelReservationValidator } = require('../mi
 const handleValidation = require('../middleware/handleHybridValidation');
 const { decodeHtmlEntities, debugDecode } = require('../middleware/htmlDecoder');
 const { encodeHTML, sanitizeForEmail } = require('../middleware/sanitization');
-const session = require('express-session');
 const { fieldLevelAccess } = require('../middleware/fieldAccessControl');
 
 // Set up your transporter (configure with real credentials)

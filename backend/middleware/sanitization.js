@@ -1,5 +1,5 @@
 const validator = require('validator');
-const { encodeHTML, escapeUTF8 } = require('entities');
+const { encodeHTML,decodeHTML, escapeUTF8 } = require('entities');
 
 function sanitizeInput(req, res, next) {
     // Sanitize request body
@@ -122,6 +122,11 @@ function sanitizeObjectAdvanced(obj) {
  */
 function sanitizeFieldByType(fieldName, value) {
     if (typeof value === 'string') {
+        // Store name fields - encode for output
+        if (fieldName.toLowerCase().includes('storename')) {
+            return validator.escape(value);
+        }
+
         // URL fields - don't escape URLs
         if (fieldName.toLowerCase().includes('url') ||
             fieldName.toLowerCase().includes('image') ||
@@ -129,34 +134,26 @@ function sanitizeFieldByType(fieldName, value) {
             return value;
         }
 
-        // Email fields - additional validation
+        // Email fields - use validator.js
         if (fieldName.toLowerCase().includes('email')) {
             return validator.normalizeEmail(value) || '';
         }
 
-        // Name fields - allow only letters, spaces, hyphens, apostrophes
+        // Name fields - encode for output
         if (fieldName.toLowerCase().includes('name') ||
             fieldName.toLowerCase().includes('firstname') ||
             fieldName.toLowerCase().includes('lastname')) {
-            // FIXED: Allow Unicode characters including Chinese, & symbol, and common punctuation
-            const namePattern = /^[\p{L}\p{N}\s'&.-]+$/u;
-            if (namePattern.test(value)) {
-                // Only escape HTML tags, not ampersands for display purposes
-                return value.replace(/[<>]/g, '');
-            }
-            return ''; // Invalid name format
+            return validator.escape(value);
         }
-        if (fieldName.toLowerCase().includes('storename')) {
-            return value.replace(/[<>]/g, '');
-        }
-        // Description/review fields - allow more characters but escape HTML
+
+        // Description/review fields - use validator.js escape
         if (fieldName.toLowerCase().includes('description') ||
             fieldName.toLowerCase().includes('review') ||
             fieldName.toLowerCase().includes('request')) {
             return validator.escape(value);
         }
 
-        // Default string sanitization
+        // Default string sanitization using validator.js
         return validator.escape(value);
     }
 
@@ -166,6 +163,7 @@ function sanitizeFieldByType(fieldName, value) {
 
     return value;
 }
+
 function sanitizeForEmail(text) {
     if (!text || typeof text !== 'string') return '';
 

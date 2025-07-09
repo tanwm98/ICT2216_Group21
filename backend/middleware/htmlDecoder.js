@@ -1,27 +1,15 @@
+const entities = require('entities');
+
 function decodeHtmlEntities(str) {
-  if (typeof str !== 'string') return str;
+  return typeof str === 'string'
+    ? entities.decodeHTML(str)
+    : str;
+}
 
-  const htmlMap = {
-    '&amp;': '&',
-    '&#x2F;': '/',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#039;': "'",
-    '&nbsp;': ' '
-  };
-
-  const decodeOnce = s =>
-    s.replace(/&amp;|&#x2F;|&lt;|&gt;|&quot;|&#039;|&nbsp;/g, m => htmlMap[m]);
-
-  let last = str;
-  for (let i = 0; i < 10; i++) {
-    const decoded = decodeOnce(last);
-    if (decoded === last) break;
-    last = decoded;
-  }
-
-  return last;
+function encodeHtmlEntities(str) {
+  return typeof str === 'string'
+    ? entities.encodeHTML(str)
+    : str;
 }
 
 function debugDecode(str) {

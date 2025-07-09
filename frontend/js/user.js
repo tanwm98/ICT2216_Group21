@@ -1,3 +1,23 @@
+// ADD: HTML entity decoding functions at the top
+function escapeHtml(unsafe) {
+    if (!unsafe || typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// ADD: Simple and comprehensive HTML entity decoding
+function decodeHtmlEntities(str) {
+    if (typeof str !== 'string') return str;
+
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   fetchUser();
   fetchReservations();
@@ -8,23 +28,26 @@ window.addEventListener('DOMContentLoaded', () => {
   setupLastNameEditHandler();
 });
 
-// ======== Fetch user details ======== 
+// ======== Fetch user details ========
+// FIXED: Decode user data before displaying
 function fetchUser() {
   fetch('/api/user/getUser')
     .then(res => res.json())
     .then(data => {
-      document.getElementById('profileName').textContent = data.name;
-      document.getElementById('firstName').textContent = data.firstname;
-      document.getElementById('lastName').textContent = data.lastname;
-      document.getElementById('profileEmail').textContent = data.email;
-      document.getElementById('userName').textContent = data.name;
+      // Decode all user data before displaying
+      document.getElementById('profileName').textContent = decodeHtmlEntities(data.name || '');
+      document.getElementById('firstName').textContent = decodeHtmlEntities(data.firstname || '');
+      document.getElementById('lastName').textContent = decodeHtmlEntities(data.lastname || '');
+      document.getElementById('profileEmail').textContent = decodeHtmlEntities(data.email || '');
+      document.getElementById('userName').textContent = decodeHtmlEntities(data.name || '');
     })
     .catch(err => {
       console.error('Error loading user profile:', err);
     });
 }
 
-// ======== Fetch user reservations ======== 
+// ======== Fetch user reservations ========
+// FIXED: Decode reservation data before displaying
 function fetchReservations() {
   fetch('/api/user/reservations')
       .then(res => res.json())
@@ -39,9 +62,9 @@ function fetchReservations() {
 
           const row = document.createElement('tr');
 
-          // Store cell
+          // FIXED: Store cell with decoded store name
           const storeCell = document.createElement('td');
-          storeCell.textContent = reservation.storeName;
+          storeCell.textContent = decodeHtmlEntities(reservation.storeName || '');
           row.appendChild(storeCell);
 
           // Date cell
@@ -75,15 +98,17 @@ function fetchReservations() {
           }
           row.appendChild(statusCell);
 
-          // Special request cell with improved wrapping
+          // FIXED: Special request cell with decoded content
           const specialRequestCell = document.createElement('td');
           const specialRequestDiv = document.createElement('div');
           specialRequestDiv.className = 'special-request-cell';
-          specialRequestDiv.textContent = reservation.specialRequest || '-';
+
+          const decodedSpecialRequest = decodeHtmlEntities(reservation.specialRequest || '');
+          specialRequestDiv.textContent = decodedSpecialRequest || '-';
 
           // Add tooltip for long content
-          if (reservation.specialRequest && reservation.specialRequest.length > 50) {
-            specialRequestDiv.title = reservation.specialRequest;
+          if (decodedSpecialRequest && decodedSpecialRequest.length > 50) {
+            specialRequestDiv.title = decodedSpecialRequest;
           }
 
           specialRequestCell.appendChild(specialRequestDiv);
@@ -132,6 +157,7 @@ function cancelUserReservation(reservationId) {
 }
 
 ///  ======== Fetch reviews by the user ========
+// FIXED: Decode review data before displaying
 function fetchReviews() {
   fetch('/api/user/reviews')
     .then(res => res.json())
@@ -142,20 +168,24 @@ function fetchReviews() {
       data.forEach(review => {
         const row = document.createElement('tr');
 
+        // FIXED: Store name cell with decoded content
         const storeNameCell = document.createElement('td');
-        storeNameCell.textContent = review.storeName;
+        storeNameCell.textContent = decodeHtmlEntities(review.storeName || '');
 
         const ratingCell = document.createElement('td');
         ratingCell.textContent = review.rating;
 
+        // FIXED: Description cell with decoded content
         const descriptionCell = document.createElement('td');
         const descriptionDiv = document.createElement('div');
         descriptionDiv.className = 'special-request-cell';
-        descriptionDiv.textContent = review.description;
+
+        const decodedDescription = decodeHtmlEntities(review.description || '');
+        descriptionDiv.textContent = decodedDescription;
 
         // Add tooltip for long reviews
-        if (review.description && review.description.length > 100) {
-          descriptionDiv.title = review.description;
+        if (decodedDescription && decodedDescription.length > 100) {
+          descriptionDiv.title = decodedDescription;
         }
 
         descriptionCell.appendChild(descriptionDiv);
@@ -225,6 +255,7 @@ function setupResetPasswordHandler() {
 }
 
 // ======== Edit name function ========
+// FIXED: Handle decoded names in edit handlers
 function setupNameEditHandlers() {
   const editBtn = document.getElementById('editNameBtn');
   const nameDisplay = document.getElementById('profileName');
@@ -236,6 +267,7 @@ function setupNameEditHandlers() {
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
       inputGroup.classList.remove('hidden');
+      // Get current decoded text from display
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
@@ -261,9 +293,10 @@ function setupNameEditHandlers() {
 
         if (response.ok) {
           alert('Name updated successfully.');
+          // Update display with the new name (no need to decode since it's user input)
           nameDisplay.textContent = newName;
           document.getElementById('userName').textContent = newName;
-          inputGroup.classList.add('d-none');
+          inputGroup.classList.add('hidden');
         } else {
           alert(result.message || 'Failed to update name.');
         }
@@ -288,7 +321,7 @@ function showNameErrorModal(message) {
   modal.show();
 }
 
-// First Name Edit Handler
+// FIXED: First Name Edit Handler with proper decoding
 function setupFirstNameEditHandler() {
   const editBtn = document.getElementById('editFirstNameBtn');
   const nameDisplay = document.getElementById('firstName');
@@ -300,6 +333,7 @@ function setupFirstNameEditHandler() {
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
       inputGroup.classList.remove('hidden');
+      // Get current decoded text from display
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
@@ -329,6 +363,7 @@ function setupFirstNameEditHandler() {
 
         if (response.ok) {
           alert('First name updated successfully.');
+          // Update display with the new name (no need to decode since it's user input)
           nameDisplay.textContent = newFirstName;
           inputGroup.classList.add('hidden');
         } else {
@@ -342,7 +377,7 @@ function setupFirstNameEditHandler() {
   }
 }
 
-// Last Name Edit Handler
+// FIXED: Last Name Edit Handler with proper decoding
 function setupLastNameEditHandler() {
   const editBtn = document.getElementById('editLastNameBtn');
   const nameDisplay = document.getElementById('lastName');
@@ -354,6 +389,7 @@ function setupLastNameEditHandler() {
   if (editBtn && inputGroup && inputField && saveBtn && cancelBtn && nameDisplay) {
     editBtn.addEventListener('click', () => {
       inputGroup.classList.remove('hidden');
+      // Get current decoded text from display
       inputField.value = nameDisplay.textContent;
       inputField.focus();
     });
@@ -383,8 +419,9 @@ function setupLastNameEditHandler() {
 
         if (response.ok) {
           alert('Last name updated successfully.');
+          // Update display with the new name (no need to decode since it's user input)
           nameDisplay.textContent = newLastName;
-          inputGroup.classList.add('d-none');
+          inputGroup.classList.add('hidden');
         } else {
           showNameErrorModal(result.message || 'Failed to update last name.');
         }
@@ -397,6 +434,7 @@ function setupLastNameEditHandler() {
 }
 
 // ======== edit reservation ==========
+// FIXED: Decode store data before creating URL
 async function editReservation(storeid, reservationid) {
   try {
     const response = await fetch(`/maxcapacity?storeid=${storeid}`);
@@ -407,7 +445,11 @@ async function editReservation(storeid, reservationid) {
     const store = await response.json();
     console.log("store: ", store[0]);
 
-    window.location.href = `/selectedRes?name=${encodeURIComponent(store[0].storeName)}&location=${encodeURIComponent(store[0].location)}&reservationid=${reservationid}`;
+    // FIXED: Decode store name and location before URL encoding
+    const decodedStoreName = decodeHtmlEntities(store[0].storeName || '');
+    const decodedLocation = decodeHtmlEntities(store[0].location || '');
+
+    window.location.href = `/selectedRes?name=${encodeURIComponent(decodedStoreName)}&location=${encodeURIComponent(decodedLocation)}&reservationid=${reservationid}`;
 
   } catch (error) {
     console.error('Error editing reservation:', error);

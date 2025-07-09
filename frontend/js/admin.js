@@ -8,6 +8,14 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
+function decodeHtmlEntities(str) {
+    if (typeof str !== 'string') return str;
+
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+}
+
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.remove('hidden');
@@ -189,13 +197,13 @@ async function loadPendingRestaurants(page = 1) {
                 // Restaurant name
                 const nameCell = document.createElement('td');
                 const nameStrong = document.createElement('strong');
-                nameStrong.textContent = restaurant.storeName;
+                nameStrong.textContent = decodeHtmlEntities(restaurant.storeName || '');
                 nameCell.appendChild(nameStrong);
                 row.appendChild(nameCell);
 
                 // Owner
                 const ownerCell = document.createElement('td');
-                ownerCell.textContent = `${restaurant.firstname} ${restaurant.lastname}`;
+                ownerCell.textContent = `${decodeHtmlEntities(restaurant.firstname || '')} ${decodeHtmlEntities(restaurant.lastname || '')}`;
                 row.appendChild(ownerCell);
 
                 // Location
@@ -249,7 +257,7 @@ async function loadDashboardStats() {
         document.getElementById('totalRestaurants').textContent = data.totalRestaurants;
         document.getElementById('totalReservations').textContent = data.totalReservations;
         document.getElementById('topReviewCount').textContent = data.topAverageRating;
-        document.getElementById('topRestaurantName').textContent = data.topRatedRestaurant;
+        document.getElementById('topRestaurantName').textContent = decodeHtmlEntities(data.topRatedRestaurant || '');
     } catch (error) {
         console.error('Error loading dashboard stats:', error);
         showError('Failed to load dashboard statistics');
@@ -276,19 +284,19 @@ async function loadRestaurants(page = 1) {
             // Create cells with text truncation
             const nameCell = document.createElement('td');
             nameCell.className = 'text-truncate-cell';
-            nameCell.textContent = restaurant.storeName;
+            nameCell.textContent = decodeHtmlEntities(restaurant.storeName || '');
             nameCell.title = restaurant.storeName;
             row.appendChild(nameCell);
 
             const locationCell = document.createElement('td');
             locationCell.className = 'text-truncate-cell';
-            locationCell.textContent = restaurant.location;
+            locationCell.textContent = decodeHtmlEntities(restaurant.location || '');
             locationCell.title = restaurant.location;
             row.appendChild(locationCell);
 
             const ownerCell = document.createElement('td');
             ownerCell.className = 'text-truncate-cell';
-            ownerCell.textContent = restaurant.ownerName;
+            ownerCell.textContent = decodeHtmlEntities(restaurant.ownerName || '');
             ownerCell.title = restaurant.ownerName;
             row.appendChild(ownerCell);
 
@@ -343,19 +351,19 @@ async function loadUsers(page = 1) {
             // Create cells with proper classes and truncation
             const nameCell = document.createElement('td');
             nameCell.className = 'text-truncate-cell';
-            nameCell.textContent = user.name; // textContent already escapes HTML
+            nameCell.textContent = decodeHtmlEntities(user.name || '');
             nameCell.title = user.name;
             row.appendChild(nameCell);
 
             const firstNameCell = document.createElement('td');
             firstNameCell.className = 'text-truncate-cell';
-            firstNameCell.textContent = user.firstname;
+            firstNameCell.textContent = decodeHtmlEntities(user.firstname || '');
             firstNameCell.title = user.firstname;
             row.appendChild(firstNameCell);
 
             const lastNameCell = document.createElement('td');
             lastNameCell.className = 'text-truncate-cell';
-            lastNameCell.textContent = user.lastname;
+            lastNameCell.textContent = decodeHtmlEntities(user.lastname || '');
             lastNameCell.title = user.lastname;
             row.appendChild(lastNameCell);
 
@@ -431,14 +439,14 @@ async function loadReservations(page = 1) {
             // User name
             const userCell = document.createElement('td');
             userCell.className = 'text-truncate-cell';
-            userCell.textContent = reservation.userName;
+            userCell.textContent = decodeHtmlEntities(reservation.userName || '');
             userCell.title = reservation.userName;
             row.appendChild(userCell);
 
             // Restaurant name
             const restaurantCell = document.createElement('td');
             restaurantCell.className = 'text-truncate-cell';
-            restaurantCell.textContent = reservation.restaurantName;
+            restaurantCell.textContent = decodeHtmlEntities(reservation.restaurantName || '');
             restaurantCell.title = reservation.restaurantName;
             row.appendChild(restaurantCell);
 
@@ -467,7 +475,7 @@ async function loadReservations(page = 1) {
             if (reservation.specialRequest && reservation.specialRequest.trim()) {
                 const requestSpan = document.createElement('span');
                 requestSpan.className = 'special-request-text';
-                requestSpan.textContent = reservation.specialRequest;
+                requestSpan.textContent = decodeHtmlEntities(reservation.specialRequest || '');
                 requestSpan.title = reservation.specialRequest;
                 requestCell.appendChild(requestSpan);
             } else {
@@ -513,7 +521,7 @@ async function loadOwners() {
         owners.forEach(owner => {
             const option = document.createElement('option');
             option.value = owner.user_id;
-            option.textContent = escapeHtml(owner.name);
+            option.textContent = decodeHtmlEntities(owner.name || '');
             select.appendChild(option);
         });
     } catch (error) {
@@ -524,8 +532,8 @@ async function loadOwners() {
 
 function reviewRestaurant(restaurant) {
     // Populate modal with restaurant details
-    document.getElementById('reviewStoreName').textContent = restaurant.storeName;
-    document.getElementById('reviewAddress').textContent = restaurant.address;
+    document.getElementById('reviewStoreName').textContent = decodeHtmlEntities(restaurant.storeName || '');
+    document.getElementById('reviewAddress').textContent = decodeHtmlEntities(restaurant.address || '');
     document.getElementById('reviewPostalCode').textContent = restaurant.postalCode;
     document.getElementById('reviewLocation').textContent = restaurant.location;
     document.getElementById('reviewCuisine').textContent = restaurant.cuisine;
@@ -755,7 +763,7 @@ async function editRestaurant(id) {
 
         // Populate form
         document.getElementById('restaurantId').value = restaurant.store_id;
-        document.getElementById('storeName').value = restaurant.storeName;
+        document.getElementById('storeName').value = decodeHtmlEntities(restaurant.storeName || '');
         document.getElementById('ownerSelect').value = restaurant.owner_id;
         document.getElementById('address').value = restaurant.address;
         document.getElementById('postalCode').value = restaurant.postalCode;
