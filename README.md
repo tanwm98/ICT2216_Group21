@@ -60,7 +60,7 @@ Kirby Chope is a comprehensive restaurant booking platform that facilitates conn
 ### User Management
 - Multi-role authentication (Customer, Restaurant Owner, Admin)
 - Password reset functionality
-- Session management
+- Session management via JWT
 - Profile management
 
 ### Restaurant Management
@@ -79,7 +79,6 @@ Kirby Chope is a comprehensive restaurant booking platform that facilitates conn
 ### Communication
 - Email confirmations and reminders
 - SMS notifications (planned)
-- In-app messaging system
 
 ### Analytics & Reporting
 - Booking statistics
@@ -109,9 +108,17 @@ Create a `.env` file in the root directory:
 DB_URL=postgresql://username:password@hostname/database
 
 # Session Configuration
-SESSION_SECRET=your_strong_session_secret_here
 JWT_SECRET=your_super_secret_key
 JWT_EXPIRES_IN=1h
+JWT_ACCESS_EXPIRES_IN=5m
+JWT_REFRESH_EXPIRES_IN=45m
+
+# Redis Configuration
+REDIS_USERNAME=<USERNAME>
+REDIS_HOST=<HOST_NAME>
+REDIS_PORT=<PORT>
+REDIS_PASSWORD=<PASSWORD>
+REDIS_DB=<NUMBER>
 
 # Email Configuration
 EMAIL_USER=your_email@gmail.com
@@ -140,7 +147,7 @@ npm start
 # Build and start all services
 docker-compose up --build
 
-# The application will be available at http://localhost
+# The application will be available at https://localhost
 ```
 
 ### 4. Production Deployment
@@ -235,13 +242,6 @@ The application uses PostgreSQL with the following main tables:
 - `reviews` - Customer reviews and ratings
 - `tables` - Restaurant table configurations
 
-## Contributing
-
-1. Create a feature branch from `develop`
-2. Make your changes with appropriate tests
-3. Submit a pull request for review
-4. Ensure all CI/CD checks pass
-
 ## Monitoring & Logging
 
 The application includes comprehensive logging via Splunk:
@@ -250,7 +250,7 @@ The application includes comprehensive logging via Splunk:
 - Business metrics (bookings, revenue)
 - Security events and monitoring
 
-Access Splunk dashboard at `http://localhost:9000` (credentials in `.env`)
+Access Splunk dashboard at `http://localhost:8000` (credentials in `.env` and requires your own EC2 instance with SSH key for tunneling)
 
 ## Health Checks
 
