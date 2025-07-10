@@ -347,14 +347,14 @@ exports.addUserValidator = [
   body('fname')
     .trim()
     .escape()
-    .matches(/^[A-Za-z]+$/)
-    .withMessage('First name must only contain letters'),
+    .matches(/^[A-Za-z ]+$/)  // Added space to allow spaces
+    .withMessage('First name must only contain letters and spaces'),
 
   body('lname')
     .trim()
     .escape()
-    .matches(/^[A-Za-z]+$/)
-    .withMessage('Last name must only contain letters'),
+    .matches(/^[A-Za-z ]+$/)  // Added space to allow spaces
+    .withMessage('Last name must only contain letters and spaces'),
 ];
 
 exports.cancelReservationValidator = [

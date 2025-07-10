@@ -460,10 +460,14 @@ router.post(
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
+      // Generate a secure temporary password that will be replaced
+      const tempPassword = crypto.randomBytes(32).toString('hex');
+      const hashedTempPassword = await argon2.hash(tempPassword, 12);
+
       await db('users').insert({
         name,
         email,
-        password: null, // No password set initially
+        password: hashedTempPassword, // Use hashed temporary password instead of null
         role,
         firstname: fname,
         lastname: lname,
